@@ -1,0 +1,21 @@
+[SQL] Select de una tabla de registros que no estan en otra tabla
+
+Nunca hay una manera única de hacer las cosas y en el caso de las bases de datos, lo mejor que podemos hacer es probar y analizar nuestras selects para optimizarlas.
+
+De todas manera vamos con el tema del post:
+
+Seleccionar registros de una tabla que no están en otra tabla:
+
+Supongamos t1 = Tabla Origen, t2 = Tabla donde están los registros que no queremos. Trabajaremos con el campo id pero lo pueden substituir por la clave o claves de sus tablas
+
+1. Select * from t1 where not exists (select 1 from t2 where t2.id = t1.id)
+   SELECT * FROM sw_estudiante t1 WHERE NOT EXISTS (SELECT 1 FROM sw_rubrica_estudiante t2 WHERE t2.id_estudiante = t1.id_estudiante)
+Si el campo/s id esta indexado esto va a ser muy rápido y sin problemas. Es posible que inicialmente hayan pensado en un NOT IN al estilo:
+
+2. Select * from t1 where t1.id not in (select t2.id from t2)
+Esta segunda opción es altamente ineficiente pues a cada registro se ejecuta la segunda select y la búsqueda en su resultado. Si t2 es grande lo van a notar mucho.
+
+Podríamos hacer un left join de manera que seleccionamos los que no ha podido hacer el join:
+
+3. Select * from t1 left join t2 on t1.id=t2.id where t2.id is null;
+   

@@ -1,0 +1,1 @@
+SELECT e.id_estudiante, es_nombre_completo, es_email FROM `sw_estudiante` e, `sw_estudiante_periodo_lectivo` ep WHERE e.id_estudiante = ep.id_estudiante AND es_email <> '' and id_periodo_lectivo = 8

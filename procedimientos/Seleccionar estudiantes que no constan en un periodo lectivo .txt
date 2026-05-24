@@ -1,0 +1,3 @@
+Select * from sw_estudiante e where not exists (select 1 from sw_estudiante_periodo_lectivo ep where ep.id_estudiante = e.id_estudiante)
+
+Select * from sw_estudiante_periodo_lectivo ep where not exists (select 1 from sw_estudiante e where e.id_estudiante = ep.id_estudiante)

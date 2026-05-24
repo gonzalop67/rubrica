@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <style>
+      table{
+        border-collapse: collapse;
+        border: 1px solid #AAA;
+       }
+       
+       th, td{
+         border: 1px solid #AAA;
+         padding: 1em;
+       }
+       
+       th{
+         padding: 0.2em 1em;
+       }
+       
+       td{
+         text-align: center;
+         vertical-align: middle;
+       }
+    </style>
+  </head>
+  
+  <body>
+    <table>
+      <!-- Column Headings -->
+      <thead>
+        <tr>
+          <th scope="col" rowspan="3">Feature</th>
+          <th scope="col">Silver</th>
+          <th scope="col">Gold</th>
+          <th scope="col">Platinum</th>
+        </tr>
+        <tr>
+          <th>$50</th>
+          <th>$75</th>
+          <th>$150</th>
+        </tr>
+        <tr>
+          <th>10 passes</th>
+          <th>20 passes</th>
+          <th>unlimited</th>
+        </tr>
+      </thead>
+      
+      <!-- Table Rows -->
+      <tbody>
+        <!-- Feature #1 -->
+        <tr>
+          <th scope="row">Ski-Lodge access</th>
+          <td>X</td>
+          <td>X</td>
+          <td>X</td>
+        </tr>
+        
+        <!-- Feature #2 -->
+        <tr>
+          <th scope="row">Members-only Trail access</th>
+          <td></td>
+          <td>X</td>
+          <td>X</td>
+        </tr>
+        
+        <!-- Feature #3 -->
+        <tr>
+          <th scope="row">Free Ski Lessons</th>
+          <td></td>
+          <td></td>
+          <td>X</td>
+        </tr>
+        
+        <!-- Feature #4 -->
+        <tr>
+          <th scope="row">Pro Shop discounts</th>
+          <td></td>
+          <td></td>
+          <td>X</td>
+        </tr>
+
+        <!-- More Features... -->
+        
+      </tbody>
+    </table>
+  </body>
+</html>

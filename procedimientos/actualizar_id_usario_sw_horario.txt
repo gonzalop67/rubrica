@@ -1,0 +1,41 @@
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE IdUsuario INT;
+    DECLARE IdHorario INT;
+    DECLARE IdAsignatura INT;
+    DECLARE IdParalelo INT;
+
+    DECLARE cHorario CURSOR FOR
+	SELECT id_paralelo,
+               id_asignatura
+	  FROM sw_horario;
+
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+
+	OPEN cHorario;
+
+	Lazo1: LOOP
+		FETCH cHorario INTO IdParalelo, IdAsignatura;
+		IF done THEN
+		   CLOSE cHorario;
+		   LEAVE Lazo1;
+		END IF;
+
+		SET IdUsuario = (
+		SELECT DISTINCT d.id_usuario
+		  FROM sw_distributivo d,
+                       sw_horario h
+		 WHERE d.id_paralelo = h.id_paralelo
+                   AND d.id_asignatura = h.id_asignatura
+		   AND d.id_paralelo = IdParalelo
+                   AND d.id_asignatura = IdAsignatura
+                   AND h.id_paralelo = IdParalelo
+                   AND h.id_asignatura = IdAsignatura);
+           
+        UPDATE sw_horario
+           SET id_usuario = IdUsuario
+         WHERE id_paralelo = IdParalelo
+           AND id_asignatura = IdAsignatura;
+
+	END LOOP Lazo1;
+END

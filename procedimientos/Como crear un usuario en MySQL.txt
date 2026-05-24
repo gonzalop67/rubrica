@@ -1,0 +1,11 @@
+Para crear una nueva cuenta de usuario en MySQL, sigue estos pasos:
+
+Accede a la línea de comando e ingresa al servidor MySQL: mysql
+El script devolverá este resultado, que confirma que estás accediendo a un servidor MySQL. mysql&gt;
+Luego, ejecuta el siguiente comando: CREATE USER 'nuevo_usuario'@'localhost' IDENTIFIED BY 'contraseña';
+nuevo_usuario es el nombre que le hemos dado a nuestra nueva cuenta de usuario y la sección IDENTIFIED BY «contraseña» establece un código de acceso para este usuario. ...
+Para otorgar todos los privilegios de la base de datos para un usuario recién creado, ejecuta el siguiente comando: GRANT ALL PRIVILEGES ON * . * TO 'nuevo_usuario'@'localhost';
+Para que los cambios tengan efecto inmediatamente, elimina estos privilegios escribiendo el comando: FLUSH PRIVILEGES;
+
+CREATE USER 'colegion_1'@'localhost' IDENTIFIED BY 'AQSWDE123';
+GRANT ALL PRIVILEGES ON *.* TO 'colegion_1'@'localhost';

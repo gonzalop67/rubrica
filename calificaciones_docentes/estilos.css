@@ -1,0 +1,68 @@
+.cabeceraTabla {
+    background-color: #5f5f5f;
+    color: #fff;
+    font-weight: bold;
+    font-size: 1.1rem;
+    text-align: center;
+    text-transform: uppercase;
+}
+
+td {
+    border: 1px solid #ccc;
+    height: 35px;
+    outline: none;
+    vertical-align: middle !important;
+}
+
+tbody td:first-child {
+    background-color: #5f5f5f;
+    color: #fff;
+    text-align: center;
+    vertical-align: middle !important;
+}
+
+td:focus {
+    border: 2px solid #217346;
+    /* Verde Excel */
+    background-color: #e9f5ef;
+}
+
+/* Hacer que el TD sea el contenedor del tamaño */
+#spreadsheet td {
+    cursor: cell;
+    padding: 0 !important;
+    /* El input llenará todo el espacio */
+}
+
+/* Estilo del input al estar activo */
+.excel-input {
+    width: 100%;
+    height: 30px;
+    border: none;
+    padding: 0 5px;
+    box-sizing: border-box;
+    /* Evita que el padding agrande el input */
+    outline: none;
+    text-align: right;
+}
+
+.excel-input:focus {
+    background-color: #e9f5ef;
+    border: 2px solid #217346 !important;
+    /* Verde Bootstrap */
+    /* box-shadow: inset 0 0 5px rgba(0,0,0,0.1); */
+}
+
+.header2 {
+    background-color: #0066FF;
+    color: #fff;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 8pt;
+    font-weight: bold;
+    padding-top: 3px;
+    text-align: center;
+}
+
+.p-0 {
+    padding: 0px;
+}

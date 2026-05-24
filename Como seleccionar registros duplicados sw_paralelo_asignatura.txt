@@ -1,0 +1,56 @@
+SELECT * FROM `sw_paralelo_asignatura` WHERE id_asignatura = 152 AND id_paralelo = 77 AND id_periodo_lectivo = 5
+
+SELECT id_paralelo, id_asignatura, count(*)
+FROM sw_paralelo_asignatura
+WHERE id_periodo_lectivo = 5
+GROUP BY id_paralelo, id_asignatura
+HAVING count(*) > 1
+
+id_paralelo id_asignatura count(*)
+77          32            2
+77          152           2
+78          32            2
+79          30            2
+
+-- Query para buscar las calificaciones duplicadas
+
+SELECT id_asignatura, id_rubrica_personalizada, count(*)
+FROM sw_rubrica_estudiante
+WHERE id_estudiante = 1699
+AND id_paralelo = 94
+GROUP BY id_asignatura, id_rubrica_personalizada
+HAVING COUNT(*) > 1
+
+SELECT id_estudiante, id_paralelo, count(*)
+FROM sw_estudiante_periodo_lectivo
+WHERE id_periodo_lectivo = 8
+GROUP BY id_estudiante, id_paralelo
+HAVING count(*) > 1
+
+-- Calificaciones de comportamiento duplicadas
+SELECT id_estudiante, id_paralelo, id_asignatura, id_aporte_evaluacion, count(*)
+FROM sw_calificacion_comportamiento
+GROUP BY id_estudiante, id_paralelo, id_asignatura, id_aporte_evaluacion
+HAVING COUNT(*) > 1
+
+SELECT *
+FROM sw_calificacion_comportamiento
+WHERE id_estudiante = 3743
+AND id_paralelo = 260
+AND id_asignatura = 12
+AND id_aporte_evaluacion = 314
+
+DELETE 
+FROM sw_calificacion_comportamiento
+WHERE id_estudiante = 3743
+AND id_paralelo = 260
+AND id_asignatura = 2
+AND id_aporte_evaluacion = 314
+
+INSERT INTO sw_calificacion_comportamiento
+SET id_estudiante = 3743,
+id_paralelo = 260,
+id_asignatura = 2,
+id_aporte_evaluacion = 314,
+co_calificacion = 5,
+co_cualitativa = 'S'

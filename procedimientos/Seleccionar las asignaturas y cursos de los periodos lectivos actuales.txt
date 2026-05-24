@@ -1,0 +1,22 @@
+SELECT c.id_curso, 
+d.id_paralelo, 
+d.id_asignatura, 
+as_nombre, 
+es_figura, 
+cu_nombre, 
+pa_nombre 
+FROM sw_asignatura a, 
+sw_distributivo d,
+sw_periodo_lectivo pl, 
+sw_paralelo pa, 
+sw_curso c, 
+sw_especialidad e 
+WHERE a.id_asignatura = d.id_asignatura 
+AND d.id_paralelo = pa.id_paralelo 
+AND pa.id_curso = c.id_curso 
+AND c.id_especialidad = e.id_especialidad 
+AND d.id_usuario = 587
+AND pl.id_periodo_lectivo = d.id_periodo_lectivo
+AND pl.pe_estado = "A"
+AND as_curricular = 1 
+ORDER BY c.id_curso, pa.id_paralelo, as_nombre ASC

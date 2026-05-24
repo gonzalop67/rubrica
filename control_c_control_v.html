@@ -1,0 +1,172 @@
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<h3>Ctrl+c Ctrl+v disabled</h3>
+<textarea class="no-copy-paste"></textarea>
+<br><br>
+<h3>Ctrl+c Ctrl+v allowed</h3>
+<textarea id="textA"></textarea>
+
+<button type="button" id="delete_all" class="btn btn-danger btn-xs" onclick="guardarTabla()">Guardar</button>
+
+<form id="formulario_rubrica" action="">
+    <table id="tblNotas">
+        <thead>
+            <th>Nota1</th>
+            <th>Nota2</th>
+            <th>Promedio</th>
+        </thead>
+        <tbody>
+            <tr>
+            <td><input id="puntaje_196_1" class="nota1" autocomplete="off" onkeypress="return solonumeros(event)"></td>
+            <td><input id="puntaje_197_1" class="nota2" autocomplete="off" onkeypress="return solonumeros(event)"></td>
+            <td><input id="promedio_1" class="promedio" disabled></td>
+            </tr>
+            <tr>
+                <td><input id="puntaje_196_2" class="nota1" onkeypress="return solonumeros(event)"></td>
+                <td><input id="puntaje_197_2" class="nota2" onkeypress="return solonumeros(event)"></td>
+                <td><input id="promedio_2" class="promedio" disabled></td>
+            </tr>
+            <tr>
+                <td><input id="puntaje_196_3" class="nota1" onkeypress="return solonumeros(event)"></td>
+                <td><input id="puntaje_197_3" class="nota2" onkeypress="return solonumeros(event)"></td>
+                <td><input id="promedio_3" class="promedio" disabled></td>
+            </tr>
+        </tbody>
+    </table>
+</form>
+
+<div id="excel_table"></div>
+
+<script>
+$(document).ready(function() {
+    var ctrlDown = false,
+        ctrlKey = 17,
+        cmdKey = 91,
+        vKey = 86,
+        cKey = 67,
+	escape = 27;
+
+    $(document).keydown(function(e) {
+        if (e.keyCode == ctrlKey || e.keyCode == cmdKey) ctrlDown = true;
+    }).keyup(function(e) {
+        if (e.keyCode == ctrlKey || e.keyCode == cmdKey) ctrlDown = false;
+	if (e.keyCode == escape) {
+ 	    alert('escape detected!');
+	    //var clipboard = navigator.clipboard.readText();
+            //alert(clipboard);
+	}
+    });
+
+    $(".no-copy-paste").keydown(function(e) {
+        if (ctrlDown && (e.keyCode == vKey || e.keyCode == cKey)) return false;
+    });
+    
+    // Document Ctrl + C/V 
+    $(document).keydown(function(e) {
+        if (ctrlDown && (e.keyCode == cKey)) console.log("Document catch Ctrl+C");
+        if (ctrlDown && (e.keyCode == vKey)) { 
+	    console.log("Document catch Ctrl+V");
+	}
+    });
+
+    $("#textA").bind('copy', function() {
+        alert('copy behaviour detected!')
+    }); 
+
+    $("#textA").bind('paste', function() {
+        alert('paste behaviour detected!')
+    }); 
+
+    $("#textA").bind('cut', function() {
+        alert.text('cut behaviour detected!')
+    });
+
+    if(navigator.clipboard){
+        console.log('Perfecto, podemos usarlo');
+    }else{
+        alert('Perfecto, podemos usarlo');
+    }
+
+});
+
+function truncateFloat(number, digitos) {
+    var multiplicador = Math.pow (10, digitos);
+    var resultado = (parseInt(number * multiplicador)) / multiplicador;
+    return resultado;
+}
+
+function pegarDatos(data) {
+
+    var rows = data.split("\n");
+    var fila = 0, x, z, suma, promedio, nota;
+    //alert(rows.length);
+    for(var y in rows) {
+        var cells = rows[y].split("\t");
+        if(fila < rows.length){
+            suma = 0;
+            for(var x in cells) {
+                z = parseInt(x) + 1;
+                $('.nota'+parseInt(z)+':eq('+y+')').val(cells[x]);
+                nota = cells[x].replace("",0);
+                //suma += parseFloat(cells[x]);
+                suma += parseFloat(nota);
+            }
+            x++;
+            promedio = truncateFloat(parseFloat(suma / x),2);
+            if(promedio!=0) 
+                $('.promedio:eq('+fila+')').val(promedio);
+            else
+                $('.promedio:eq('+fila+')').val("");
+            fila++;
+        }
+    }
+}
+
+function guardarTabla(){
+    var frmFormulario = document.forms["formulario_rubrica"];
+    alert(frmFormulario.length);
+    /*var i = 0;
+    $('#tblNotas tr').each(function(){
+        var n1 = $('.nota1:eq('+i+')').val();
+        alert(n1);
+        i++;
+    });*/
+}
+
+function handlePaste (e) {
+    var clipboardData, pastedData;
+
+    // Stop data actually being pasted into div
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Get pasted data via clipboard API
+    clipboardData = e.clipboardData || window.clipboardData;
+    pastedData = clipboardData.getData('Text');
+
+    // Do whatever with pasteddata
+    pegarDatos(pastedData);
+}
+
+function solonumeros(e) {
+    key = e.keyCode || e.which;
+    teclado = String.fromCharCode(key);
+    numeros = "0123456789.";
+    especiales = "8-37-38-46";
+    teclado_especial = false;
+    for(var i in especiales){
+        if(key==especiales[i]){
+            teclado_especial=true;
+        }
+    }
+    if(numeros.indexOf(teclado)==-1 && !teclado_especial){
+        return false;
+    }
+    /*var RE = /^\d*(\.\d{1})?\d{0,1}$/;
+    if (!RE.test(valor)) {
+        return false;
+    }*/
+}
+
+document.getElementById('puntaje_196_1').addEventListener('paste', handlePaste);
+
+</script>

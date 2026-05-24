@@ -1,0 +1,31 @@
+BEGIN
+    DECLARE done INT DEFAULT 0;
+    DECLARE IdEstudiante INT;
+    DECLARE Contador = 0;
+    DECLARE Anio_Lectivo = 0;
+    
+    DECLARE cEstudiantes CURSOR FOR
+    SELECT id_estudiante 
+      FROM sw_estudiante_periodo_lectivo
+     WHERE id_periodo_lectivo = IdPeriodoLectivo 
+     ORDER BY id_estudiante_periodo_lectivo ASC;
+    
+    DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+    
+    OPEN cEstudiantes;
+    
+    Lazo: LOOP
+    	FETCH cEstudiantes INTO IdEstudiante;
+        IF done THEN
+        	CLOSE cEstudiantes;
+            LEAVE Lazo;
+        END IF;
+
+	SET Contador = Contador + 1;
+        
+        UPDATE sw_estudiante_periodo_lectivo
+	   SET nro_matricula = Contador
+	 WHERE id_estudiante = IdEstudiante
+	   AND id_periodo_lectivo = IdPeriodoLectivo;
+    END LOOP Lazo;
+END

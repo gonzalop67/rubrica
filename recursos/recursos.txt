@@ -1,0 +1,6 @@
+Cómo Crear una Tabla con Columna Fija - HTML y CSS
+https://www.youtube.com/watch?v=xedl472XwKc
+
+Tabla con cabecera fija y scroll * Html css php mysql bootstrap
+https://www.youtube.com/watch?v=YEhuswfcf7I
+
