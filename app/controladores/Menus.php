@@ -45,6 +45,7 @@ class Menus extends Controlador
         $datos = [
             'mnu_texto' => trim($_POST['mnu_texto']),
             'mnu_link' => trim($_POST['mnu_link']),
+            'mnu_icono' => trim($_POST['mnu_icono']),
             'mnu_publicado' => trim($_POST['mnu_publicado']),
             'id_perfil' => trim($_POST['id_perfil']),
         ];

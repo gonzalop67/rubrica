@@ -52,14 +52,13 @@ class Menu
 
     public function insertarMenu($datos)
     {
-        $this->db->query('INSERT INTO sw_menu (mnu_texto, mnu_link, mnu_publicado, mnu_icono, id_perfil) VALUES (:mnu_texto, :mnu_link, :mnu_publicado, :mnu_icono, :id_perfil)');
+        $this->db->query('INSERT INTO sw_menu (mnu_texto, mnu_link, mnu_publicado, mnu_icono) VALUES (:mnu_texto, :mnu_link, :mnu_publicado, :mnu_icono)');
 
         //Vincular valores
         $this->db->bind(':mnu_texto', $datos['mnu_texto']);
         $this->db->bind(':mnu_link', $datos['mnu_link']);
         $this->db->bind(':mnu_publicado', $datos['mnu_publicado']);
         $this->db->bind(':mnu_icono', $datos['mnu_icono']);
-        $this->db->bind(':id_perfil', $datos['id_perfil']);
 
         $this->db->execute();
 

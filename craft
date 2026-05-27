@@ -1,0 +1,214 @@
+#!/usr/bin/env php
+<?php
+
+// 1. Requerimos tu configuración nativa primero.
+require_once __DIR__ . '/config/config.php';
+
+// 2. AUTOLOADER CRÍTICO: Enseña a la consola a cargar tus clases/modelos dinámicamente
+spl_autoload_register(function ($class) {
+    // Convierte App\Models\Model en App/Models/Model.php
+    $file = __DIR__ . '/' . str_replace('\\', '/', $class) . '.php';
+    if (file_exists($file)) {
+        require_once $file;
+    }
+});
+
+// 3. Definimos las constantes restantes basándonos en tu estructura de carpetas
+define('RAIZ_PROYECTO', __DIR__ . '/');
+define('CONTROLLERS_PATH', RUTA_APP . '/Controllers/');
+define('MODELS_PATH', RUTA_APP . '/Models/');
+define('MIGRATIONS_PATH', RAIZ_PROYECTO . 'database/migrations/');
+define('STUBS_PATH', RAIZ_PROYECTO . 'Core/Stubs/');
+
+$command = $argv[1] ?? null;
+$name = $argv[2] ?? null;
+$allArgs = implode(' ', array_slice($argv, 3));
+
+if (!$command) {
+    echo "\e[33mSIAE 2025 - CLI Craft\e[0m\n";
+    echo "Uso:\n";
+    echo "  php craft make:controller {Nombre} [-r] [-m]\n";
+    echo "  php craft make:model {Nombre}\n";
+    echo "  php craft make:migration create_{nombre}_table\n";
+    echo "  php craft migrate\n";
+    exit(0);
+}
+
+// ==========================================
+// COMANDO: php craft make:migration
+// ==========================================
+if ($command === 'make:migration') {
+    if (!$name) {
+        echo "\e[31mError:\e[0m Debes especificar el nombre de la migración (ej: create_users_table).\n";
+        exit(1);
+    }
+
+    if (!is_dir(MIGRATIONS_PATH)) {
+        mkdir(MIGRATIONS_PATH, 0755, true);
+    }
+
+    preg_match('/create_(.*)_table/', $name, $matches);
+    $tableName = $matches[1] ?? 'cambiame';
+    $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $name)));
+
+    $timestamp = date('Y_m_d_His');
+    $filename = $timestamp . '_' . $name . '.php';
+    $targetFile = MIGRATIONS_PATH . $filename;
+
+    if (!file_exists(STUBS_PATH . 'Migration.stub')) {
+        echo "\e[31mError:\e[0m No se encontró la plantilla en Core/Stubs/Migration.stub\n";
+        exit(1);
+    }
+
+    $template = file_get_contents(STUBS_PATH . 'Migration.stub');
+    $compiled = str_replace(['{{MigrationClass}}', '{{TableName}}'], [$className, $tableName], $template);
+
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mMigración creada con éxito:\e[0m database/migrations/{$filename}\n";
+    exit(0);
+}
+
+// ==========================================
+// COMANDO: php craft migrate
+// ==========================================
+if ($command === 'migrate') {
+    mysqli_report(MYSQLI_REPORT_OFF);
+
+    // Usamos las constantes exactas que venían en tu config.php
+    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+    if ($mysqli->connect_error) {
+        die("\e[31mError de conexión a la BD:\e[0m " . $mysqli->connect_error . "\n");
+    }
+    $mysqli->set_charset('utf8mb4');
+
+    $mysqli->query("CREATE TABLE IF NOT EXISTS migrations (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        migration VARCHAR(255) NOT NULL,
+        executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+
+    $executed = [];
+    $result = $mysqli->query("SELECT migration FROM migrations");
+    if ($result) {
+        while ($row = $result->fetch_assoc()) {
+            $executed[] = $row['migration'];
+        }
+    }
+
+    if (!is_dir(MIGRATIONS_PATH)) {
+        echo "\e[33mNo se encontró la carpeta de migraciones.\e[0m\n";
+        exit(0);
+    }
+
+    $files = scandir(MIGRATIONS_PATH);
+    $pendingMigrations = [];
+
+    foreach ($files as $file) {
+        if (pathinfo($file, PATHINFO_EXTENSION) === 'php' && !in_array($file, $executed)) {
+            $pendingMigrations[] = $file;
+        }
+    }
+
+    if (empty($pendingMigrations)) {
+        echo "\e[32mNada que migrar. Tu base de datos está al día.\e[0m\n";
+        exit(0);
+    }
+
+    // Ejecutar las pendientes pasando la conexión nativa limpia
+    foreach ($pendingMigrations as $file) {
+        require_once MIGRATIONS_PATH . $file;
+
+        // CORRECCIÓN CLAVE: Removemos de forma segura todo el timestamp inicial (números y guiones bajos)
+        // Ejemplo: "2026_05_26_164034_create_products_table" se convierte en "create_products_table"
+        $pureName = preg_replace('/^[0-9_]+/', '', pathinfo($file, PATHINFO_FILENAME));
+
+        // Convertimos a CamelCase (ej: CreateProductsTable)
+        $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $pureName)));
+
+        echo "Migrando: {$file}...\n";
+
+        try {
+            if (!class_exists($className)) {
+                throw new \Exception("La clase [{$className}] no está definida dentro del archivo de migración.");
+            }
+
+            $migrationInstance = new $className();
+
+            // CORRECCIÓN CLAVE: Dejamos que el modelo base inicialice la conexión 
+            // compartida de forma nativa a través de su propio método público
+            $migrationInstance->connection();
+
+            $migrationInstance->up();
+
+            $stmt = $mysqli->prepare("INSERT INTO migrations (migration) VALUES (?)");
+            $stmt->bind_param('s', $file);
+            $stmt->execute();
+            $stmt->close();
+
+            echo "\e[32mMigrado:\e[0m {$file}\n";
+        } catch (\Exception $e) {
+            echo "\e[31mError ejecutando la migración {$file}:\e[0m " . $e->getMessage() . "\n";
+            exit(1);
+        }
+    }
+
+    exit(0);
+}
+
+// ==========================================
+// CONTROLADORES Y MODELOS
+// ==========================================
+if ($command === 'make:controller') {
+    if (!str_ends_with($name, 'Controller')) {
+        $name .= 'Controller';
+    }
+    $targetFile = CONTROLLERS_PATH . $name . '.php';
+    if (file_exists($targetFile)) {
+        echo "\e[31mEl controlador [{$name}] ya existe.\e[0m\n";
+        exit(1);
+    }
+    $isResource = (str_contains($allArgs, '-r') || str_contains($allArgs, '--resource'));
+    $createModel = (str_contains($allArgs, '-m') || str_contains($allArgs, '--model'));
+
+    if ($isResource) {
+        $template = file_get_contents(STUBS_PATH . 'Controller.stub');
+    } else {
+        $template = "<?php\n\nnamespace App\Controllers;\n\nuse App\Controllers\Controller;\n\nclass {{ClassName}} extends Controller\n{\n    public function index() { }\n}\n";
+    }
+
+    $baseName = str_replace('Controller', '', $name);
+    $lowerName = strtolower($baseName);
+    $compiled = str_replace(['{{ClassName}}', '{{LowerName}}'], [$name, $lowerName], $template);
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mControlador creado con éxito:\e[0m App/Controllers/{$name}.php\n";
+
+    if ($createModel) {
+        $modelTargetFile = MODELS_PATH . $baseName . '.php';
+        if (!file_exists($modelTargetFile)) {
+            $modelTemplate = file_get_contents(STUBS_PATH . 'Model.stub');
+            $tableName = $lowerName . 's';
+            $modelCompiled = str_replace(['{{ModelName}}', '{{TableName}}'], [$baseName, $tableName], $modelTemplate);
+            file_put_contents($modelTargetFile, $modelCompiled);
+            echo "\e[32mModelo creado con éxito:\e[0m App/Models/{$baseName}.php (Tabla: {$tableName})\n";
+        }
+    }
+    exit(0);
+}
+
+if ($command === 'make:model') {
+    $targetFile = MODELS_PATH . $name . '.php';
+    if (file_exists($targetFile)) {
+        echo "\e[31mEl modelo [{$name}] ya existe.\e[0m\n";
+        exit(1);
+    }
+    $template = file_get_contents(STUBS_PATH . 'Model.stub');
+    $tableName = strtolower($name) . 's';
+    $compiled = str_replace(['{{ModelName}}', '{{TableName}}'], [$name, $tableName], $template);
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mModelo creado con éxito:\e[0m App/Models/{$name}.php (Tabla: {$tableName})\n";
+    exit(0);
+}
+
+echo "\e[31mComando [{$command}] no soportado.\e[0m\n";
+exit(1);

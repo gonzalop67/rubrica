@@ -30,6 +30,10 @@
                                 <input type="text" name="mnu_link" id="mnu_link" value="" class="form-control" required>
                             </div>
                             <div class="form-group">
+                                <label for="mnu_icono">Icono:</label>
+                                <input type="text" name="mnu_icono" id="mnu_icono" value="" class="form-control" required>
+                            </div>
+                            <div class="form-group">
                                 <label for="mnu_publicado">Publicado:</label>
                                 <select name="mnu_publicado" id="mnu_publicado" class="form-control">
                                     <option value="1">Sí</option>
