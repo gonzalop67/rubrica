@@ -1,3 +1,8 @@
+<?php
+session_start();
+$_SESSION = array(); // Vacía el array de sesión
+session_destroy();   // Destruye la sesión en el servidor
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -48,16 +53,16 @@
         <!-- /.login-logo -->
         <div class="login-box-body">
             <p class="login-box-msg">Introduzca sus datos de ingreso</p>
-            <form id="form-login" action="" method="post">
+            <form id="form-login" action="" method="post" autocomplete="off">
                 <div class="form-group has-feedback">
-                    <input type="text" class="form-control" placeholder="Usuario" id="uname" name="uname" autocomplete="on" autofocus>
+                    <input type="text" class="form-control" placeholder="Usuario" id="uname" name="uname" autocomplete="off" autofocus>
                     <span class="form-control-feedback">
                       <img src="assets/images/if_user_male_172625.png" height="16px" width="16px">
                     </span>
                     <span class="help-desk error" id="error-uname">Debe ingresar su nombre de Usuario</span>
                 </div>
                 <div class="form-group has-feedback">
-                    <input type="password" class="form-control" placeholder="Password" id="passwd" name="passwd" autocomplete="on">
+                    <input type="password" class="form-control" placeholder="Password" id="passwd" name="passwd" autocomplete="new-password">
                     <span class="form-control-feedback">
                       <img src="assets/images/if_91_171450.png" height="16px" width="16px">
                     </span>
@@ -97,8 +102,6 @@
        
     </div>
     <!-- /.login-box --> 
-
-	
 
 	<!-- jQuery 3 -->
 	<script src="assets/template/jquery/jquery.min.js"></script>

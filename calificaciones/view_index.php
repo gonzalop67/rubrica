@@ -317,16 +317,21 @@
         }
 
         function cargarParalelosDocente() {
-            $('#cboParalelos option').remove();
-            $.post("calificaciones/cargar_paralelos_docente.php", {},
+            $('#cboParalelos').html('');
+
+            // Añadimos un timestamp (_t) para obligar a Edge a refrescar la petición
+            $.post("calificaciones/cargar_paralelos_docente.php", {
+                    _t: new Date().getTime()
+                },
                 function(resultado) {
-                    if (resultado == false) {
-                        alert("Error");
+                    var datosLimpios = resultado.trim();
+                    console.log(datosLimpios);
+
+                    if (datosLimpios === "" || datosLimpios === "false") {
+                        alert("Error al cargar datos");
                     } else {
-                        // console.log(resultado);
-                        $("#cboParalelos").append(resultado);
-                        $("#lista_estudiantes_paralelo").addClass("text-danger");
-                        $("#lista_estudiantes_paralelo").html("Debe elegir un paralelo...");
+                        $("#cboParalelos").html(datosLimpios);
+                        $("#lista_estudiantes_paralelo").addClass("text-danger").html("Debe elegir un paralelo...");
                     }
                 }
             );

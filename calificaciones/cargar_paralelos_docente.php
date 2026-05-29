@@ -1,10 +1,18 @@
 <?php
+header('Content-Type: text/html; charset=utf-8');
 require_once("../scripts/clases/class.mysql.php");
 $db = new MySQL();
 
+// Forzar a Edge a aceptar la cookie de sesión en entornos locales o HTTP convencionales
+ini_set('session.cookie_samesite', 'Lax'); 
 session_start();
-$id_usuario = $_SESSION["id_usuario"];
-$id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
+
+// Validar si las variables existen; si no, les asignamos un valor por defecto (0) para evitar que rompan el SQL
+$id_usuario = isset($_SESSION["id_usuario"]) ? $_SESSION["id_usuario"] : 0;
+$id_periodo_lectivo = isset($_SESSION["id_periodo_lectivo"]) ? $_SESSION["id_periodo_lectivo"] : 0;
+
+// Imprimimos el log para auditar desde la consola de Edge
+echo "<!-- AUDITORÍA DE SESIÓN -> Usuario: $id_usuario | Periodo: $id_periodo_lectivo -->\n";
 
 $consulta = $db->consulta("SELECT DISTINCT(c.id_curso)
                              FROM sw_distributivo d,
@@ -20,7 +28,8 @@ $consulta = $db->consulta("SELECT DISTINCT(c.id_curso)
 
 $num_total_registros = $db->num_rows($consulta);
 
-$cadena = "<option value=\"0\">Seleccione...</option>";
+// SOLUCIÓN 1: Inicializar la variable para evitar errores de tipo Notice
+$cadena = '<option value="0">Seleccione...</option>';
 
 if ($num_total_registros > 0) {
   while ($curso = $db->fetch_assoc($consulta)) {
@@ -49,4 +58,5 @@ if ($num_total_registros > 0) {
   }
 }
 
+// Imprime todo el bloque limpio de una sola vez
 echo $cadena;
