@@ -217,28 +217,96 @@ class horarios extends MySQL
 
 	function insertarTituloHorario($datos)
 	{
-		$consulta = parent::consulta("INSERT INTO sw_horario_def SET id_periodo_lectivo = '$datos[id_periodo_lectivo]', ho_titulo = '$datos[ho_titulo]', fecha_inicial = '$datos[fecha_inicial]', fecha_final = '$datos[fecha_final]', status = 1");
+		$id_periodo_lectivo = $datos['id_periodo_lectivo'];
+		$ho_titulo          = $datos['ho_titulo'];
+		$fecha_inicial      = $datos['fecha_inicial'];
+		$fecha_final        = $datos['fecha_final'];
+		$hora_entrada       = $datos['hora_entrada']; // Ej: "07:30"
+		$nro_horas          = (int)$datos['nro_horas']; // Ej: 6
+		$duracion           = (int)$datos['duracion'];  // Ej: 45 (minutos)
+
+		// 1. Inserción del Título del Horario
+		$sql_insert_horario = "INSERT INTO sw_horario_def SET 
+                            id_periodo_lectivo = '$id_periodo_lectivo', 
+                            ho_titulo = '$ho_titulo', 
+                            fecha_inicial = '$fecha_inicial', 
+                            fecha_final = '$fecha_final', 
+                            hora_entrada = '$hora_entrada', 
+                            nro_horas = '$nro_horas', 
+                            duracion = '$duracion', 
+                            status = 1";
+
+		$consulta = parent::consulta($sql_insert_horario);
+
 		if ($consulta) {
-			// Obtener el last_insert_id
-			$consulta = parent::consulta("SELECT LAST_INSERT_ID() AS last_insert_id");
-			$last_insert_id = parent::fetch_object($consulta)->last_insert_id;
-			// Asociar los días de la semana definidos en la tabla sw_config_dias_semana
-			$query = parent::consulta("SELECT * FROM sw_config_dias_semana ORDER BY orden ASC");
-			while ($dia_semana = parent::fetch_assoc($query)) {
-				$consulta = parent::consulta("INSERT INTO sw_dia_semana SET id_config_dias_semana = '$dia_semana[id_config_dias_semana]', id_horario_def = '$last_insert_id', ds_nombre = '$dia_semana[nombre]', ds_orden = '$dia_semana[orden]'");
+			// Obtener el ID del horario recién creado
+			$consulta_id = parent::consulta("SELECT LAST_INSERT_ID() AS last_insert_id");
+			$last_insert_id = parent::fetch_object($consulta_id)->last_insert_id;
+
+			// ==========================================
+			// PROCESO 1: Insertar los Días de la Semana
+			// ==========================================
+			$query_dias = parent::consulta("SELECT * FROM sw_config_dias_semana ORDER BY orden ASC");
+			$valores_dias = [];
+			while ($dia_semana = parent::fetch_assoc($query_dias)) {
+				$valores_dias[] = "('$dia_semana[id_config_dias_semana]', '$last_insert_id', '$dia_semana[nombre]', '$dia_semana[orden]')";
 			}
+			if (!empty($valores_dias)) {
+				$sql_dias = "INSERT INTO sw_dia_semana (id_config_dias_semana, id_horario_def, ds_nombre, ds_orden) VALUES " . implode(',', $valores_dias);
+				parent::consulta($sql_dias);
+			}
+
+			// ==========================================
+			// PROCESO 2: Generar automáticamente las horas de clase con Recreo
+			// ==========================================
+			$valores_horas = [];
+
+			// Inicializamos el objeto de tiempo con la hora de entrada general (ej: "07:30")
+			$tiempo_actual = new DateTime($hora_entrada);
+
+			for ($i = 1; $i <= $nro_horas; $i++) {
+				// 1. Guardamos la hora exacta en que inicia este bloque pedagógico
+				$hora_inicio = $tiempo_actual->format('H:i:s');
+
+				// 2. Sumamos la duración de la clase para obtener el término de la hora
+				$tiempo_actual->modify("+$duracion minutes");
+				$hora_fin = $tiempo_actual->format('H:i:s');
+
+				// 3. Nombre descriptivo para la base de datos (ej. "1° Hora")
+				$nombre_hora = $i . "a.";
+
+				// 4. Guardamos el registro en el array para el Bulk Insert
+				$valores_horas[] = "('$last_insert_id', '$nombre_hora', '$hora_inicio', '$hora_fin', '$i')";
+
+				// ================================================================
+				// LOGICA DEL RECREO: Si acabamos de terminar la 3° Hora, 
+				// sumamos 15 minutos al tiempo antes de que empiece la 4° Hora.
+				// ================================================================
+				if ($i == 3) {
+					$tiempo_actual->modify("+15 minutes");
+				}
+			}
+
+			// Insertamos todas las horas pedagógicas en un solo viaje a la base de datos
+			if (!empty($valores_horas)) {
+				$sql_horas = "INSERT INTO sw_hora_clase (id_horario_def, hc_nombre, hc_hora_inicio, hc_hora_fin, hc_orden) VALUES " . implode(',', $valores_horas);
+				parent::consulta($sql_horas);
+			}
+
 			$data = array(
 				"titulo"       => "Operación exitosa.",
-				"mensaje"      => "El título del horario se ha insertado exitosamente...",
+				"mensaje"      => "El horario y sus $nro_horas horas pedagógicas se han generado correctamente.",
 				"tipo_mensaje" => "success"
 			);
 		} else {
+			$error_db = isset($this->conexion) ? mysqli_error($this->conexion) : "Error en consulta SQL";
 			$data = array(
 				"titulo"       => "Ocurrió un error inesperado.",
-				"mensaje"      => "El título del horario no se pudo insertar exitosamente...Error: " . mysqli_error($this->conexion),
+				"mensaje"      => "No se pudo insertar el horario. Error: " . $error_db,
 				"tipo_mensaje" => "error"
 			);
 		}
+
 		return json_encode($data);
 	}
 

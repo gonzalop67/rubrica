@@ -70,6 +70,7 @@
                                             </div>
                                         </div>
                                     </div>
+
                                     <div class="row">
                                         <div class="col-lg-6">
                                             <div class="form-group">
@@ -94,13 +95,29 @@
                                             </div>
                                         </div>
                                     </div>
+
                                     <div class="row">
-                                        <div class="col-lg-12">
+                                        <div class="col-lg-6">
                                             <label for="status">Estado:</label>
                                             <select name="status" id="status" class="form-control">
                                                 <option value="1">Activo</option>
                                                 <option value="0">Inactivo</option>
                                             </select>
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <label for="status">Hora de entrada:</label>
+                                            <input type="text" name="hora_entrada" id="hora_entrada" class="form-control">
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-lg-6">
+                                            <label for="nro_horas">Nro. de Horas:</label>
+                                            <input type="text" name="nro_horas" id="nro_horas" class="form-control">
+                                        </div>
+                                        <div class="col-lg-6">
+                                            <label for="duracion">Duración (minutos):</label>
+                                            <input type="text" name="duracion" id="duracion" class="form-control">
                                         </div>
                                     </div>
 
@@ -147,6 +164,12 @@
                 firstDay: 1
             });
 
+            // $('#hora_entrada').inputmask('datetime', {
+            //     inputFormat: 'HH:MM',
+            //     placeholder: 'hh:mm',
+            //     insertMode: false // Mantiene fijo el marcador de posición
+            // });
+
             $("#btn-cancel").click(function() {
                 $("#frm-horario")[0].reset();
                 $("#titulo").html("Nuevo Horario");
@@ -187,28 +210,45 @@
 
             $("#frm-horario").submit(function(e) {
                 e.preventDefault();
-                var url;
-                var id_horario_def = $("#id_horario_def").val();
-                var id_periodo_lectivo = $("#cboPeriodos").val();
-                var ho_titulo = $.trim($("#ho_titulo").val());
-                var fecha_inicial = $.trim($("#fecha_inicial").val());
-                var fecha_final = $.trim($("#fecha_final").val());
-                var status = $("#status").val();
+                let url;
+                const id_horario_def = $("#id_horario_def").val();
+                const id_periodo_lectivo = $("#cboPeriodos").val();
+                const ho_titulo = $.trim($("#ho_titulo").val());
+                const fecha_inicial = $.trim($("#fecha_inicial").val());
+                const fecha_final = $.trim($("#fecha_final").val());
+                const status = $("#status").val();
+                const hora_entrada = $.trim($("#hora_entrada").val());
+                const nro_horas = $.trim($("#nro_horas").val());
+                const duracion = $.trim($("#duracion").val());
 
-                if (ho_titulo == "") {
-                    swal("Ocurrió un error inesperado!", "Debe ingresar el título del horario.", "error");
-                } else if (fecha_inicial == "") {
-                    swal("Ocurrió un error inesperado!", "Debe ingresar la fecha inicial.", "error");
-                } else if (fecha_final == "") {
-                    swal("Ocurrió un error inesperado!", "Debe ingresar la fecha final.", "error");
-                } else if (id_periodo_lectivo == 0) {
-                    swal("Ocurrió un error inesperado!", "Debe seleccionar un periodo lectivo.", "error");
+                // Validaciones de contenido básico
+                if (ho_titulo === "") {
+                    mostrarAlerta("Debe ingresar el título del horario.");
+                } else if (fecha_inicial === "") {
+                    mostrarAlerta("Debe ingresar la fecha inicial.");
+                } else if (fecha_final === "") {
+                    mostrarAlerta("Debe ingresar la fecha final.");
+                } else if (fecha_inicial > fecha_final) { // NUEVA VALIDACIÓN DE LOGICA
+                    mostrarAlerta("La fecha inicial no puede ser mayor a la fecha final.");
+                } else if (!id_periodo_lectivo || id_periodo_lectivo == "0") {
+                    mostrarAlerta("Debe seleccionar un periodo lectivo.");
+                } else if (hora_entrada === "") {
+                    mostrarAlerta("Debe ingresar la hora de entrada.");
+                } else if (nro_horas === "" || isNaN(nro_horas)) {
+                    mostrarAlerta("Debe ingresar un número de horas válido.");
+                } else if (duracion === "" || isNaN(duracion)) {
+                    mostrarAlerta("Debe ingresar la duración en minutos.");
                 } else {
 
-                    if ($("#btn-save").html() == "Guardar")
-                        url = "horario_def/insertar_titulo_horario.php";
-                    else if ($("#btn-save").html() == "Actualizar")
+                    // MEJORA: Usa una clase o atributo data en vez de validar por texto HTML plano
+                    const botonSave = $("#btn-save");
+                    if (botonSave.text().trim() === "Actualizar") {
                         url = "horario_def/actualizar_titulo_horario.php";
+                    } else {
+                        url = "horario_def/insertar_titulo_horario.php";
+                    }
+
+                    botonSave.prop('disabled', true); // Previene doble clic
 
                     $.ajax({
                         url: url,
@@ -219,13 +259,18 @@
                             ho_titulo: ho_titulo,
                             fecha_inicial: fecha_inicial,
                             fecha_final: fecha_final,
-                            status: status
+                            status: status,
+                            // CORREGIDO: Ahora sí se envían al servidor
+                            hora_entrada: hora_entrada,
+                            nro_horas: nro_horas,
+                            duracion: duracion
                         },
                         dataType: "json",
                         success: function(response) {
-                            // console.log(response);
+                            botonSave.prop('disabled', false);
+
                             Swal.fire({
-                                title: response.titulo,
+                                title: response.titulo || "Proceso Técnico",
                                 text: response.mensaje,
                                 icon: response.tipo_mensaje,
                                 confirmButtonText: 'Aceptar'
@@ -236,18 +281,18 @@
 
                             $("#frm-horario")[0].reset();
 
-                            if ($("#btn-save").html() == "Actualizar") {
-                                $("#btn-save").html("Guardar");
+                            if (botonSave.text().trim() === "Actualizar") {
+                                botonSave.html("Guardar");
                                 $("#titulo").html("Nuevo Horario");
                             }
-
                         },
-                        error: function(jqXHR, textStatus) {
-                            alert(jqXHR.responseText);
+                        error: function(jqXHR) {
+                            botonSave.prop('disabled', false);
+                            Swal.fire("Error del Servidor", "No se pudo procesar la solicitud.", "error");
+                            console.error(jqXHR.responseText);
                         }
                     });
                 }
-
             });
 
             $('table tbody').on('click', '.item-delete', function(e) {
@@ -295,6 +340,16 @@
 
             });
         });
+
+        // Función auxiliar para no repetir código de alertas
+        function mostrarAlerta(mensaje) {
+            Swal.fire({
+                title: "Ocurrió un error inesperado!",
+                text: mensaje,
+                icon: "error",
+                confirmButtonText: 'Aceptar'
+            });
+        }
 
         function cargarPeriodosLectivosVigentes() {
             $.ajax({

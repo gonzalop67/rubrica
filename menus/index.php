@@ -194,14 +194,6 @@
             $("#error-enlace").fadeOut();
         }
 
-        if (enlace == "") {
-            $("#error-enlace").html("Debe ingresar el enlace del menú...");
-            $("#error-enlace").fadeIn();
-            cont_errores++;
-        } else {
-            $("#error-enlace").fadeOut();
-        }
-
         if (cont_errores == 0) {
             $('#form_insert')[0].reset(); //limpiar formulario
             $("#nuevoMenuModal").modal('hide');

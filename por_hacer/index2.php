@@ -199,8 +199,6 @@
                     $('#form_insert')[0].reset(); //limpiar formulario
                     $("#nuevaTareaModal").modal('hide');
 
-                    console.log(data)
-
                     Swal.fire({
                         title: data.titulo,
                         text: data.mensaje,

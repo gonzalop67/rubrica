@@ -148,7 +148,15 @@ class selects extends MySQL
 
 	function cargarHorasClase()
 	{
-		$qry = "SELECT hd.id_hora_clase, hc_nombre, DATE_FORMAT(hc_hora_inicio,'%H:%i') AS hora_inicio, DATE_FORMAT(hc_hora_fin,'%H:%i') AS hora_fin FROM sw_hora_dia hd, sw_hora_clase hc WHERE hc.id_hora_clase = hd.id_hora_clase AND hd.id_horario_def = $this->id_horario_def AND id_dia_semana = $this->id_dia_semana ORDER BY hc_orden ASC";
+		$qry = "SELECT 
+                id_hora_clase, 
+                hc_nombre, 
+                hc_orden, 
+                DATE_FORMAT(hc_hora_inicio,'%H:%i') AS hora_inicio, 
+                DATE_FORMAT(hc_hora_fin,'%H:%i') AS hora_fin 
+            FROM sw_hora_clase hc 
+            WHERE id_horario_def = $this->id_horario_def  
+            ORDER BY hc_orden ASC;";
 		$consulta = parent::consulta($qry);
 		$num_total_registros = parent::num_rows($consulta);
 		$cadena = "";

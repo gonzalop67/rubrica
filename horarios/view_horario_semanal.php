@@ -94,7 +94,7 @@
 					icon: "error"
 				});
 			} else {
-				// listarHorasClase();
+				$("#lista_asignaturas_asociadas").html("");
 				cargarDiasSemana();
 			}
 		});
@@ -160,7 +160,7 @@
 		$("#lstDiasSemana").click(function(e) {
 			e.preventDefault();
 			$("#titulo_dia").html("HORARIO DEL " + $("#lstDiasSemana option:selected").text());
-			cargar_horas_clase();
+			// cargar_horas_clase();
 			listar_asignaturas_asociadas();
 		});
 		$("#asociar").click(function(e) {
@@ -198,10 +198,25 @@
 				id_horario_def: id_horario_def
 			},
 			function(resultado) {
-				if (resultado == false) {
-					alert("Error");
+				// Validación limpia: verifica si el resultado viene vacío, nulo o falso
+				if (!resultado) {
+					Swal.fire("Error", "No se pudieron cargar los días de la semana.", "error");
 				} else {
-					$("#lstDiasSemana").append(resultado);
+					// CORREGIDO: Vaciamos por completo el select eliminando las opciones anteriores
+					$("#lstDiasSemana").empty().append(resultado);
+				}
+			}
+		);
+
+		$.post("scripts/cargar_horas_clase.php", {
+				id_horario_def: id_horario_def
+			},
+			function(resultado) {
+				if (!resultado) {
+					Swal.fire("Error", "No se pudieron cargar las horas de clase.", "error");
+				} else {
+					// CORREGIDO: Limpia el select, añade la opción inicial y luego inyecta las horas con sus recreos calculados
+					$("#lstHorasClase").empty().append(resultado);
 				}
 			}
 		);
