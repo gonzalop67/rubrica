@@ -107,7 +107,7 @@
 				}
 			);
 			// Luego obtengo las asignaturas asociadas al paralelo
-			$.post("scripts/cargar_asignaturas_por_paralelo.php", {
+			$.post("scripts/cargar_asignaturas_supletorios.php", {
 					id_paralelo: $("#id_paralelo").val()
 				},
 				function(resultado) {

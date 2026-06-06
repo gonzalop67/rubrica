@@ -629,6 +629,21 @@ AND a.id_curso = c.id_curso AND p.id_paralelo = $id_paralelo ORDER BY as_nombre"
 		return $cadena;
 	}
 
+	function cargarAsignaturasSupletorio($id_paralelo)
+	{
+		$consulta = parent::consulta("SELECT as_nombre, a.id_asignatura FROM sw_asignatura a, sw_asignatura_curso ac, sw_paralelo p WHERE a.id_asignatura = ac.id_asignatura AND p.id_curso = ac.id_curso AND p.id_paralelo = $id_paralelo AND id_tipo_asignatura = 1 ORDER BY ac_orden");
+		$num_total_registros = parent::num_rows($consulta);
+		$cadena = "";
+		if ($num_total_registros > 0) {
+			while ($asignatura = parent::fetch_assoc($consulta)) {
+				$code = $asignatura["id_asignatura"];
+				$name = $asignatura["as_nombre"];
+				$cadena .= "<option value=\"$code\">$name</option>";
+			}
+		}
+		return $cadena;
+	}
+
 	function cargarAsignaturasParalelo($id_periodo_lectivo, $id_usuario, $id_paralelo)
 	{
 		$consulta = parent::consulta("SELECT as_nombre, pa.id_asignatura FROM sw_paralelo_asignatura pa, sw_asignatura a WHERE pa.id_asignatura = a.id_asignatura AND pa.id_periodo_lectivo = $id_periodo_lectivo AND pa.id_usuario = $id_usuario AND pa.id_paralelo = $id_paralelo ORDER BY as_nombre ASC");
