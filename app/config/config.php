@@ -24,5 +24,5 @@ $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https:
 $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
 if (!defined('RUTA_URL')) {
-    define('RUTA_URL', $protocol . $host . '/siae_2025');
+    define('RUTA_URL', $protocol . $host . '/rubrica');
 }
