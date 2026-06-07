@@ -90,7 +90,6 @@ async function verificar_login() {
     const data = new FormData(frmLogin);
     // Llamar al método auth/login que verifica si existe el email y clave
     try {
-        // console.log(base_url + "/auth/login");
         let resp = await fetch(base_url + "/auth/login", {
             method: "POST",
             mode: "cors",
@@ -101,39 +100,38 @@ async function verificar_login() {
         // Desplegar el loader image
         document.querySelector("#img_loader").style.display = "none";
         if (!json.error) {
-            console.log(json);
-            return;
             // Construimos la base de la URL de forma limpia
             const urlDestino = base_url.endsWith('/') ? base_url : base_url + '/';
 
             switch (json.slug) {
                 case 'administrador':
+                    // console.log(urlDestino + "admin/dashboard")
                     location.href = urlDestino + "admin/dashboard";
                     break;
                 case 'autoridad':
-                    location.href = urlDestino + "Autoridad/dashboard";
+                    //location.href = urlDestino + "autoridad/dashboard";
                     break;
-                case 'administrador-de-ue':
-                    location.href = urlDestino + "AdminUE/dashboard";
+                case 'coordinador':
+                    //location.href = urlDestino + "coordinador/dashboard";
                     break;
                 case 'docente':
-                    location.href = urlDestino + "Docentes/dashboard";
+                    //location.href = urlDestino + "docentes/dashboard";
                     break;
                 case 'secretaria':
-                    location.href = urlDestino + "Secretaria/dashboard";
+                    //location.href = urlDestino + "secretaria/dashboard";
+                    break;
+                case 'tutor':
+                    //location.href = urlDestino + "tutor/dashboard";
                     break;
                 default:
-                    alert("Perfil no reconocido: " + json.slug);
+                    alert("Rol no reconocido: " + json.slug);
                     break;
             }
         } else {
             // Existen errores de validación
             let errors = "";
 
-            // console.log(json.errors);
-
             Object.entries(json.errors).forEach(([clave, valor]) => {
-                // console.log(`${clave}: ${valor}`);
                 errors = errors + `<li>${valor}</li>`
             });
 
@@ -146,6 +144,7 @@ async function verificar_login() {
 
             img_loader.style.display = "none";
             mensaje.innerHTML = error;
+            usuario.focus();
         }
     } catch (error) {
         console.log("Ocurrió un error: " + error)

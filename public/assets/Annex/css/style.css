@@ -2814,7 +2814,7 @@ Invoice
   Account Pages
 ===================*/
 .accountbg {
-  background: url("../images/bg-account.png");
+  background: url("./../../images/loginFont.jpg");
   position: absolute;
   height: 100%;
   width: 100%;

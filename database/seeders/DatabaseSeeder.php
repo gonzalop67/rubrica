@@ -4,33 +4,31 @@ class DatabaseSeeder
 {
     /**
      * Método central de ejecución (Estilo Laravel).
-     * Recibe la conexión nativa mysqli por parámetro.
      */
-    public function run(mysqli $mysqli): void
+    public function run(mysqli $mysqli, bool $refresh = false): void
     {
-        global $flags;
-        $refresh = is_array($flags) && in_array('--refresh', $flags);
-
-        // 🔥 CENTRALIZACIÓN DEL REFRESH: Limpieza absoluta del mapa de datos
         if ($refresh) {
             echo "\e[34m  -> [Refresh] Vaciando tablas en orden inverso de integridad...\e[0m\n";
             
-            // 1. Apagar temporalmente la revisión de llaves foráneas
+            // 1. Apagar temporalmente la revisión de llaves foráneas en MySQL
             $mysqli->query("SET FOREIGN_KEY_CHECKS = 0;");
             
-            // 2. TRUNCATE en orden inverso (Hijo -> Padre) para respetar las reglas RESTRICT
-            $mysqli->query("TRUNCATE TABLE `usuarios_roles`;");
-            $mysqli->query("TRUNCATE TABLE `usuarios`;");
-            $mysqli->query("TRUNCATE TABLE `roles`;");
+            // 2. Limpiar las tablas de raíz mediante DELETE (Más seguro ante restricciones de metadatos)
+            $mysqli->query("DELETE FROM `usuarios_roles`;");
+            $mysqli->query("DELETE FROM `usuarios`;");
+            $mysqli->query("DELETE FROM `roles`;");
             
-            // 3. Forzar confirmación en el disco físico y encender de nuevo la protección
-            $mysqli->query("COMMIT;");
+            // 3. Resetear los contadores autoincrementales a 1
+            $mysqli->query("ALTER TABLE `usuarios` AUTO_INCREMENT = 1;");
+            $mysqli->query("ALTER TABLE `roles` AUTO_INCREMENT = 1;");
+            
+            // 4. Reactivar la seguridad de llaves foráneas de forma obligatoria
             $mysqli->query("SET FOREIGN_KEY_CHECKS = 1;");
             
             echo "  \e[32m  ✅ Ecosistema de tablas limpio y reseteado a ID 1.\e[0m\n\n";
         }
 
-        // Ejecución secuencial de los seeders en orden de jerarquía (Padre -> Hijo)
+        // Ejecución secuencial de los seeders
         $this->call($mysqli, [
             RolSeeder::class,
             AdminUserSeeder::class,

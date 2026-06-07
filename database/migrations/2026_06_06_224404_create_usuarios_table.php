@@ -21,6 +21,7 @@ class CreateUsuariosTable
             request_password ENUM('0','1') DEFAULT '0',
             token_password VARCHAR(200) NULL,
             expired_session VARCHAR(40) NULL,
+            avatar VARCHAR(100) NULL,
             activo INT(1) UNSIGNED DEFAULT 1,
             -- Fin tus columnas
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

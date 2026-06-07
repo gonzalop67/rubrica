@@ -20,14 +20,28 @@ define('STUBS_PATH', __DIR__ . '/Core/Stubs/');
 define('SEEDERS_PATH', __DIR__ . '/database/seeders/');
 
 $command = $argv[1] ?? null;
-$name = $argv[2] ?? null;
 
-// Capturar todas las banderas separadas por espacios
-$flags = array_slice($argv, 3);
-$isResource = in_array('-r', $flags) || in_array('--resource', $flags);
-$createModel = in_array('-m', $flags) || in_array('--model', $flags);
-$createController = in_array('-c', $flags) || in_array('--controller', $flags);
-$createMigration = in_array('-g', $flags) || in_array('--migration', $flags) || in_array('-m', $flags); // -m suele usarse para migración en modelos
+// 🔥 SOLUCIÓN CRÍTICA: Capturar el argumento del nombre limpiando cualquier bandera con guiones
+$name = null;
+if (isset($argv[2])) {
+    // Si el segundo argumento es una bandera (ej: --refresh), buscamos el nombre real en los siguientes
+    for ($i = 2; $i < count($argv); $i++) {
+        if (!str_starts_with($argv[$i], '-')) {
+            $name = $argv[$i];
+            break;
+        }
+    }
+}
+
+// 🔥 CORRECCIÓN CRÍTICA: Escanea TODO el argv buscando las banderas, sin importar el índice
+$isResource = in_array('-r', $argv) || in_array('--resource', $argv);
+$createModel = in_array('-m', $argv) || in_array('--model', $argv);
+$createController = in_array('-c', $argv) || in_array('--controller', $argv);
+$createMigration = in_array('-g', $argv) || in_array('--migration', $argv) || in_array('-m', $argv);
+
+// Esta es la bandera que causaba el fallo silencioso al no ser detectada
+$refreshActive = in_array('--refresh', $argv); 
+
 
 if (!$command) {
     echo "\e[33mMini Laravel - CLI Craft (SIAE 2026)\e[0m\n";
@@ -145,16 +159,23 @@ function generarControlador($name, $isResource, $descomentarCrud = false)
     echo "\e[32mControlador creado con éxito:\e[0m App/Controllers/" . ($subNamespace ? str_replace('\\', '/', substr($subNamespace, 1)) . '/' : '') . "{$className}.php\n";
 }
 
-function generarModelo($name)
-{
-    // Procesar namespaces y subcarpetas (ej: Admin\Usuario)
+function generarModelo($name) {
+    // 1. Normalizar barras y separar componentes (ej: "Admin/UsuariosRoles" o "Admin\UsuariosRoles")
     $normalizedPath = str_replace('\\', '/', $name);
     $pathParts = explode('/', $normalizedPath);
-    $className = array_pop($pathParts); // "Usuario"
+    $className = array_pop($pathParts); // "UsuariosRoles"
 
-    $subNamespace = !empty($pathParts) ? '\\' . implode('\\', $pathParts) : '';
-    $fullNamespace = "App\Models" . $subNamespace;
+    // 2. Construir el sub-namespace respetando las mayúsculas originales (ej: "\Admin")
+    $subNamespace = '';
+    if (!empty($pathParts)) {
+        // Aseguramos que cada fragmento de la carpeta tenga la primera letra en mayúscula para PSR-4
+        $capitalizedParts = array_map('ucfirst', $pathParts);
+        $subNamespace = '\\' . implode('\\', $capitalizedParts);
+    }
+    
+    $fullNamespace = "App\Models" . $subNamespace; // Generará: "App\Models\Admin"
 
+    // 3. Definir rutas físicas del sistema de archivos
     $directoryPath = MODELS_PATH . implode('/', $pathParts);
     $targetFile = $directoryPath . '/' . $className . '.php';
 
@@ -173,16 +194,22 @@ function generarModelo($name)
     }
 
     $template = file_get_contents(STUBS_PATH . 'Model.stub');
-
-    // Pluralizar solo el nombre final de la tabla (ej: usuarios)
-    $tableName = strtolower($className) . 's';
-
-    // Remplazar marcadores incluyendo el namespace dinámico
+    
+    // 4. Algoritmo de mapeo snake_case para la tabla física (ej: "usuarios_roles")
+    $tableName = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $className));
+    if (!str_contains($tableName, '_')) {
+        if (!str_ends_with($tableName, 's')) {
+            $tableName .= 's';
+        }
+    }
+    
+    // 5. Remplazar marcadores e inyectar el namespace dinámico completo
     $compiled = str_replace(['{{Namespace}}', '{{ModelName}}', '{{TableName}}'], [$fullNamespace, $className, $tableName], $template);
-
+    
     file_put_contents($targetFile, $compiled);
     echo "\e[32mModelo creado con éxito:\e[0m App/Models/" . ($subNamespace ? str_replace('\\', '/', substr($subNamespace, 1)) . '/' : '') . "{$className}.php (Tabla: {$tableName})\n";
 }
+
 
 // ==========================================
 // COMANDO: php craft make:migration
@@ -195,10 +222,10 @@ if ($command === 'make:migration') {
 
     $tableName = null;
 
-    // Analizar las banderas buscando --create=tabla
-    foreach ($flags as $flag) {
-        if (str_starts_with($flag, '--create=')) {
-            $tableName = substr($flag, 9); // Extrae lo que esté después de '--create='
+    // 🔥 SOLUCIÓN: Analizar las banderas buscando directamente en el arreglo nativo $argv
+    foreach ($argv as $arg) {
+        if (str_starts_with($arg, '--create=')) {
+            $tableName = substr($arg, 9); // Extrae lo que esté después de '--create='
         }
     }
 
@@ -211,7 +238,6 @@ if ($command === 'make:migration') {
     generarMigración($name, $tableName);
     exit(0);
 }
-
 
 // ==========================================
 // COMANDO: php craft migrate
@@ -497,10 +523,12 @@ if ($command === 'make:seeder') {
 
     // Usar la función global generarSeeder que ya tienes o adaptada
     if (function_exists('generarSeeder')) {
-        // Buscamos si pasaron bandera de modelo (ej: -m o --model)
+        // 🔥 SOLUCIÓN: Buscamos la bandera recorriendo el arreglo nativo $argv
         $modelFlag = null;
-        foreach ($flags as $flag) {
-            if (str_starts_with($flag, '--model=')) $modelFlag = substr($flag, 8);
+        foreach ($argv as $arg) {
+            if (str_starts_with($arg, '--model=')) {
+                $modelFlag = substr($arg, 8); // Extrae el nombre del modelo
+            }
         }
         generarSeeder($name, $modelFlag);
     } else {
@@ -521,6 +549,7 @@ if ($command === 'make:seeder') {
     exit(0);
 }
 
+
 // ==========================================
 // COMANDO: php craft db:seed
 // ==========================================
@@ -537,8 +566,7 @@ if ($command === 'db:seed') {
         echo "\e[33mNo se encontró la carpeta de seeders.\e[0m\n";
         exit(0);
     }
-
-    // Determinar la clase del seeder solicitado o el DatabaseSeeder maestro por defecto
+    
     $seederClass = 'DatabaseSeeder';
     if ($name && !str_starts_with($name, '--')) {
         $seederClass = str_ends_with($name, 'Seeder') ? $name : $name . 'Seeder';
@@ -561,7 +589,13 @@ if ($command === 'db:seed') {
         echo "\e[34mIniciando Seeding desde {$seederClass}...\e[0m\n";
         
         $seederInstance = new $seederClass();
-        $seederInstance->run($mysqli);
+        
+        // 🔥 INYECCIÓN DE LA BANDERA CORREGIDA
+        if ($seederClass === 'DatabaseSeeder') {
+            $seederInstance->run($mysqli, $refreshActive);
+        } else {
+            $seederInstance->run($mysqli);
+        }
         
         echo "\e[32m¡Proceso de seeding completado con éxito!\e[0m\n";
     } catch (\Throwable $e) {
@@ -571,6 +605,7 @@ if ($command === 'db:seed') {
 
     exit(0);
 }
+
 
 function generarVistasCrud($name)
 {

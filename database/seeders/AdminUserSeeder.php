@@ -26,36 +26,30 @@ class AdminUserSeeder
         $rolId = (int)$rol['id'];
 
         // 2. Datos de tu usuario administrador real
-        $username = "Ing. Gonzalo Peñaherrera E.";
+        $username = "Administrador";
         $email = "gonzalop67@gmail.com";
         $password = Encrypter::encrypt('gP67M24e$+');
+        $avatar = "992919889.png";
 
         echo "    -> Insertando usuario administrador base...\n";
 
         // 🔥 MEJORA: Usamos INSERT IGNORE para hacerlo tolerante a fallos de caché
-        $stmt = $mysqli->prepare("INSERT IGNORE INTO usuarios (username, email, password) VALUES (?, ?, ?)");
+        $stmt = $mysqli->prepare("INSERT IGNORE INTO usuarios (username, email, password, avatar) VALUES (?, ?, ?, ?)");
         if (!$stmt) {
             throw new \Exception("Error al preparar consulta de usuario: " . $mysqli->error);
         }
-        $stmt->bind_param('sss', $username, $email, $password);
+        $stmt->bind_param('ssss', $username, $email, $password, $avatar);
         $stmt->execute();
         
         // Obtener el ID numérico asignado por MySQL
         $usuarioId = $mysqli->insert_id;
         $stmt->close();
 
-        // Si el insert_id devuelve 0 significa que se ignoró el insert porque ya existía en caché.
-        // Lo rescatamos mediante un SELECT rápido para obtener su ID real.
-        if ($usuarioId === 0) {
-            $checkUser = $mysqli->query("SELECT id FROM usuarios WHERE username = 'Ing. Gonzalo Peñaherrera E.' LIMIT 1");
-            $userRow = $checkUser->fetch_assoc();
-            $usuarioId = (int)$userRow['id'];
-        }
-
         // 3. Vincular el usuario con su respectivo rol en la tabla pivotante
         echo "    -> Vinculando usuario ID [{$usuarioId}] con el rol Administrador ID [{$rolId}]...\n";
         
-        $stmtPivot = $mysqli->prepare("INSERT INTO `{$tablaPivot}` (usuario_id, rol_id) VALUES (?, ?)");
+        // Usamos INSERT IGNORE como doble escudo de protección arquitectónica
+        $stmtPivot = $mysqli->prepare("INSERT IGNORE INTO `{$tablaPivot}` (usuario_id, rol_id) VALUES (?, ?)");
         if (!$stmtPivot) {
             throw new \Exception("Error al preparar consulta en tabla pivot: " . $mysqli->error);
         }
