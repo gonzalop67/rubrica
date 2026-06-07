@@ -55,7 +55,7 @@ session_destroy();   // Destruye la sesión en el servidor
             <p class="login-box-msg">Introduzca sus datos de ingreso</p>
             <form id="form-login" action="" method="post" autocomplete="off">
                 <div class="form-group has-feedback">
-                    <input type="text" class="form-control" placeholder="Usuario" id="uname" name="uname" autocomplete="off" autofocus>
+                    <input type="text" class="form-control" placeholder="Usuario" id="uname" name="uname" autocomplete="username" autofocus>
                     <span class="form-control-feedback">
                       <img src="assets/images/if_user_male_172625.png" height="16px" width="16px">
                     </span>

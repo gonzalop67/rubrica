@@ -11,4 +11,6 @@ use App\Controllers\LoginController;
 
 Route::get('/', [LoginController::class, 'showLoginForm']);
 
+Route::post('/auth/login', [LoginController::class, 'login']);
+
 Route::dispatch();

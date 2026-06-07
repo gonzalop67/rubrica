@@ -1,2 +1,5 @@
 # Ignora la carpeta public/uploads
 public/uploads/
+
+# Ignora la carpeta App/config
+App/config

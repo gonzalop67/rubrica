@@ -2,36 +2,186 @@
 <?php
 
 // 1. Requerimos tu configuración nativa primero.
-require_once __DIR__ . '/config/config.php';
+require_once __DIR__ . '/App/config/config.php';
 
-// 2. AUTOLOADER CRÍTICO: Enseña a la consola a cargar tus clases/modelos dinámicamente
+// 2. AUTOLOADER CRÍTICO: Mapea correctamente la raíz del proyecto y namespaces
 spl_autoload_register(function ($class) {
-    // Convierte App\Models\Model en App/Models/Model.php
     $file = __DIR__ . '/' . str_replace('\\', '/', $class) . '.php';
     if (file_exists($file)) {
         require_once $file;
     }
 });
 
-// 3. Definimos las constantes restantes basándonos en tu estructura de carpetas
-define('RAIZ_PROYECTO', __DIR__ . '/');
+// 3. Definimos las constantes restantes basándose en tu estructura de carpetas
 define('CONTROLLERS_PATH', RUTA_APP . '/Controllers/');
 define('MODELS_PATH', RUTA_APP . '/Models/');
-define('MIGRATIONS_PATH', RAIZ_PROYECTO . 'database/migrations/');
-define('STUBS_PATH', RAIZ_PROYECTO . 'Core/Stubs/');
+define('MIGRATIONS_PATH', __DIR__ . '/database/migrations/');
+define('STUBS_PATH', __DIR__ . '/Core/Stubs/');
+define('SEEDERS_PATH', __DIR__ . '/database/seeders/');
 
 $command = $argv[1] ?? null;
 $name = $argv[2] ?? null;
-$allArgs = implode(' ', array_slice($argv, 3));
+
+// Capturar todas las banderas separadas por espacios
+$flags = array_slice($argv, 3);
+$isResource = in_array('-r', $flags) || in_array('--resource', $flags);
+$createModel = in_array('-m', $flags) || in_array('--model', $flags);
+$createController = in_array('-c', $flags) || in_array('--controller', $flags);
+$createMigration = in_array('-g', $flags) || in_array('--migration', $flags) || in_array('-m', $flags); // -m suele usarse para migración en modelos
 
 if (!$command) {
-    echo "\e[33mSIAE 2025 - CLI Craft\e[0m\n";
+    echo "\e[33mMini Laravel - CLI Craft (SIAE 2026)\e[0m\n";
     echo "Uso:\n";
     echo "  php craft make:controller {Nombre} [-r] [-m]\n";
-    echo "  php craft make:model {Nombre}\n";
-    echo "  php craft make:migration create_{nombre}_table\n";
+    echo "  php craft make:model {Nombre} [-m] [-c] [-r]\n";
+    echo "  php craft make:migration create_{nombre}_table [--create=tabla]\n";
+    echo "  php craft make:seeder {Nombre}\n";
     echo "  php craft migrate\n";
+    echo "  php craft migrate:rollback\n";
+    echo "  php craft db:seed [{Nombre}] [--refresh]\n\n";
+    echo "  php craft make:crud {nombre_tabla}\n";
+    echo "Opciones y Banderas:\n";
+    echo "  -m, --model       Genera un modelo acoplado (al crear controlador) o migración (al crear modelo).\n";
+    echo "  -c, --controller  Genera un controlador básico acoplado al modelo.\n";
+    echo "  -r, --resource    Genera un controlador estructurado tipo Recurso (CRUD).\n";
+    echo "  --refresh         Vacía las tablas mediante TRUNCATE antes de ejecutar los seeders.\n";
     exit(0);
+}
+
+// ==========================================
+// FUNCIONES AUXILIARES DE GENERACIÓN
+// ==========================================
+function generarMigración($name, $forcedTableName = null) {
+    if (!is_dir(MIGRATIONS_PATH)) {
+        mkdir(MIGRATIONS_PATH, 0755, true);
+    }
+    
+    // 1. Normalizar nombres si viene con slashes o contraslashes
+    $cleanInputName = str_replace(['\\', '/'], '_', $name);
+
+    // 2. Determinar el nombre exacto de la tabla física
+    if ($forcedTableName) {
+        $tableName = strtolower($forcedTableName);
+    } else {
+        $tableName = str_replace(['create_', 'crear_tabla_', 'crear_', '_table', '_tabla'], '', strtolower($cleanInputName));
+        
+        // Pluralización inteligente por defecto si no se forzó una tabla
+        if (!str_ends_with($tableName, 's')) {
+            $tableName .= 's';
+        }
+    }
+    
+    // 3. Estandarizar el nombre del archivo final (mantiene el prefijo del usuario)
+    $migrationName = strtolower($cleanInputName);
+    if (!str_ends_with($migrationName, '_table')) {
+        $migrationName .= '_table';
+    }
+    
+    // 4. Convertir a CamelCase estricto para la Clase PHP (ej: CrearTablaUsuariosRolesTable)
+    $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $migrationName)));
+
+    $timestamp = date('Y_m_d_His');
+    $filename = $timestamp . '_' . $migrationName . '.php';
+    $targetFile = MIGRATIONS_PATH . $filename;
+
+    if (!file_exists(STUBS_PATH . 'Migration.stub')) {
+        echo "\e[31mError:\e[0m Falta plantilla Migration.stub\n";
+        return;
+    }
+
+    // 5. Leer la plantilla limpia y reemplazar marcadores
+    $template = file_get_contents(STUBS_PATH . 'Migration.stub');
+    $compiled = str_replace(['{{MigrationClass}}', '{{TableName}}'], [$className, $tableName], $template);
+    
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mMigración creada con éxito:\e[0m database/migrations/{$filename} (Tabla: {$tableName})\n";
+}
+
+function generarControlador($name, $isResource, $descomentarCrud = false)
+{
+    if (!str_ends_with($name, 'Controller')) $name .= 'Controller';
+
+    // Procesar namespaces y subcarpetas (ej: Admin\UsuarioController)
+    $normalizedPath = str_replace('\\', '/', $name);
+    $pathParts = explode('/', $normalizedPath);
+    $className = array_pop($pathParts); // "UsuarioController"
+
+    $subNamespace = !empty($pathParts) ? '\\' . implode('\\', $pathParts) : '';
+    $fullNamespace = "App\Controllers" . $subNamespace;
+
+    $directoryPath = CONTROLLERS_PATH . implode('/', $pathParts);
+    $targetFile = $directoryPath . '/' . $className . '.php';
+
+    if (file_exists($targetFile)) {
+        echo "\e[33mEl controlador [{$name}] ya existe.\e[0m\n";
+        return;
+    }
+
+    if (!is_dir($directoryPath)) {
+        mkdir($directoryPath, 0755, true);
+    }
+
+    if ($isResource) {
+        if (!file_exists(STUBS_PATH . 'Controller.stub')) {
+            echo "\e[31mError:\e[0m Falta plantilla Controller.stub\n";
+            return;
+        }
+        $template = file_get_contents(STUBS_PATH . 'Controller.stub');
+    } else {
+        $template = "<?php\n\nnamespace {{Namespace}};\n\nuse App\Controllers\Controller;\n\nclass {{ClassName}} extends Controller\n{\n    public function index()\n    {\n        //\n    }\n}\n";
+    }
+
+    $baseName = str_replace('Controller', '', $className);
+    $lowerName = strtolower($baseName);
+
+    // Remplazar marcadores incluyendo el namespace dinámico
+    $compiled = str_replace(['{{Namespace}}', '{{ClassName}}', '{{LowerName}}'], [$fullNamespace, $className, $lowerName], $template);
+
+    if ($descomentarCrud) {
+        $compiled = preg_replace('/^\s*\/+\s*(\$this->model|\$data|return redirect|return \$this)/m', '$1', $compiled);
+    }
+
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mControlador creado con éxito:\e[0m App/Controllers/" . ($subNamespace ? str_replace('\\', '/', substr($subNamespace, 1)) . '/' : '') . "{$className}.php\n";
+}
+
+function generarModelo($name)
+{
+    // Procesar namespaces y subcarpetas (ej: Admin\Usuario)
+    $normalizedPath = str_replace('\\', '/', $name);
+    $pathParts = explode('/', $normalizedPath);
+    $className = array_pop($pathParts); // "Usuario"
+
+    $subNamespace = !empty($pathParts) ? '\\' . implode('\\', $pathParts) : '';
+    $fullNamespace = "App\Models" . $subNamespace;
+
+    $directoryPath = MODELS_PATH . implode('/', $pathParts);
+    $targetFile = $directoryPath . '/' . $className . '.php';
+
+    if (file_exists($targetFile)) {
+        echo "\e[33mEl modelo [{$name}] ya existe.\e[0m\n";
+        return;
+    }
+
+    if (!is_dir($directoryPath)) {
+        mkdir($directoryPath, 0755, true);
+    }
+
+    if (!file_exists(STUBS_PATH . 'Model.stub')) {
+        echo "\e[31mError:\e[0m Falta plantilla Model.stub\n";
+        return;
+    }
+
+    $template = file_get_contents(STUBS_PATH . 'Model.stub');
+
+    // Pluralizar solo el nombre final de la tabla (ej: usuarios)
+    $tableName = strtolower($className) . 's';
+
+    // Remplazar marcadores incluyendo el namespace dinámico
+    $compiled = str_replace(['{{Namespace}}', '{{ModelName}}', '{{TableName}}'], [$fullNamespace, $className, $tableName], $template);
+
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mModelo creado con éxito:\e[0m App/Models/" . ($subNamespace ? str_replace('\\', '/', substr($subNamespace, 1)) . '/' : '') . "{$className}.php (Tabla: {$tableName})\n";
 }
 
 // ==========================================
@@ -39,42 +189,37 @@ if (!$command) {
 // ==========================================
 if ($command === 'make:migration') {
     if (!$name) {
-        echo "\e[31mError:\e[0m Debes especificar el nombre de la migración (ej: create_users_table).\n";
+        echo "\e[31mError:\e[0m Debes especificar el nombre de la migración.\n";
         exit(1);
     }
 
-    if (!is_dir(MIGRATIONS_PATH)) {
-        mkdir(MIGRATIONS_PATH, 0755, true);
+    $tableName = null;
+
+    // Analizar las banderas buscando --create=tabla
+    foreach ($flags as $flag) {
+        if (str_starts_with($flag, '--create=')) {
+            $tableName = substr($flag, 9); // Extrae lo que esté después de '--create='
+        }
     }
 
-    preg_match('/create_(.*)_table/', $name, $matches);
-    $tableName = $matches[1] ?? 'cambiame';
-    $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $name)));
-
-    $timestamp = date('Y_m_d_His');
-    $filename = $timestamp . '_' . $name . '.php';
-    $targetFile = MIGRATIONS_PATH . $filename;
-
-    if (!file_exists(STUBS_PATH . 'Migration.stub')) {
-        echo "\e[31mError:\e[0m No se encontró la plantilla en Core/Stubs/Migration.stub\n";
-        exit(1);
+    // Si no se usó la bandera --create, lo extraemos del nombre de la migración de forma nativa
+    if (!$tableName) {
+        $tableName = str_replace(['create_', '_table'], '', $name);
     }
 
-    $template = file_get_contents(STUBS_PATH . 'Migration.stub');
-    $compiled = str_replace(['{{MigrationClass}}', '{{TableName}}'], [$className, $tableName], $template);
-
-    file_put_contents($targetFile, $compiled);
-    echo "\e[32mMigración creada con éxito:\e[0m database/migrations/{$filename}\n";
+    // Llamamos a la función pasando el nombre de la migración y la tabla limpia
+    generarMigración($name, $tableName);
     exit(0);
 }
+
 
 // ==========================================
 // COMANDO: php craft migrate
 // ==========================================
 if ($command === 'migrate') {
-    mysqli_report(MYSQLI_REPORT_OFF);
+    // Cambia de MYSQLI_REPORT_OFF a MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
-    // Usamos las constantes exactas que venían en tu config.php
     $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
     if ($mysqli->connect_error) {
@@ -82,18 +227,18 @@ if ($command === 'migrate') {
     }
     $mysqli->set_charset('utf8mb4');
 
+    // Modificado: Agregamos la columna 'batch' a la tabla de control
     $mysqli->query("CREATE TABLE IF NOT EXISTS migrations (
         id INT AUTO_INCREMENT PRIMARY KEY,
         migration VARCHAR(255) NOT NULL,
+        batch INT NOT NULL,
         executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
 
     $executed = [];
     $result = $mysqli->query("SELECT migration FROM migrations");
     if ($result) {
-        while ($row = $result->fetch_assoc()) {
-            $executed[] = $row['migration'];
-        }
+        while ($row = $result->fetch_assoc()) $executed[] = $row['migration'];
     }
 
     if (!is_dir(MIGRATIONS_PATH)) {
@@ -115,98 +260,651 @@ if ($command === 'migrate') {
         exit(0);
     }
 
-    // Ejecutar las pendientes pasando la conexión nativa limpia
+    // NUEVO: Calcular el número del lote actual (El máximo actual + 1)
+    $batchResult = $mysqli->query("SELECT MAX(batch) as max_batch FROM migrations");
+    $batchRow = $batchResult->fetch_assoc();
+    $currentBatch = ($batchRow['max_batch'] ?? 0) + 1;
+
     foreach ($pendingMigrations as $file) {
         require_once MIGRATIONS_PATH . $file;
-
-        // CORRECCIÓN CLAVE: Removemos de forma segura todo el timestamp inicial (números y guiones bajos)
-        // Ejemplo: "2026_05_26_164034_create_products_table" se convierte en "create_products_table"
         $pureName = preg_replace('/^[0-9_]+/', '', pathinfo($file, PATHINFO_FILENAME));
-
-        // Convertimos a CamelCase (ej: CreateProductsTable)
         $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $pureName)));
 
         echo "Migrando: {$file}...\n";
 
         try {
             if (!class_exists($className)) {
-                throw new \Exception("La clase [{$className}] no está definida dentro del archivo de migración.");
+                throw new \Exception("La clase [{$className}] no está definida.");
             }
 
             $migrationInstance = new $className();
 
-            // CORRECCIÓN CLAVE: Dejamos que el modelo base inicialice la conexión 
-            // compartida de forma nativa a través de su propio método público
-            $migrationInstance->connection();
+            // Forzar que la propiedad sea pública y reciba la conexión activa
+            $migrationInstance->connection = $mysqli;
 
+            // Ejecutar el método up()
             $migrationInstance->up();
 
-            $stmt = $mysqli->prepare("INSERT INTO migrations (migration) VALUES (?)");
-            $stmt->bind_param('s', $file);
+            // Insertar en la tabla de control SOLO si el método up() no lanzó excepciones
+            $stmt = $mysqli->prepare("INSERT INTO migrations (migration, batch) VALUES (?, ?)");
+            $stmt->bind_param('si', $file, $currentBatch);
             $stmt->execute();
             $stmt->close();
 
             echo "\e[32mMigrado:\e[0m {$file}\n";
-        } catch (\Exception $e) {
-            echo "\e[31mError ejecutando la migración {$file}:\e[0m " . $e->getMessage() . "\n";
+        } catch (\Throwable $e) {
+            echo "\e[31mError migrando {$file}:\e[0m " . $e->getMessage() . "\n";
+            exit(1);
+        }
+    }
+    exit(0);
+}
+
+// ==========================================
+// COMANDO: php craft migrate:rollback
+// ==========================================
+if ($command === 'migrate:rollback') {
+    mysqli_report(MYSQLI_REPORT_OFF);
+    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+    if ($mysqli->connect_error) {
+        die("\e[31mError de conexión a la BD:\e[0m " . $mysqli->connect_error . "\n");
+    }
+    $mysqli->set_charset('utf8mb4');
+
+    // 1. Buscar el último lote (batch) ejecutado
+    $batchResult = $mysqli->query("SELECT MAX(batch) as max_batch FROM migrations");
+    $batchRow = $batchResult->fetch_assoc();
+    $lastBatch = $batchRow['max_batch'] ?? 0;
+
+    if ($lastBatch === 0) {
+        echo "\e[32mNo hay migraciones previas que revertir.\e[0m\n";
+        exit(0);
+    }
+
+    // 2. Obtener todas las migraciones que pertenecen a ese último lote (en orden inverso)
+    $stmt = $mysqli->prepare("SELECT migration FROM migrations WHERE batch = ? ORDER BY id DESC");
+    $stmt->bind_param('i', $lastBatch);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $migrationsToRollback = [];
+    while ($row = $result->fetch_assoc()) {
+        $migrationsToRollback[] = $row['migration'];
+    }
+    $stmt->close();
+
+    echo "\e[34mRevirtiendo el lote de cambios número: {$lastBatch}\e[0m\n";
+
+    // 3. Procesar y ejecutar el método down() de cada migración
+    foreach ($migrationsToRollback as $file) {
+        $filePath = MIGRATIONS_PATH . $file;
+
+        if (!file_exists($filePath)) {
+            echo "\e[31mError:\e[0m No se encuentra el archivo físico de la migración: {$file}\n";
+            continue;
+        }
+
+        require_once $filePath;
+
+        // Aislar el nombre de la clase a partir del nombre del archivo
+        $pureName = preg_replace('/^[0-9_]+/', '', pathinfo($file, PATHINFO_FILENAME));
+        $className = str_replace(' ', '', ucwords(str_replace('_', ' ', $pureName)));
+
+        echo "Deshaciendo: {$file}...\n";
+
+        try {
+            if (!class_exists($className)) {
+                throw new \Exception("La clase [{$className}] no está definida.");
+            }
+
+            // Instanciar la migración limpia
+            $migrationInstance = new $className();
+
+            // Inyectar la conexión SQL activa del comando
+            $migrationInstance->connection = $mysqli;
+
+            // Ejecutar la caída de la tabla (DROP TABLE)
+            $migrationInstance->down();
+
+            // Eliminar el registro de control de la base de datos
+            $deleteStmt = $mysqli->prepare("DELETE FROM migrations WHERE migration = ?");
+            $deleteStmt->bind_param('s', $file);
+            $deleteStmt->execute();
+            $deleteStmt->close();
+
+            echo "\e[33mRevertido con éxito:\e[0m {$file}\n";
+        } catch (\Throwable $e) {
+            echo "\e[31mError al revertir {$file}:\e[0m " . $e->getMessage() . "\n";
             exit(1);
         }
     }
 
+    echo "\e[32m¡Lote {$lastBatch} revertido por completo!\e[0m\n";
     exit(0);
 }
 
 // ==========================================
-// CONTROLADORES Y MODELOS
+// COMANDO: php craft make:controller
 // ==========================================
 if ($command === 'make:controller') {
-    if (!str_ends_with($name, 'Controller')) {
-        $name .= 'Controller';
-    }
-    $targetFile = CONTROLLERS_PATH . $name . '.php';
-    if (file_exists($targetFile)) {
-        echo "\e[31mEl controlador [{$name}] ya existe.\e[0m\n";
+    if (!$name) {
+        echo "\e[31mError:\e[0m Debes especificar el nombre del controlador.\n";
         exit(1);
     }
-    $isResource = (str_contains($allArgs, '-r') || str_contains($allArgs, '--resource'));
-    $createModel = (str_contains($allArgs, '-m') || str_contains($allArgs, '--model'));
 
-    if ($isResource) {
-        $template = file_get_contents(STUBS_PATH . 'Controller.stub');
-    } else {
-        $template = "<?php\n\nnamespace App\Controllers;\n\nuse App\Controllers\Controller;\n\nclass {{ClassName}} extends Controller\n{\n    public function index() { }\n}\n";
+    // 1. Crear el controlador (ej: Admin\UsuarioController)
+    // Conserva tu lógica de banderas (-r para recurso)
+    generarControlador($name, $isResource);
+
+    // 2. Si tiene la bandera de modelo acoplado (-m)
+    if ($createModel) {
+        // Quitamos la palabra 'Controller' si el usuario la escribió en el comando
+        // para que el modelo se llame "Admin\Usuario" y no "Admin\UsuarioController"
+        $modelName = str_ireplace('Controller', '', $name);
+        generarModelo($modelName);
+
+        // Si además quieres que el modelo acoplado genere su migración
+        if ($createMigration) {
+            generarMigración($modelName);
+        }
     }
 
-    $baseName = str_replace('Controller', '', $name);
-    $lowerName = strtolower($baseName);
-    $compiled = str_replace(['{{ClassName}}', '{{LowerName}}'], [$name, $lowerName], $template);
-    file_put_contents($targetFile, $compiled);
-    echo "\e[32mControlador creado con éxito:\e[0m App/Controllers/{$name}.php\n";
+    exit(0);
+}
 
-    if ($createModel) {
-        $modelTargetFile = MODELS_PATH . $baseName . '.php';
-        if (!file_exists($modelTargetFile)) {
-            $modelTemplate = file_get_contents(STUBS_PATH . 'Model.stub');
-            $tableName = $lowerName . 's';
-            $modelCompiled = str_replace(['{{ModelName}}', '{{TableName}}'], [$baseName, $tableName], $modelTemplate);
-            file_put_contents($modelTargetFile, $modelCompiled);
-            echo "\e[32mModelo creado con éxito:\e[0m App/Models/{$baseName}.php (Tabla: {$tableName})\n";
+// ==========================================
+// COMANDO: php craft make:model
+// ==========================================
+if ($command === 'make:model') {
+    if (!$name) {
+        echo "\e[31mError:\e[0m Debes especificar el nombre del modelo.\n";
+        exit(1);
+    }
+
+    // 1. Crear el Modelo base
+    generarModelo($name);
+
+    // 2. Si tiene la bandera de migración (-m)
+    if ($createMigration) {
+        generarMigración($name);
+    }
+
+    // 3. Si tiene la bandera de controlador (-c o -r)
+    if ($createController || $isResource) {
+        generarControlador($name . 'Controller', $isResource);
+    }
+
+    exit(0);
+}
+
+// ==========================================
+// FUNCIÓN AUXILIAR DE GENERACIÓN
+// ==========================================
+function generarSeeder($name, $modelName = null)
+{
+    if (!is_dir(SEEDERS_PATH)) {
+        mkdir(SEEDERS_PATH, 0755, true);
+    }
+
+    $targetFile = SEEDERS_PATH . $name . '.php';
+
+    if (file_exists($targetFile)) {
+        echo "\e[33mEl seeder [{$name}] ya existe.\e[0m\n";
+        return;
+    }
+
+    if (!file_exists(STUBS_PATH . 'Seeder.stub')) {
+        echo "\e[31mError:\e[0m Falta plantilla Seeder.stub en Core/Stubs/\n";
+        return;
+    }
+
+    $template = file_get_contents(STUBS_PATH . 'Seeder.stub');
+
+    // 1. Deducir el nombre de la tabla basándonos en el Modelo (estilo Laravel/tu framework)
+    $tableName = 'tu_tabla'; // Valor por defecto si no pasan --model
+
+    if ($modelName) {
+        // Convertir CamelCase a snake_case (ej: OfertaEducativa -> oferta_educativa)
+        $snake = strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $modelName));
+
+        // Pluralización simple (ej: user -> users, oferta_educativa -> oferta_educativas)
+        $tableName = $snake;
+        if (!str_ends_with($tableName, 's')) {
+            $tableName .= 's';
         }
+    }
+
+    // 2. Reemplazar las variables exactas de tu Stub
+    $compiled = str_replace(
+        ['{{SeederClass}}', '{{TableName}}'],
+        [$name, $tableName],
+        $template
+    );
+
+    file_put_contents($targetFile, $compiled);
+    echo "\e[32mSeeder creado con éxito:\e[0m database/seeders/{$name}.php\n";
+}
+
+// ==========================================
+// COMANDO: php craft make:seeder
+// ==========================================
+if ($command === 'make:seeder') {
+    if (!$name) {
+        echo "\e[31mError:\e[0m Debes especificar el nombre del seeder.\n";
+        exit(1);
+    }
+
+    // Usar la función global generarSeeder que ya tienes o adaptada
+    if (function_exists('generarSeeder')) {
+        // Buscamos si pasaron bandera de modelo (ej: -m o --model)
+        $modelFlag = null;
+        foreach ($flags as $flag) {
+            if (str_starts_with($flag, '--model=')) $modelFlag = substr($flag, 8);
+        }
+        generarSeeder($name, $modelFlag);
+    } else {
+        // Respaldo directo si no encuentra la función auxiliar
+        if (!is_dir(SEEDERS_PATH)) mkdir(SEEDERS_PATH, 0755, true);
+        if (!str_ends_with($name, 'Seeder')) $name .= 'Seeder';
+        $targetFile = SEEDERS_PATH . $name . '.php';
+
+        if (file_exists($targetFile)) {
+            echo "\e[33mEl seeder [{$name}] ya existe.\e[0m\n";
+            exit(0);
+        }
+
+        $template = "<?php\n\nclass {$name}\n{\n    public function run(mysqli \$mysqli)\n    {\n        // \$stmt = \$mysqli->prepare(\"INSERT INTO tu_tabla (campo) VALUES (?)\");\n    }\n}\n";
+        file_put_contents($targetFile, $template);
+        echo "\e[32mSeeder creado con éxito:\e[0m database/seeders/{$name}.php\n";
     }
     exit(0);
 }
 
-if ($command === 'make:model') {
-    $targetFile = MODELS_PATH . $name . '.php';
-    if (file_exists($targetFile)) {
-        echo "\e[31mEl modelo [{$name}] ya existe.\e[0m\n";
+// ==========================================
+// COMANDO: php craft db:seed
+// ==========================================
+if ($command === 'db:seed') {
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    $mysqli = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+    if ($mysqli->connect_error) {
+        die("\e[31mError de conexión a la BD:\e[0m " . $mysqli->connect_error . "\n");
+    }
+    $mysqli->set_charset('utf8mb4');
+
+    if (!is_dir(SEEDERS_PATH)) {
+        echo "\e[33mNo se encontró la carpeta de seeders.\e[0m\n";
+        exit(0);
+    }
+
+    // Determinar la clase del seeder solicitado o el DatabaseSeeder maestro por defecto
+    $seederClass = 'DatabaseSeeder';
+    if ($name && !str_starts_with($name, '--')) {
+        $seederClass = str_ends_with($name, 'Seeder') ? $name : $name . 'Seeder';
+    }
+
+    $seederFile = SEEDERS_PATH . $seederClass . '.php';
+
+    if (!file_exists($seederFile)) {
+        echo "\e[31mError:\e[0m No se encontró el archivo en: {$seederFile}\n";
         exit(1);
     }
-    $template = file_get_contents(STUBS_PATH . 'Model.stub');
-    $tableName = strtolower($name) . 's';
-    $compiled = str_replace(['{{ModelName}}', '{{TableName}}'], [$name, $tableName], $template);
-    file_put_contents($targetFile, $compiled);
-    echo "\e[32mModelo creado con éxito:\e[0m App/Models/{$name}.php (Tabla: {$tableName})\n";
+
+    require_once $seederFile;
+
+    try {
+        if (!class_exists($seederClass)) {
+            throw new \Exception("La clase [{$seederClass}] no está definida.");
+        }
+
+        echo "\e[34mIniciando Seeding desde {$seederClass}...\e[0m\n";
+        
+        $seederInstance = new $seederClass();
+        $seederInstance->run($mysqli);
+        
+        echo "\e[32m¡Proceso de seeding completado con éxito!\e[0m\n";
+    } catch (\Throwable $e) {
+        echo "\e[31mError crítico durante el Seeding:\e[0m " . $e->getMessage() . "\n";
+        exit(1);
+    }
+
+    exit(0);
+}
+
+function generarVistasCrud($name)
+{
+    $tabla = strtolower($name);
+
+    // Configurar plurales y singulares descriptivos para las etiquetas
+    $pluralCap = ucfirst($tabla);
+    $singularCap = ucfirst(str_ends_with($tabla, 's') ? substr($tabla, 0, -1) : $tabla);
+
+    // Carpeta destino de vistas según tu estructura
+    $vistasDir = __DIR__ . "/resources/views/admin/{$tabla}";
+    if (!is_dir($vistasDir)) {
+        mkdir($vistasDir, 0755, true);
+    }
+
+    // Conexión nativa MySQL para inspeccionar la tabla
+    try {
+        $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
+        $stmt = $pdo->query("DESCRIBE `$tabla`");
+        $columnas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Exception $e) {
+        echo "\e[31mError al leer la tabla de la BD:\e[0m " . $e->getMessage() . "\n";
+        return;
+    }
+
+    $primaryKey = 'id';
+    $cabecerasHtml = "";
+    $celdasHtml = "";
+    $camposFormCrear = "";
+    $camposFormEditar = "";
+
+    // 1. Analizar columnas para construir el esqueleto dinámico
+    foreach ($columnas as $col) {
+        $field = $col['Field'];
+        $type  = strtolower($col['Type']);
+
+        if ($col['Key'] === 'PRI') {
+            $primaryKey = $field;
+            continue;
+        }
+
+        // Saltamos campos de auditoría interna de base de datos para no saturar el listado
+        if (in_array($field, ['created_at', 'updated_at', 'deleted_at', 'password'])) {
+            continue;
+        }
+
+        // Generar cabeceras e inyección de datos para el bucle index
+        $cabecerasHtml .= "                                <th>" . ucfirst(str_replace('_', ' ', $field)) . "</th>\n";
+        $celdasHtml .= "                                    <td>{{ \$reg['{$field}'] }}</td>\n";
+
+        // Mapeo adaptado a MiniBlade y Bootstrap 4 para los formularios (create/edit)
+        if (strpos($type, 'text') !== false) {
+            $inputCrear  = "<textarea name=\"{$field}\" class=\"form-control form-control-sm\" required></textarea>";
+            $inputEditar = "<textarea name=\"{$field}\" class=\"form-control form-control-sm\" required>{{ \$data['{$field}'] }}</textarea>";
+        } elseif (strpos($type, 'date') !== false) {
+            $inputCrear  = "<input type=\"date\" name=\"{$field}\" class=\"form-control form-control-sm\" required>";
+            $inputEditar = "<input type=\"date\" name=\"{$field}\" value=\"{{ \$data['{$field}'] }}\" class=\"form-control\" required>";
+        } elseif (strpos($type, 'int') !== false) {
+            $inputCrear  = "<input type=\"number\" name=\"{$field}\" class=\"form-control form-control-sm\" required>";
+            $inputEditar = "<input type=\"number\" name=\"{$field}\" value=\"{{ \$data['{$field}'] }}\" class=\"form-control\" required>";
+        } else {
+            $inputCrear  = "<input type=\"text\" name=\"{$field}\" class=\"form-control form-control-sm\" required>";
+            $inputEditar = "<input type=\"text\" name=\"{$field}\" value=\"{{ \$data['{$field}'] }}\" class=\"form-control form-control-sm\" required>";
+        }
+
+        $camposFormCrear  .= "    <div class=\"form-group mb-3\">\n        <label>" . ucfirst(str_replace('_', ' ', $field)) . "</label>\n        {$inputCrear}\n    </div>\n";
+        $camposFormEditar .= "    <div class=\"form-group mb-3\">\n        <label>" . ucfirst(str_replace('_', ' ', $field)) . "</label>\n        {$inputEditar}\n    </div>\n";
+    }
+
+    // 2. Construcción de index.view.php
+    $indexView = "@extends('layout.app')\n\n@section('content')\n";
+    $indexView .= "    <div class=\"row\">\n        <div class=\"col-md-12\">\n";
+    $indexView .= "            <h1 class=\"h3 mb-4 text-gray-800\">Lista de {$pluralCap}</h1>\n\n";
+    $indexView .= "            <?php \$search = isset(\$_GET['search']) ? \$_GET['search'] : ''; ?>\n\n";
+    $indexView .= "            <nav class=\"navbar navbar-expand navbar-light bg-light mb-4\">\n";
+    $indexView .= "                <div class=\"container-fluid d-flex justify-content-between align-items-center w-100\">\n";
+    $indexView .= "                    <div class=\"d-flex align-items-center\">\n";
+    $indexView .= "                        <a href=\"<?= RUTA_URL ?>/{$tabla}/create\" class=\"btn btn-primary btn-sm mr-1\"><i class=\"fa-solid fa-plus\"></i> Nuevo {$singularCap}</a>\n";
+    $indexView .= "                        <a href=\"<?= RUTA_URL ?>/{$tabla}/wastebasket\" class=\"btn btn-danger btn-sm\"><i class=\"fa-solid fa-trash\"></i> Papelera</a>\n";
+    $indexView .= "                    </div>\n";
+    $indexView .= "                    <form action=\"<?= RUTA_URL ?>/{$tabla}\" class=\"form-inline\" role=\"search\">\n";
+    $indexView .= "                        <input class=\"form-control form-control-sm mr-2\" type=\"search\" name=\"search\" value=\"{{ \$search }}\" placeholder=\"Buscar...\" aria-label=\"Search\">\n";
+    $indexView .= "                        <button class=\"btn btn-outline-primary btn-sm\" type=\"submit\">Buscar</button>\n";
+    $indexView .= "                    </form>\n";
+    $indexView .= "                </div>\n";
+    $indexView .= "            </nav>\n\n";
+    $indexView .= "            @if (count(\${$tabla}['data']) > 0)\n";
+    $indexView .= "                <div class=\"table-responsive-sm\">\n";
+    $indexView .= "                    <table class=\"table table-bordered\">\n";
+    $indexView .= "                        <thead>\n                            <tr>\n";
+    $indexView .= "                                <th>#</th>\n{$cabecerasHtml}";
+    $indexView .= "                                <th class=\"text-center\">Acciones</th>\n                            </tr>\n                        </thead>\n";
+    $indexView .= "                        <tbody>\n";
+    $indexView .= "                            @php \$contador = \${$tabla}['from'] - 1; @endphp\n";
+    $indexView .= "                            @foreach (\${$tabla}['data'] as \$reg)\n";
+    $indexView .= "                                @php \$contador++; @endphp\n";
+    $indexView .= "                                <tr>\n";
+    $indexView .= "                                    <td>{{ \$contador }}</td>\n{$celdasHtml}";
+    $indexView .= "                                    <td class=\"text-center\">\n";
+    $indexView .= "                                        <div class=\"btn-group\" role=\"group\">\n";
+    $indexView .= "                                            <a href=\"{{ RUTA_URL }}/{$tabla}/{{ \$reg['{$primaryKey}'] }}/edit\" class=\"btn btn-success btn-sm\" title=\"Editar\"><i class=\"fa-solid fa-pencil\"></i></a>\n";
+    $indexView .= "                                            <button type=\"button\" class=\"btn btn-danger btn-sm\" onclick=\"confirmarEliminacion({{ \$reg['{$primaryKey}'] }})\" title=\"Eliminar\"><i class=\"fa-solid fa-trash\"></i></button>\n";
+    $indexView .= "                                        </div>\n";
+    $indexView .= "                                    </td>\n                                </tr>\n";
+    $indexView .= "                            @endforeach\n                        </tbody>\n                    </table>\n                </div>\n";
+    $indexView .= "                @include('includes.pagination')\n";
+    $indexView .= "            @else\n";
+    $indexView .= "                <div class=\"text-center\">Aún no se han registrado {$pluralCap}.</div>\n";
+    $indexView .= "            @endif\n        </div>\n    </div>\n";
+
+    // Inyección de lógica JavaScript de SweetAlert2 acoplada a tu enrutador
+    $indexView .= "    <script>\n";
+    $indexView .= "        function confirmarEliminacion(id) {\n";
+    $indexView .= "            Swal.fire({\n";
+    $indexView .= "                title: '¿Estás seguro?',\n";
+    $indexView .= "                text: 'El registro será enviado a la papelera.',\n";
+    $indexView .= "                icon: 'warning',\n";
+    $indexView .= "                showCancelButton: true,\n";
+    $indexView .= "                confirmButtonColor: '#3085d6',\n";
+    $indexView .= "                cancelButtonColor: '#d33',\n";
+    $indexView .= "                confirmButtonText: 'Sí, enviar',\n";
+    $indexView .= "                cancelButtonText: 'Cancelar'\n";
+    $indexView .= "            }).then((result) => {\n";
+    $indexView .= "                if (result.isConfirmed) {\n";
+    $indexView .= "                    fetch(`\${base_url}/{$tabla}/\${id}/delete`, {\n";
+    $indexView .= "                        method: 'POST',\n";
+    $indexView .= "                        headers: { 'X-Requested-With': 'XMLHttpRequest' }\n";
+    $indexView .= "                    })\n";
+    $indexView .= "                    .then(response => response.json())\n";
+    $indexView .= "                    .then(data => {\n";
+    $indexView .= "                        if (data.success) {\n";
+    $indexView .= "                            Swal.fire('¡Eliminado!', data.message, 'success').then(() => location.reload());\n";
+    $indexView .= "                        } else {\n";
+    $indexView .= "                            Swal.fire('Error', data.message || 'No se pudo eliminar', 'error');\n";
+    $indexView .= "                        }\n";
+    $indexView .= "                    });\n";
+    $indexView .= "                }\n";
+    $indexView .= "            });\n";
+    $indexView .= "        }\n";
+    $indexView .= "    </script>\n@endsection";
+
+    // 3. Escribir archivos de salida de vistas
+    file_put_contents("{$vistasDir}/index.view.php", $indexView);
+
+    // Vista create.view.php
+    // --- VISTA CREATE (DISEÑO AVANZADO BOOTSTRAP 4) ---
+    $createView = "@extends('layout.app')\n\n@section('content')\n";
+    $createView .= "    <div class=\"row\">\n        <div class=\"col-md-12\">\n";
+    $createView .= "            <!-- Page Heading -->\n";
+    $createView .= "            <h1 class=\"h3 mb-4 text-gray-800\">{{ \$title }}</h1>\n\n";
+    $createView .= "            <div class=\"card shadow mb-4\">\n";
+    $createView .= "                <div class=\"card-header py-3 d-flex justify-content-between align-items-center\">\n";
+    $createView .= "                    <h6 class=\"m-0 font-weight-bold text-primary\"><i class=\"fa-solid fa-square-plus\"></i> Registrar Nuevo Record</h6>\n";
+    $createView .= "                    <a href=\"{{ RUTA_URL }}/{$tabla}\" class=\"btn btn-secondary btn-sm\"><i class=\"fa-solid fa-arrow-left\"></i> Volver</a>\n";
+    $createView .= "                </div>\n";
+    $createView .= "                <div class=\"card-body\">\n";
+    $createView .= "                    <form action=\"{{ RUTA_URL }}/{$tabla}\" method=\"POST\" autocomplete=\"off\">\n";
+    $createView .= "                        <div class=\"row\">\n";
+
+    // Inyectamos los campos mapeados dinámicamente de la base de datos envolviéndolos en columnas
+    $createView .= "                            <!-- Campos Dinámicos -->\n";
+    $createView .= "                            <div class=\"col-md-8 offset-md-2\">\n";
+    $createView .= "{$camposFormCrear}";
+    $createView .= "                            </div>\n";
+
+    $createView .= "                        </div>\n";
+    $createView .= "                        <hr>\n";
+    $createView .= "                        <div class=\"d-flex justify-content-end\">\n";
+    $createView .= "                            <a href=\"{{ RUTA_URL }}/{$tabla}\" class=\"btn btn-light btn-sm mr-2\">Cancelar</a>\n";
+    $createView .= "                            <button type=\"submit\" class=\"btn btn-primary btn-sm\"><i class=\"fa-solid fa-floppy-disk\"></i> Guardar Registro</button>\n";
+    $createView .= "                        </div>\n";
+    $createView .= "                    </form>\n";
+    $createView .= "                </div>\n";
+    $createView .= "            </div>\n";
+    $createView .= "        </div>\n";
+    $createView .= "    </div>\n@endsection";
+
+    // Vista edit.view.php
+    $editView = "<h1>{{ \$title }}</h1>\n<form action=\"/{$tabla}/update/{{ \$data['{$primaryKey}'] }}\" method=\"POST\">\n{$camposFormEditar}    <button type=\"submit\" class=\"btn btn-primary\">Actualizar</button>\n    <a href=\"/{$tabla}\" class=\"btn btn-secondary\">Cancelar</a>\n</form>";
+
+    file_put_contents("{$vistasDir}/create.view.php", $createView);
+    file_put_contents("{$vistasDir}/edit.view.php", $editView);
+
+    // 4. Construcción de wastebasket.view.php
+    $wastebasketView = "@extends('layout.app')\n\n@section('content')\n";
+    $wastebasketView .= "    <div class=\"row\">\n        <div class=\"col-md-12\">\n";
+    $wastebasketView .= "            <h1 class=\"h3 mb-4 text-gray-800\">Papelera de {$pluralCap}</h1>\n\n";
+    $wastebasketView .= "            <div class=\"mb-4\">\n";
+    $wastebasketView .= "                <a href=\"<?= RUTA_URL ?>/{$tabla}\" class=\"btn btn-secondary btn-sm\"><i class=\"fa-solid fa-arrow-left\"></i> Volver al Listado</a>\n";
+    $wastebasketView .= "            </div>\n\n";
+    $wastebasketView .= "            @if (count(\${$tabla}['data']) > 0)\n";
+    $wastebasketView .= "                <div class=\"table-responsive-sm\">\n";
+    $wastebasketView .= "                    <table class=\"table table-bordered\">\n";
+    $wastebasketView .= "                        <thead>\n                            <tr>\n";
+    $wastebasketView .= "                                <th>#</th>\n{$cabecerasHtml}";
+    $wastebasketView .= "                                <th class=\"text-center\">Acciones</th>\n                            </tr>\n                        </thead>\n";
+    $wastebasketView .= "                        <tbody>\n";
+    $wastebasketView .= "                            @php \$contador = \${$tabla}['from'] - 1; @endphp\n";
+    $wastebasketView .= "                            @foreach (\${$tabla}['data'] as \$reg)\n";
+    $wastebasketView .= "                                @php \$contador++; @endphp\n";
+    $wastebasketView .= "                                <tr>\n";
+    $wastebasketView .= "                                    <td>{{ \$contador }}</td>\n{$celdasHtml}";
+    $wastebasketView .= "                                    <td class=\"text-center\">\n";
+    $wastebasketView .= "                                        <div class=\"btn-group\" role=\"group\">\n";
+    // Botón Restaurar (POST)
+    $wastebasketView .= "                                            <form action=\"{{ RUTA_URL }}/{$tabla}/{{ \$reg['{$primaryKey}'] }}/restore\" method=\"POST\" style=\"display:inline;\">\n";
+    $wastebasketView .= "                                                <button type=\"submit\" class=\"btn btn-success btn-sm\" title=\"Restaurar\"><i class=\"fa-solid fa-rotate-left\"></i></button>\n";
+    $wastebasketView .= "                                            </form>\n";
+    // Botón Eliminar Permanente (POST con Confirmación)
+    $wastebasketView .= "                                            <form action=\"{{ RUTA_URL }}/{$tabla}/{{ \$reg['{$primaryKey}'] }}/destroy\" method=\"POST\" style=\"display:inline;\" onclick=\"return confirm('¿Eliminar permanentemente de la base de datos?')\">\n";
+    $wastebasketView .= "                                                <button type=\"submit\" class=\"btn btn-danger btn-sm\" title=\"Eliminar Permanente\"><i class=\"fa-solid fa-ban\"></i></button>\n";
+    $wastebasketView .= "                                            </form>\n";
+    $wastebasketView .= "                                        </div>\n";
+    $wastebasketView .= "                                    </td>\n                                </tr>\n";
+    $wastebasketView .= "                            @endforeach\n                        </tbody>\n                    </table>\n                </div>\n";
+    $wastebasketView .= "                @include('includes.pagination')\n";
+    $wastebasketView .= "            @else\n";
+    $wastebasketView .= "                <div class=\"text-center\">La papelera está vacía.</div>\n";
+    $wastebasketView .= "            @endif\n        </div>\n    </div>\n@endsection";
+
+    file_put_contents("{$vistasDir}/wastebasket.view.php", $wastebasketView);
+
+    echo "\e[32mVistas creadas con éxito:\e[0m App/views/admin/{$tabla}/ (index, create, edit)\n";
+}
+
+function inyectarRutasCrud($name)
+{
+    $tabla = strtolower($name);
+
+    // ALGORITMO DE SINGULARIZACIÓN COMPUESTA CORREGIDO:
+    $palabras = explode('_', $tabla);
+    $palabrasSingulares = array_map(function ($palabra) {
+        if (str_ends_with($palabra, 's')) {
+            return substr($palabra, 0, -1);
+        }
+        return $palabra;
+    }, $palabras);
+
+    $modelName = implode('', array_map('ucfirst', $palabrasSingulares));
+    $controllerName = $modelName . 'Controller';
+
+    $routesFile = __DIR__ . '/routes/web.php';
+    if (!file_exists($routesFile)) return;
+
+    $contenidoRutas = file_get_contents($routesFile);
+
+    if (empty($contenidoRutas)) {
+        echo "\e[31mError: El archivo de rutas está vacío.\e[0m\n";
+        return;
+    }
+
+    if (strpos($contenidoRutas, "'/{$tabla}'") !== false || strpos($contenidoRutas, "/{$tabla}/") !== false) {
+        echo "\e[33mLas rutas para [/{$tabla}] ya existen.\e[0m\n";
+        return;
+    }
+
+    // Estructura RESTful con namespaces en línea (Evita romper la cabecera)
+    $bloqueRutas = "\n/** Rutas para " . ucfirst($tabla) . " */\n";
+    $bloqueRutas .= "Route::get('/{$tabla}', [\App\Controllers\\{$controllerName}::class, 'index'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::get('/{$tabla}/create', [\App\Controllers\\{$controllerName}::class, 'create'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::post('/{$tabla}', [\App\Controllers\\{$controllerName}::class, 'store'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::get('/{$tabla}/wastebasket', [\App\Controllers\\{$controllerName}::class, 'wastebasket'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::post('/{$tabla}/:id/restore', [\App\Controllers\\{$controllerName}::class, 'restore'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::post('/{$tabla}/:id/destroy', [\App\Controllers\\{$controllerName}::class, 'destroy'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::post('/{$tabla}/:id/delete', [\App\Controllers\\{$controllerName}::class, 'delete'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::get('/{$tabla}/:id/edit', [\App\Controllers\\{$controllerName}::class, 'edit'], [\$authMiddleware]);\n";
+    $bloqueRutas .= "Route::post('/{$tabla}/:id/update', [\App\Controllers\\{$controllerName}::class, 'update'], [\$authMiddleware]);\n";
+
+    if (strpos($contenidoRutas, 'Route::dispatch();') !== false) {
+        $nuevoContenido = str_replace('Route::dispatch();', $bloqueRutas . "\nRoute::dispatch();", $contenidoRutas);
+    } else {
+        $nuevoContenido = $contenidoRutas . $bloqueRutas;
+    }
+
+    if (!empty($nuevoContenido) && strlen($nuevoContenido) > strlen($contenidoRutas)) {
+        file_put_contents($routesFile, $nuevoContenido);
+        echo "\e[32mRutas inyectadas con total seguridad en:\e[0m App/config/routes.php\n";
+    }
+}
+
+// ==========================================
+// COMANDO: php craft make:crud
+// ==========================================
+if ($command === 'make:crud') {
+    if (!$name) {
+        echo "\e[31mError:\e[0m Debes especificar el nombre de la tabla o ruta.\n";
+        exit(1);
+    }
+
+    // 1. Normalizar barras y separar prefijos de subcarpetas (ej: "Admin\ofertas_educativas" -> "Admin/ofertas_educativas")
+    $normalizedPath = str_replace('\\', '/', $name);
+    $pathParts = explode('/', $normalizedPath);
+
+    // El último elemento es el nombre real de la tabla (ej: "ofertas_educativas")
+    $tableNameRaw = array_pop($pathParts);
+    $pureTableName = strtolower($tableNameRaw);
+
+    // 2. ALGORITMO DE SINGULARIZACIÓN COMPUESTA CORREGIDO:
+    $palabras = explode('_', $pureTableName); // Separa 'ofertas' y 'educativas'
+    $palabrasSingulares = array_map(function ($palabra) {
+        if (str_ends_with($palabra, 's')) {
+            return substr($palabra, 0, -1);
+        }
+        return $palabra;
+    }, $palabras);
+
+    // Une las palabras en CamelCase (ej: 'oferta', 'educativa' -> OfertaEducativa)
+    $singularModelName = implode('', array_map('ucfirst', $palabrasSingulares));
+
+    // 3. Reconstruir el Namespace/Ruta del Modelo y Controlador (ej: "Admin\OfertaEducativa")
+    $subDirPrefix = !empty($pathParts) ? implode('\\', $pathParts) . '\\' : '';
+    $modelName = $subDirPrefix . $singularModelName;
+
+    echo "\e[34mIniciando generación de CRUD completo para la tabla: {$pureTableName}\e[0m\n";
+    if (!empty($pathParts)) {
+        echo "\e[34mEstructurando módulo bajo el espacio de nombres: App\\Models\\" . rtrim($subDirPrefix, '\\') . "\e[0m\n";
+    }
+
+    // 1. Generar el modelo nativo (ej: App/Models/Admin/OfertaEducativa.php)
+    generarModelo($modelName);
+
+    // 2. Generar el controlador de recursos activo (ej: App/Controllers/Admin/OfertaEducativaController.php)
+    generarControlador($modelName . 'Controller', true, true);
+
+    // 3. Generar el árbol de vistas inteligente de MiniBlade (usando solo el nombre limpio de la tabla)
+    // Nota: Si tus vistas también requieren subcarpetas, podrías pasar $normalizedPath en lugar de $pureTableName
+    generarVistasCrud($pureTableName);
+
+    // 4. Inyectar el mapeo de rutas seguro
+    inyectarRutasCrud($pureTableName);
+
+    echo "\e[32m¡Módulo '{$pureTableName}' acoplado con éxito como {$singularModelName}Controller!\e[0m\n";
     exit(0);
 }
 

@@ -1,0 +1,38 @@
+<?php
+
+use App\Core\Faker;
+
+class {{SeederClass}}
+{
+    /**
+     * Ejecuta el seeder para poblar la base de datos.
+     *
+     * @param mysqli $mysqli Conexión nativa a la base de datos.
+     * @return void
+     */
+    public function run(mysqli $mysqli)
+    {
+        // Ejemplo de bucle estructurado para insertar 10 registros:
+        // for ($i = 0; $i < 10; $i++) {
+        //     $genero = Faker::genero();
+        //     $nombre = Faker::nombre($genero);
+        //     $correo = Faker::correo($nombre);
+        //     $password = Faker::contraseña('secret123');
+        //     $direccion = Faker::direccion();
+        //     $nacimiento = Faker::fechaNacimiento(20, 40);
+        //
+        //     $stmt = $mysqli->prepare("INSERT INTO users (name, email, password, gender, address, birthdate) VALUES (?, ?, ?, ?, ?, ?)");
+        //     $stmt->bind_param('ssssss', $nombre, $correo, $password, $genero, $direccion, $nacimiento);
+        //     $stmt->execute();
+        //     $stmt->close();
+        // }
+
+        // El comando --refresh vaciará automáticamente la tabla: {{TableName}}
+        
+        // $stmt = $mysqli->prepare("INSERT INTO {{TableName}} (campo1, campo2) VALUES (?, ?)");
+        // $stmt->bind_param('ss', $valor1, $valor2);
+        // $stmt->execute();
+        // $stmt->close();
+    }
+}
+

@@ -20,9 +20,19 @@ if (!defined('RAIZ_PROYECTO')) {
 }
 
 // 3. Configuración dinámica de la URL amigable (Compatible con Consola y Servidor Web)
-$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+if (php_sapi_name() === 'cli') {
+    // Si estás en consola, definimos valores fijos por defecto para evitar romper el script
+    if (!defined('RUTA_URL')) {
+        define('RUTA_URL', 'http://localhost/rubrica');
+    }
+} else {
+    // Si estás en el navegador web, calculamos dinámicamente
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
 
-if (!defined('RUTA_URL')) {
-    define('RUTA_URL', $protocol . $host . '/rubrica');
+    if (!defined('RUTA_URL')) {
+        define('RUTA_URL', $protocol . $host . '/rubrica');
+    }
 }
+
+date_default_timezone_set("America/Guayaquil");

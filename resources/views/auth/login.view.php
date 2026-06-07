@@ -36,14 +36,14 @@
 
                         <div class="form-group row">
                             <div class="col-12">
-                                <input class="form-control" type="text" name="usuario" id="usuario" required="" placeholder="Username">
+                                <input class="form-control" type="text" name="usuario" id="usuario" required="" placeholder="Username" autocomplete="username">
                                 <p id="error-usuario" class="invalid-feedback"></p>
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <div class="col-12">
-                                <input class="form-control" type="password" name="clave" id="clave" required="" placeholder="Password">
+                                <input class="form-control" type="password" name="clave" id="clave" required="" placeholder="Password" autocomplete="current-password">
                                 <p id="error-clave" class="invalid-feedback"></p>
                             </div>
                         </div>
@@ -79,8 +79,8 @@
                             </div>
                         </div>
 
-                        <div class="form-group mb-0 row">
-                            <div class="col-sm-7">
+                        <div class="form-group text-center mb-0 row">
+                            <div class="col-sm-12">
                                 <a href="pages-recoverpw.html" class="text-muted"><i class="mdi mdi-lock"></i>
                                     <small>¿ Olvidaste tu contraseña ?</small></a>
                             </div>
@@ -91,6 +91,10 @@
             </div>
         </div>
     </div>
+
+    <script>
+        const base_url = "{{ RUTA_URL }}";
+    </script>
 
     <script src="<?= RUTA_URL ?>/public/assets/js/pages/auth/login.js"></script>
 </body>

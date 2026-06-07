@@ -69,3 +69,85 @@ form.addEventListener('submit', function (event) {
         verificar_login();
     }
 });
+
+function validarUsername(username) {
+    const reg_nombres = /^([a-zA-Z ñáéíóúÑÁÉÍÓÚ]{5,64})$/i;
+    return reg_nombres.test(username);
+}
+
+async function verificar_login() {
+    // Eliminar todos los mensajes de error
+    usuario.classList.remove("is-invalid");
+    document.getElementById("error-usuario").innerHTML = "";
+    clave.classList.remove("is-invalid");
+    document.getElementById("error-clave").innerHTML = "";
+    perfil.classList.remove("is-invalid");
+    document.getElementById("error-perfil").innerHTML = "";
+    // Desplegar el loader image
+    document.querySelector("#img_loader").style.display = "block";
+    // Obtener todos los campos a enviar mediante FormData
+    let frmLogin = document.querySelector("#frmLogin");
+    const data = new FormData(frmLogin);
+    // Llamar al método auth/login que verifica si existe el email y clave
+    try {
+        // console.log(base_url + "/auth/login");
+        let resp = await fetch(base_url + "/auth/login", {
+            method: "POST",
+            mode: "cors",
+            cache: "no-cache",
+            body: data,
+        });
+        json = await resp.json();
+        // Desplegar el loader image
+        document.querySelector("#img_loader").style.display = "none";
+        if (!json.error) {
+            console.log(json);
+            return;
+            // Construimos la base de la URL de forma limpia
+            const urlDestino = base_url.endsWith('/') ? base_url : base_url + '/';
+
+            switch (json.slug) {
+                case 'administrador':
+                    location.href = urlDestino + "admin/dashboard";
+                    break;
+                case 'autoridad':
+                    location.href = urlDestino + "Autoridad/dashboard";
+                    break;
+                case 'administrador-de-ue':
+                    location.href = urlDestino + "AdminUE/dashboard";
+                    break;
+                case 'docente':
+                    location.href = urlDestino + "Docentes/dashboard";
+                    break;
+                case 'secretaria':
+                    location.href = urlDestino + "Secretaria/dashboard";
+                    break;
+                default:
+                    alert("Perfil no reconocido: " + json.slug);
+                    break;
+            }
+        } else {
+            // Existen errores de validación
+            let errors = "";
+
+            // console.log(json.errors);
+
+            Object.entries(json.errors).forEach(([clave, valor]) => {
+                // console.log(`${clave}: ${valor}`);
+                errors = errors + `<li>${valor}</li>`
+            });
+
+            var error = '<div class="alert alert-danger" role="alert">' +
+                '<p><i class="bi bi-ban"></i> Existen errores:</p>' +
+                '<ul>' +
+                errors +
+                '</ul>' +
+                '</div>';
+
+            img_loader.style.display = "none";
+            mensaje.innerHTML = error;
+        }
+    } catch (error) {
+        console.log("Ocurrió un error: " + error)
+    }
+}
