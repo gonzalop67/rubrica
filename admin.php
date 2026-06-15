@@ -103,7 +103,7 @@ $fecha_final = explode("-", $periodo_lectivo->pe_fecha_fin);
 $nombrePeriodoLectivo = $meses_abrev[(int)$fecha_inicial[1]] . " " . $fecha_inicial[0] . " - " . $meses_abrev[(int)$fecha_final[1]] . " " . $fecha_final[0];
 $aniosPeriodoLectivo = $periodo_lectivo->pe_anio_inicio . " - " . $periodo_lectivo->pe_anio_fin;
 
-//Obtengo el nombre de la modalidad asociada
+//Obtengo el nombre de la oferta educativa asociada
 $consulta = $db->consulta("SELECT mo_nombre FROM sw_modalidad m, sw_periodo_lectivo p WHERE m.id_modalidad = p.id_modalidad AND p.id_periodo_lectivo = $id_periodo_lectivo");
 $modalidad = $db->fetch_object($consulta);
 $nombreModalidad = $modalidad->mo_nombre;

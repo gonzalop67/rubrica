@@ -13,87 +13,89 @@
     <!-- Content Header (Page header) -->
     <section class="content-header">
         <h1 id="titulo_principal">
-            Menus
-            <small>Listado</small>
+            Menús
+            <small>Gestión por Perfil</small>
         </h1>
     </section>
+
     <!-- Main content -->
     <section class="content">
-        <!-- Default box -->
-        <div class="box box-primary">
-            <div class="box-header with-border">
-                <span class="btn btn-light" data-toggle="modal" data-target="#nuevoMenuModal"><i class="fa fa-plus-circle"></i> Nuevo Registro</span>
-                <div id="img_loader" class="text-center" style="display: none;">
-                    <img src="public/img/ajax-loader.gif" alt="Procesando..." />
-                </div>
-                <!-- message -->
-                <div id="mensaje" class="fuente9 text-center">
-                    <?php
-                    if (isset($_SESSION["msg"])) {
-                        echo $_SESSION["msg"];
-                        unset($_SESSION["msg"]);
-                    }
-                    ?>
-                </div>
-            </div>
-            <div class="box-body">
-                <div class="row">
-                    <div class="col-lg-12 col-md-12 col-sm-12 table-responsive">
-                        <div id="menu">
-                            <div class="dd" id="nestable">
-                                <ol class="dd-list">
-                                    <?php
-                                    $menusNivel1 = $db->consulta("SELECT m.*, pe_nombre FROM `sw_menu` m, `sw_menu_perfil` mp, `sw_perfil` p WHERE m.id_menu = mp.id_menu AND p.id_perfil = mp.id_perfil AND mnu_padre = 0 ORDER BY pe_nombre, mnu_padre, mnu_orden");
-                                    while ($menu = $db->fetch_assoc($menusNivel1)) {
-                                    ?>
-                                        <li class="dd-item dd3-item" data-id="<?php echo $menu["id_menu"] ?>">
-                                            <div class="dd-handle dd3-handle"></div>
-                                            <div class="dd3-content menu_link">
-                                                <a href="#" onclick="obtenerDatos(<?php echo $menu['id_menu'] ?>)" data-toggle="modal" data-target="#editarMenuModal">(<?php echo $menu["pe_nombre"] ?>) <?php echo $menu["mnu_texto"] ?></a>
-                                                <a href="menus/eliminar_menu.php?id_menu=<?php echo $menu["id_menu"]; ?>&id_usuario=<?php echo $id_usuario; ?>&id_perfil=<?php echo $id_perfil; ?>&id_menu2=<?php echo $_GET['id_menu']; ?>" class="eliminar-menu pull-right" title="Eliminar este menú"><i class="text-danger fa fa-trash-o"></i></a>
-                                            </div>
-                                            <?php
-                                            $menusNivel2 = $db->consulta("SELECT *
-                                                                            FROM sw_menu
-                                                                           WHERE mnu_padre = " . $menu["id_menu"] . " 
-                                                                           ORDER BY mnu_orden");
-                                            $num_submenus = $db->num_rows($menusNivel2);
-                                            if ($num_submenus > 0) {
-                                            ?>
-                                                <ol class="dd-list">
-                                                    <?php
-                                                    while ($menu2 = $db->fetch_assoc($menusNivel2)) {
-                                                    ?>
-                                                        <li class="dd-item dd3-item" data-id="<?php echo $menu2["id_menu"] ?> ">
-                                                            <div class="dd-handle dd3-handle"></div>
-                                                            <div class="dd3-content menu_link">
-                                                                <a href="#" onclick="obtenerDatos(<?php echo $menu2['id_menu'] ?>)" data-toggle="modal" data-target="#editarMenuModal"><?php echo $menu2["mnu_texto"] ?></a>
-                                                                <a href="menus/eliminar_menu.php?id_menu=<?php echo $menu2["id_menu"]; ?>&id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil; ?>&id_menu2=<?php echo $_GET['id_menu']; ?>" class="eliminar-menu pull-right" title="Eliminar este menú"><i class="text-danger fa fa-trash-o"></i></a>
-                                                            </div>
-                                                        </li>
-                                                    <?php
-                                                    }
-                                                    ?>
-                                                </ol>
-                                            <?php
-                                            }
-                                            ?>
-                                        </li>
-                                    <?php
-                                    }
-                                    ?>
-                                </ol>
-                            </div>
+        <div class="row">
+            <!-- Columna centrada para optimizar la lectura del árbol Nestable -->
+            <div class="col-md-8 col-md-offset-2 col-sm-12">
+
+                <!-- Box de AdminLTE 2 -->
+                <div class="box box-primary">
+                    <div class="box-header with-border clearfix">
+                        <!-- Botón de Nuevo Registro alineado a la izquierda -->
+                        <button type="button" id="btn-add" class="btn btn-primary btn-sm pull-left" data-toggle="modal" data-target="#nuevoMenuModal">
+                            <i class="fa fa-plus-circle"></i> Nuevo Menú
+                        </button>
+
+                        <!-- Mensajes de sesión -->
+                        <div id="mensaje" class="fuente9 text-center pull-right">
+                            <?php
+                            if (isset($_SESSION["msg"])) {
+                                echo $_SESSION["msg"];
+                                unset($_SESSION["msg"]);
+                            }
+                            ?>
                         </div>
                     </div>
+
+                    <div class="box-body">
+                        <!-- Selector de Perfiles Integrado -->
+                        <div class="form-group">
+                            <label for="select-perfil" class="text-bold">Selecciona un Perfil:</label>
+                            <select id="select-perfil" class="form-control">
+                                <option value="">-- Seleccione un Perfil --</option>
+                                <?php
+                                // Consulta nativa para listar los perfiles en el select
+                                $res_perfiles = $db->consulta("SELECT id_perfil, pe_nombre FROM sw_perfil ORDER BY pe_nombre");
+                                while ($perfil = $db->fetch_assoc($res_perfiles)) {
+                                ?>
+                                    <option value="<?php echo $perfil['id_perfil']; ?>"><?php echo $perfil['pe_nombre']; ?></option>
+                                <?php
+                                }
+                                ?>
+                            </select>
+                        </div>
+
+                        <div id="img_loader" class="text-center" style="display: none; margin-bottom: 3px;">
+                            <img src="public/img/ajax-loader.gif" alt="Procesando..." />
+                        </div>
+
+                        <!-- Estructura Nestable Dinámica -->
+                        <div class="cf nestable-lists">
+                            <div class="dd" id="nestable">
+
+                                <!-- Contenedor/Placeholder Inicial -->
+                                <div id="nestable-placeholder">
+
+                                    <div class="text-muted text-center" style="padding: 30px 0; font-size: 15px;">
+                                        <i class="fa fa-info-circle"></i> Selecciona un perfil para cargar sus menús asignados.
+                                    </div>
+                                </div>
+
+                                <!-- Lista oculta por defecto hasta que AJAX devuelva la respuesta -->
+                                <ol class="dd-list" id="lista-menus-dinamica" style="display: none;">
+                                    <!-- Aquí inyectarás el HTML de los <li class="dd-item"> desde tu archivo AJAX mediante PHP -->
+                                </ol>
+
+                            </div>
+                        </div>
+
+                    </div>
+                    <!-- /.box-body -->
                 </div>
+                <!-- /.box -->
+
             </div>
-            <!-- /.box-body -->
         </div>
-        <!-- /.box -->
     </section>
     <!-- /.content -->
 </div>
+
 <?php require_once "modalInsert.php" ?>
 <?php require_once "modalUpdate.php" ?>
 
@@ -101,7 +103,65 @@
 <script type="text/javascript" src="public/js/funciones.js"></script>
 <script>
     $(document).ready(function() {
-        $('#nestable').nestable('expandAll');
+        // $('#nestable').nestable('expandAll');
+
+        // Inicializar el plugin Nestable si no lo has inicializado antes
+        $('#nestable').nestable({
+            group: 1,
+            maxDepth: 2 // Limita la profundidad a 2 niveles según tu base de datos
+        });
+
+        $('#select-perfil').on('change', function() {
+            var id_perfil = $(this).val();
+            var listaMenus = $('#lista-menus-dinamica');
+            var placeholder = $('#nestable-placeholder');
+            var loader = $('#img_loader');
+
+            // Si selecciona la opción vacía
+            if (id_perfil === '') {
+                loader.hide();
+                listaMenus.hide().html('');
+                placeholder.show();
+                return;
+            }
+
+            // Configuración visual antes del envío
+            placeholder.hide();
+            listaMenus.hide().html('');
+            loader.show();
+
+            // Petición AJAX
+            $.ajax({
+                url: 'menus/cargar_menus_perfil.php', // Asegúrate de ajustar la ruta correcta
+                type: 'GET',
+                data: {
+                    id_perfil: id_perfil,
+                    id_menu_actual: '<?php echo isset($_GET["id_menu"]) ? $_GET["id_menu"] : 0; ?>'
+                },
+                dataType: 'html',
+                success: function(response) {
+                    loader.hide();
+                    if (response.trim() !== '') {
+                        // console.log(response);
+                        listaMenus.html(response).fadeIn();
+                        // Reinicializar o actualizar el estado de Nestable con la nueva data
+                        $('#nestable').nestable('destroy');
+                        $('#nestable').nestable({
+                            group: 1,
+                            maxDepth: 2
+                        });
+                    } else {
+                        listaMenus.hide();
+                        placeholder.html('<div class="text-warning text-center" style="padding: 30px 0;"><i class="fa fa-exclamation-triangle"></i> Este perfil no tiene menús asignados.</div>').show();
+                    }
+                },
+                error: function() {
+                    loader.hide();
+                    placeholder.html('<div class="text-danger text-center" style="padding: 30px 0;"><i class="fa fa-times-circle"></i> Ocurrió un error al cargar los menús.</div>').show();
+                }
+            });
+
+        });
 
         $('#nestable').nestable().on('change', function() {
             $.ajax({
@@ -147,19 +207,46 @@
     });
 
     function obtenerDatos(id) {
+        // Validar que el id sea un número válido antes de hacer la petición
+        if (!id || isNaN(id)) {
+            console.error("ID de menú no válido");
+            return;
+        }
+
         $.ajax({
             url: "menus/obtener_datos.php",
             type: "POST",
-            data: "id=" + id,
+            // CORREGIDO: Envío seguro como objeto para evitar problemas de codificación
+            data: {
+                id: parseInt(id, 10)
+            },
             dataType: "json",
             success: function(r) {
-                //console.log(r);
-                $("#id_menu").val(r.id_menu);
-                $("#textou").val(r.mnu_texto);
-                $("#enlaceu").val(r.mnu_enlace);
-                $("#iconou").val(r.mnu_icono);
-                setearIndice("publicadou", r.mnu_publicado);
-                setearIndice("id_perfilu", r.id_perfil);
+                // Se asume que 'r' contiene las propiedades del objeto menú retornado por PHP
+                if (r && !r.error) {
+                    // Poblar los campos de texto normales del modal
+                    $("#id_menu").val(r.id_menu);
+                    $("#textou").val(r.mnu_texto);
+                    $("#enlaceu").val(r.mnu_enlace);
+                    $("#iconou").val(r.mnu_icono);
+
+                    // Asignar valores a los elementos select o checkboxes
+                    // Si tienes cargado Select2 (común en AdminLTE), añade .trigger('change')
+                    // $("#publicadou").val(r.mnu_publicado).trigger('change');
+                    // $("#id_perfilu").val(r.id_perfil).trigger('change');
+
+                    // Opcional: Si usas las funciones personalizadas 'setearIndice' de tu sistema:
+                    setearIndice("publicadou", r.mnu_publicado);
+                    setearIndice("id_perfilu", r.id_perfil);
+                } else {
+                    alert("Error al cargar los datos: " + (r.error || "Formato desconocido"));
+                    // $("#editarMenuModal").hide();
+                }
+            },
+            error: function(xhr, status, error) {
+                // Captura errores de red, respuestas 404, 403 o 500 del servidor
+                console.error("Error en la petición AJAX:", error);
+                alert("No se pudieron recuperar los datos del menú. Intente nuevamente.");
             }
         });
     }

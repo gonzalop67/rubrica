@@ -1,0 +1,7 @@
+id_menu;mnu_texto;mnu_enlace;mnu_link;mnu_nivel;mnu_orden;mnu_padre;mnu_publicado;mnu_icono;pe_nombre
+58;Comportamiento;#;;1;29;0;1;;Tutor
+273;Reportes;;#;1;30;0;1;;Tutor
+228;Asistencia;#;;1;31;0;1;;Tutor
+210;Consultas;#;;1;32;0;1;;Tutor
+265;Proyectos;tutores/view_proyectos.php;;1;33;0;1;;Tutor
+279;Expedientes;expedientes/index.php;;1;34;0;0;fa-list-ol;Tutor

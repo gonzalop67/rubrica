@@ -1,349 +1,290 @@
 <style>
+	/* 1. Contenedor del reporte: Forzamos el contexto de posicionamiento */
+	#resultado-reporte {
+		width: 100%;
+		max-height: 500px;
+		overflow: auto;
+		border: 1px solid #AAA;
+		position: relative;
+		/* Crea un nuevo origen de coordenadas para el sticky */
+	}
+
+	/* 2. Estilo base de la tabla */
 	table {
-		border: none;
+		font-family: Arial, sans-serif;
+		font-size: 9pt;
+		border-collapse: separate !important;
+		/* Obligatorio: destruye herencias de la plantilla */
+		border-spacing: 0;
+		width: max-content;
 	}
 
-	.text-right {
-		text-align: right;
+	th,
+	td {
+		border-right: 1px solid #AAA;
+		border-bottom: 1px solid #AAA;
+		padding: 6px;
+		text-align: center;
+		background-color: #FFF;
+		/* Evita transparencias al desplazar */
 	}
 
+	th {
+		background-color: #F2F2F2;
+	}
+
+	th:first-child,
+	td:first-child {
+		border-left: 1px solid #AAA;
+	}
+
+	/* ==========================================
+   CONGELAR FILAS SUPERIORES (EJE VERTICAL)
+   ========================================== */
+	/* En lugar de congelar los <th> de forma individual por fila con 'top' manual,
+   congelamos el bloque general <thead> completo para que el navegador mantenga 
+   las 3 filas unidas sin importar cuánto midan en píxeles. */
+	thead {
+		position: -webkit-sticky;
+		position: sticky !important;
+		top: 0 !important;
+		z-index: 20;
+	}
+
+	/* Forzamos a todos los th a comportarse de manera uniforme dentro del bloque pegajoso */
+	thead tr th {
+		position: relative;
+		/* Mantiene su posición relativa dentro del thead congelado */
+		border-top: 1px solid #AAA;
+		background-color: #F2F2F2 !important;
+		/* Color gris unificado para toda la cabecera */
+		box-sizing: border-box;
+	}
+
+	/* ==========================================
+   CONGELAR COLUMNAS IZQUIERDAS (EJE HORIZONTAL)
+   ========================================== */
+	th.col-fija-1,
+	td.col-fija-1 {
+		position: -webkit-sticky;
+		position: sticky !important;
+		left: 0 !important;
+		z-index: 10;
+		width: 45px !important;
+		min-width: 45px !important;
+		max-width: 45px !important;
+		box-sizing: border-box;
+		padding: 6px 2px !important;
+	}
+
+	th.col-fija-2,
+	td.col-fija-2 {
+		position: -webkit-sticky;
+		position: sticky !important;
+		left: 45px !important;
+		/* Acoplado milimétricamente al ancho de la col 1 */
+		z-index: 10;
+		width: 260px !important;
+		min-width: 260px !important;
+		max-width: 260px !important;
+		box-sizing: border-box;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	/* ==========================================
+   INTERSECCIÓN CRÍTICA (Las esquinas superiores)
+   Al congelar el 'thead' por completo, las esquinas solo necesitan un z-index 
+   superior para que los nombres de los alumnos no pasen sobre 'Nro.' ni 'Nómina' */
+	thead .col-fija-1,
+	thead .col-fija-2 {
+		z-index: 30 !important;
+	}
+
+
+	/* Clases de utilidad */
 	.text-left {
 		text-align: left;
 	}
 
-	.text-center {
-		text-align: center;
+	.rojo {
+		color: #dd4b39;
+		font-weight: bold;
 	}
 </style>
-
 <div class="content-wrapper">
+	<?php
+	ini_set('display_errors', 1);
+	error_reporting(E_ALL);
+	// 1. Conexión a la base de datos
+	require_once("scripts/clases/class.mysql.php");
+	$db = new MySQL;
+
+	function cargarParalelosEspecialidad(int $id_periodo_lectivo)
+	{
+		global $db;
+
+		// Usamos JOINs explícitos para optimizar la indexación de la base de datos
+		$sql = "SELECT e.es_nombre, 
+                   e.es_figura, 
+                   c.cu_nombre, 
+                   p.id_paralelo, 
+                   p.pa_nombre, 
+                   p.pa_orden, 
+                   j.jo_nombre
+              FROM sw_paralelo p
+              INNER JOIN sw_curso c ON p.id_curso = c.id_curso
+              INNER JOIN sw_especialidad e ON c.id_especialidad = e.id_especialidad
+              INNER JOIN sw_tipo_educacion t ON e.id_tipo_educacion = t.id_tipo_educacion
+              INNER JOIN sw_jornada j ON j.id_jornada = p.id_jornada
+             WHERE t.id_periodo_lectivo = $id_periodo_lectivo 
+             ORDER BY p.pa_orden ASC";
+
+		$consulta = $db->consulta($sql);
+		$num_total_registros = $db->num_rows($consulta);
+		$cadena = "";
+
+		if ($num_total_registros > 0) {
+			while ($paralelos = $db->fetch_assoc($consulta)) {
+				$code = $paralelos["id_paralelo"];
+
+				// Construcción limpia usando interpolación de variables
+				$name = "{$paralelos['cu_nombre']} {$paralelos['pa_nombre']} - {$paralelos['es_figura']} - {$paralelos['jo_nombre']}";
+
+				// Concatenación segura evitando escapar comillas dobles innecesariamente
+				$cadena .= "<option value='{$code}'>{$name}</option>";
+			}
+		}
+		return $cadena;
+	}
+	?>
 	<!-- Main content -->
 	<section class="content">
 		<div id="titulo_pagina">
 			<?php echo "REPORTE " . $_SESSION['titulo_pagina'] ?>
 		</div>
 		<div id="barra_principal">
-			<table id="tabla_navegacion" cellpadding="0" cellspacing="0">
-				<tr>
-					<td width="5%" class="fuente9" class="text-right">
-						<div class="text-right">
-							Paralelo: &nbsp;
-						</div>
-					</td>
-					<td width="15%">
-						<select id="cboParalelos" class="fuente8">
-							<option value="0"> Seleccione... </option>
-						</select>
-					</td>
-					<td width="5%" class="fuente9" class="text-right">
-						<div class="text-right">
-							Aporte:&nbsp;
-						</div>
-					</td>
-					<td width="15%">
-						<select id="cboAportesEvaluacion" class="fuente8">
-							<option value="0"> Seleccione... </option>
-						</select>
-					</td>
-					<td width="5%" class="fuente9"> &nbsp;Asignatura:&nbsp; </td>
-					<td width="15%">
-						<select id="cboAsignaturas" class="fuente8">
-							<option value="0"> Seleccione... </option>
-						</select>
-					</td>
-					<td width="*">&nbsp; </td>
-				</tr>
-			</table>
-			<input id="numero_pagina" type="hidden" value="1" />
+			<label for="selector-paralelo">Seleccione el Paralelo:</label>
+			<select id="selector-paralelo">
+				<option value="">-- Seleccione una opción --</option>
+				<?php echo cargarParalelosEspecialidad($_SESSION['id_periodo_lectivo']); ?>
+			</select>
+			<label for="selector-asignatura">Seleccione la Asignatura:</label>
+			<select id="selector-asignatura" disabled>
+				<option value="">-- Seleccione primero un paralelo --</option>
+			</select>
 		</div>
-		<div id="pag_nomina_estudiantes">
-			<!-- Aqui va la paginacion de los estudiantes encontrados -->
-			<div id="total_registros_estudiantes" class="paginacion">
-				<table class="fuente8" width="100%" cellspacing=4 cellpadding=0>
-					<tr>
-						<td>
-							<div id="num_estudiantes">&nbsp;N&uacute;mero de Estudiantes encontrados:&nbsp;</div>
-						</td>
-						<td>
-							<div id="paginacion_estudiantes">
-								<!-- Aqui va la paginacion de estudiantes -->
-							</div>
-						</td>
-					</tr>
-				</table>
-			</div>
-			<div id="tituloNomina" class="header2"> NOMINA DE ESTUDIANTES </div>
-			<div class="cabeceraTabla">
-				<table class="fuente8" width="100%" cellspacing=0 cellpadding=0>
-					<tr class="cabeceraTabla">
-						<td width="5%">Nro.</td>
-						<td width="5%">Id.</td>
-						<td width="30%" class="text-left">N&oacute;mina</td>
-						<td width="60%" class="text-left">
-							<div id="txt_rubricas">Calificaciones</div>
-						</td>
-						<!-- <td width="18%" align="center">Acciones</td> -->
-					</tr>
-				</table>
-			</div>
+		<div id="contenedor-tabla">
+			<!-- El loader se mantiene fijo aquí -->
 			<div id="img_loader" style="display:none;text-align:center">
 				<img src="imagenes/ajax-loader.gif" alt="Procesando...">
 			</div>
-			<div id="lista_estudiantes_paralelo" style="text-align:center"> </div>
-			<input id="id_aporte_evaluacion" name="id_aporte_evaluacion" type="hidden" />
+
+			<!-- Aquí es donde volcaremos dinámicamente los textos o las tablas -->
+			<div id="resultado-reporte">
+				<p style="color: #666; text-align: center;">Seleccione un paralelo y una asignatura para ver las calificaciones.</p>
+			</div>
 		</div>
-		<div id="mensaje" class="error" class="text-center"> </div>
 	</section>
 </div>
-<script type="text/javascript" src="js/funciones.js"></script>
-<script type="text/javascript">
-	$(document).ready(function() {
-		cargarParalelos();
-		$("#cboParalelos").change(function(e) {
-			e.preventDefault();
-			cargarPeriodosEvaluacion($(this).val());
-			cargarAsignaturas($(this).val());
-			$("#lista_estudiantes_paralelo").hide();
-			$("#mensaje").html("Debe elegir una asignatura...");
-		});
-		$("#cboAportesEvaluacion").change(function(e) {
-			e.preventDefault();
-			// Se determinan los valores de id_periodo_evaluacion e id_aporte_evaluacion
-			var codigos = $("#cboAportesEvaluacion").val();
-			var array_codigos = codigos.split("*");
+<script>
+	document.addEventListener("DOMContentLoaded", () => {
+		const selParalelo = document.getElementById("selector-paralelo");
+		const selAsignatura = document.getElementById("selector-asignatura");
+		const selPeriodoLectivo = document.getElementById("id_periodo_lectivo");
 
-			var id_periodo_evaluacion = array_codigos[0];
-			var id_aporte_evaluacion = array_codigos[1];
-			seleccionarAporteEvaluacion(id_aporte_evaluacion);
-		});
-		$("#cboAsignaturas").change(function(e) {
-			e.preventDefault();
-			// Se determinan los valores de id_periodo_evaluacion e id_aporte_evaluacion
-			var codigos = $("#cboAportesEvaluacion").val();
-			var array_codigos = codigos.split("*");
+		// Referencias al loader y al contenedor interno de resultados
+		const loader = document.getElementById("img_loader");
+		const resultado = document.getElementById("resultado-reporte");
 
-			var id_periodo_evaluacion = array_codigos[0];
-			var id_aporte_evaluacion = array_codigos[1];
-			seleccionarAporteEvaluacion(id_aporte_evaluacion);
-		});
-		$("#mensaje").html("Debe elegir un per&iacute;odo de evaluaci&oacute;n...");
-	});
+		// Evento 1: Cambia el Paralelo -> Carga las Asignaturas
+		selParalelo.addEventListener("change", () => {
+			const idParalelo = selParalelo.value;
 
-	function cargarPeriodosEvaluacion(id_paralelo) {
-		$.ajax({
-			url: "calificaciones/cargar_aportes_evaluacion_paralelo.php",
-			method: "post",
-			data: {
-				id_paralelo: id_paralelo
-			},
-			dataType: "html",
-			success: function(resultado) {
-				// console.log(resultado);
-				$('#cboAportesEvaluacion option').remove();
-				$('#cboAportesEvaluacion optgroup').remove();
-				$("#cboAportesEvaluacion").append(resultado);
-			},
-			error: function(jqXHR, exception) {
-				var msg = '';
-				if (jqXHR.status === 0) {
-					msg = 'Not connect.\n Verify Network.';
-				} else if (jqXHR.status == 404) {
-					msg = 'Requested page not found. [404]';
-				} else if (jqXHR.status == 500) {
-					msg = 'Internal Server Error [500].';
-				} else if (exception === 'parsererror') {
-					msg = 'Requested JSON parse failed.';
-				} else if (exception === 'timeout') {
-					msg = 'Time out error.';
-				} else if (exception === 'abort') {
-					msg = 'Ajax request aborted.';
-				} else {
-					msg = 'Uncaught Error.\n' + jqXHR.responseText;
-				}
-				console.log(msg);
-			}
-		});
-	}
+			// Limpiar selectores secundarios y contenido previo
+			selAsignatura.innerHTML = '<option value="">-- Seleccione primero un paralelo --</option>';
+			selAsignatura.disabled = true;
+			resultado.innerHTML = '<p style="color: #666;">Seleccione un paralelo y una asignatura para ver las calificaciones.</p>';
 
-	function cargarParalelos() {
-		$.get("scripts/cargar_paralelos_especialidad.php", {},
-			function(resultado) {
-				if (resultado == false) {
-					alert("Error");
-				} else {
-					$("#cboParalelos").append(resultado);
-				}
-			}
-		);
-	}
+			if (!idParalelo) return;
 
-	function cargarAsignaturas(id_paralelo) {
-		$.post("scripts/cargar_asignaturas_por_paralelo.php", {
-				id_paralelo: id_paralelo
-			},
-			function(resultado) {
-				if (resultado == false) {
-					alert("Error");
-				} else {
-					document.getElementById("cboAsignaturas").length = 1;
-					$("#cboAsignaturas").append(resultado);
-				}
-			}
-		);
-	}
+			// MOSTRAR LOADER
+			loader.style.display = "block";
+			resultado.innerHTML = ""; // Limpiamos el texto mientras carga
 
-	function listarAportesEvaluacion() {
-		var id_periodo_evaluacion = document.getElementById("cboPeriodosEvaluacion").value;
-		$.post("calificaciones/listado_aportes_evaluacion.php", {
-				id_periodo_evaluacion: id_periodo_evaluacion
-			},
-			function(resultado) {
-				if (resultado == false) {
-					alert("Error");
-				} else {
-					$("#lista_periodos_evaluacion").html(resultado);
-				}
-			}
-		);
-	}
-
-	function seleccionarAporteEvaluacion(id_aporte_evaluacion) {
-		// Aqui va el codigo para presentar las calificaciones por aporte de evaluacion, asignatura y paralelo
-		// Se determinan los valores de id_periodo_evaluacion e id_aporte_evaluacion
-		var codigos = $("#cboAportesEvaluacion").val();
-		var array_codigos = codigos.split("*");
-
-		var id_periodo_evaluacion = array_codigos[0];
-		var id_aporte_evaluacion = array_codigos[1];
-
-		var id_paralelo = $("#cboParalelos").val();
-		var id_asignatura = $("#cboAsignaturas").val();
-
-		document.getElementById("id_aporte_evaluacion").value = id_aporte_evaluacion;
-		if (id_aporte_evaluacion == "") {
-			$("#mensaje").html("No se ha pasado el par&aacute;metro (id_aporte_evaluacion)...");
-		} else if (id_paralelo == 0) {
-			$("#mensaje").html("Debe elegir un paralelo...");
-			$("#cboParalelos").focus();
-		} else if (id_asignatura == 0) {
-			$("#mensaje").html("Debe elegir una asignatura...");
-			$("#cboAsignaturas").focus();
-		} else {
-			mostrarTitulosRubricas(id_aporte_evaluacion);
-			// Aqui va la llamada con AJAX al procedimiento que desplegara las calificaciones
-			cargarEstudiantesParalelo(id_paralelo, id_asignatura);
-		}
-	}
-
-	function mostrarTitulosRubricas(id_aporte_evaluacion) {
-		// Se determinan los valores de id_periodo_evaluacion e id_aporte_evaluacion
-		var codigos = $("#cboAportesEvaluacion").val();
-		var array_codigos = codigos.split("*");
-
-		var id_periodo_evaluacion = array_codigos[0];
-		var id_aporte_evaluacion = array_codigos[1];
-
-		var id_asignatura = $("#cboAsignaturas").val();
-		var id_paralelo = $("#cboParalelos").val();
-		$.ajax({
-			type: "post",
-			url: "scripts/obtener_id_curso_paralelo.php",
-			data: {
-				id_paralelo: id_paralelo
-			},
-			success: function(resultado) {
-				var id_curso = resultado;
-				$.post("calificaciones/mostrar_titulos_rubricas.php", {
-						id_periodo_evaluacion: id_periodo_evaluacion,
-						id_aporte_evaluacion: id_aporte_evaluacion,
-						alineacion: "left",
-						id_asignatura: id_asignatura,
-						id_curso: id_curso
+			// Petición AJAX para obtener las opciones del select de asignaturas
+			fetch("procesar_filtros.php", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
 					},
-					function(resultado) {
-						if (resultado == false) {
-							alert("Error");
-						} else {
-							$("#txt_rubricas").html(resultado);
-						}
-					}
-				);
-			},
-			error: function(xhr, textStatus, error) {
-				alert(xhr.responseText);
-			}
-		});
-	}
-
-	function cargarEstudiantesParalelo(id_paralelo, id_asignatura) {
-		contarEstudiantesParalelo(id_paralelo, id_asignatura); //Esta funcion desencadena las demas funciones de paginacion 
-	}
-
-	function contarEstudiantesParalelo(id_paralelo, id_asignatura) {
-		$.post("calificaciones/contar_estudiantes_paralelo.php", {
-				id_paralelo: id_paralelo
-			},
-			function(resultado) {
-				if (resultado == false) {
-					alert("Error");
-				} else {
-					var JSONNumRegistrosEstudiantes = eval('(' + resultado + ')');
-					var total_registros = JSONNumRegistrosEstudiantes.num_registros;
-					$("#num_estudiantes").html("N&uacute;mero de Estudiantes encontrados: " + total_registros);
-					listarEstudiantesParalelo(id_paralelo, id_asignatura);
-				}
-			}
-		);
-	}
-
-	function listarEstudiantesParalelo(id_paralelo, id_asignatura) {
-		// Se determinan los valores de id_periodo_evaluacion e id_aporte_evaluacion
-		var codigos = $("#cboAportesEvaluacion").val();
-		var array_codigos = codigos.split("*");
-
-		var id_periodo_evaluacion = array_codigos[0];
-		var id_aporte_evaluacion = array_codigos[1];
-
-		$("#form_rubrica_estudiante").css("display", "none");
-		$("#mensaje").html("");
-		$("#img_loader").show();
-		$("#lista_estudiantes_paralelo").hide();
-		// Primero obtengo el id_curso asociado al id_paralelo actual
-		$.ajax({
-			url: "tutores/obtener_id_curso.php",
-			method: "post",
-			data: {
-				id_paralelo: id_paralelo
-			},
-			type: "json",
-			success: function(resultado) {
-				// Obtengo el id_curso en formato json
-				var id_curso = JSON.parse(resultado).id_curso;
-				$.ajax({
-					url: "calificaciones/listar_estudiantes_paralelo_tutor.php",
-					method: "post",
-					data: {
-						id_curso: id_curso,
-						id_paralelo: id_paralelo,
-						id_asignatura: id_asignatura,
-						id_aporte_evaluacion: id_aporte_evaluacion,
-						id_periodo_evaluacion: id_periodo_evaluacion
-					},
-					type: "html",
-					success: function(resultado) {
-						console.log(resultado);
-						$("#img_loader").hide();
-						$("#lista_estudiantes_paralelo").show();
-						$("#lista_estudiantes_paralelo").html(resultado);
-					},
-					error: function(xhr, status, error) {
-						console.log(xhr.responseText);
-					}
+					body: `accion=cargar_asignaturas&id_paralelo=${encodeURIComponent(idParalelo)}`
+				})
+				.then(response => response.text())
+				.then(htmlOpciones => {
+					selAsignatura.innerHTML = htmlOpciones;
+					selAsignatura.disabled = false; // Activamos el campo
+				})
+				.catch(error => {
+					console.error("Error cargando asignaturas:", error);
+					resultado.innerHTML = '<p style="color: #dd4b39;">Error al cargar asignaturas.</p>';
+				})
+				.finally(() => {
+					// OCULTAR LOADER (Se ejecuta siempre al terminar)
+					loader.style.display = "none";
 				});
-			},
-			error: function(xhr, status, error) {
-				console.log(xhr.responseText);
-			}
 		});
-	}
+
+		// Evento 2: Cambia la Asignatura -> Genera el reporte final unificado
+		selAsignatura.addEventListener("change", () => {
+			const idParalelo = selParalelo.value;
+			const idAsignatura = selAsignatura.value;
+			const idPeriodoLectivo = selPeriodoLectivo.value;
+
+			// Validar que ambos selectores tengan un valor válido antes de enviar
+			if (!idParalelo || !idAsignatura) {
+				resultado.innerHTML = '<p style="color: #666;">Seleccione un paralelo y una asignatura para ver las calificaciones.</p>';
+				return;
+			}
+
+			// MOSTRAR LOADER
+			loader.style.display = "block";
+			resultado.innerHTML = ""; // Limpiamos la tabla o mensajes previos
+
+			// Usar URLSearchParams para asegurar el correcto mapeo de los datos en $_POST
+			const datosPost = new URLSearchParams();
+			datosPost.append('id_paralelo', idParalelo);
+			datosPost.append('id_asignatura', idAsignatura);
+			datosPost.append('id_periodo_lectivo', idPeriodoLectivo);
+
+			// Petición AJAX enviando los dos identificadores al script del reporte
+			fetch("obtener_reporte.php", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/x-www-form-urlencoded"
+					},
+					body: datosPost
+				})
+				.then(response => {
+					if (!response.ok) {
+						throw new Error(`Error en el servidor: ${response.status}`);
+					}
+					return response.text();
+				})
+				.then(htmlTabla => {
+					// Reemplaza el contenedor interno con la estructura de la tabla dinámica
+					resultado.innerHTML = htmlTabla;
+				})
+				.catch(error => {
+					console.error("Error:", error);
+					resultado.innerHTML = '<p style="color: #dd4b39;">Error al generar el reporte de la asignatura. Verifique los registros de PHP.</p>';
+				})
+				.finally(() => {
+					// OCULTAR LOADER (Se ejecuta siempre al terminar)
+					loader.style.display = "none";
+				});
+
+		});
+	});
 </script>

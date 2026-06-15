@@ -182,7 +182,7 @@
                 if (resultado == false) {
                     alert("Ocurrió un error al contar los estudiantes.");
                 } else {
-                    var JSONNumRegistros = eval('(' + resultado + ')');
+                    var JSONNumRegistros = JSON.parse(resultado);
                     var total_registros = JSONNumRegistros.num_registros;
                     $("#num_estudiantes").html("N&uacute;mero de Estudiantes encontrados: " + total_registros);
                 }

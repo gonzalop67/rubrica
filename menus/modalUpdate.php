@@ -9,7 +9,7 @@
                 <h4 class="modal-title text-center" id="exampleModalLabel">Editar Menú</h4>
             </div>
             <form id="form_update" onsubmit="return actualizarMenu()" autocomplete="off">
-                <input type="hidden" name="id_menu" id="id_menu">
+                <input type="hidden" name="id_menuu" id="id_menuu">
                 <div class="modal-body fuente10">
                     <div class="form-group row">
                         <label for="textou" class="col-sm-2 col-form-label">Texto:</label>

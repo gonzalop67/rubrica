@@ -271,19 +271,6 @@ img {
     padding: 0px;
 }
 
-/* .header {
-    font-family: Helvetica, Arial, sans-serif;
-    font-size: 8pt;
-    background-color: #990000;
-    color: #fff;
-    text-align: center;
-    font-weight: bold;
-    height: 20px;
-    vertical-align: middle;
-    text-transform: uppercase;
-    padding-top: 2px;
-} */
-
 .header2 {
     font-family: Helvetica, Arial, sans-serif;
     font-size: 8pt;
@@ -666,3 +653,4 @@ label.requerido_despues::after {
 .formulario__grupo-incorrecto .formulario__input {
     border: 2px solid #bb2929;
 }
+

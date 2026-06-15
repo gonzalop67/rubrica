@@ -1,3 +1,6 @@
+/* ==========================================================================
+   1. TU CSS ORIGINAL DE NESTABLE (INTACTO)
+   ========================================================================== */
 .dd { position: relative; display: block; margin: 0; padding: 0; max-width: 600px; list-style: none; font-size: 13px; line-height: 20px; }
 
 .dd-list { display: block; position: relative; margin: 0; padding: 0; list-style: none; }
@@ -43,21 +46,12 @@
             box-shadow: 2px 4px 6px 0 rgba(0,0,0,.1);
 }
 
-/**
- * Nestable Extras
- */
-
 .nestable-lists { display: block; clear: both; padding: 30px 0; width: 100%; border: 0; border-top: 2px solid #ddd; border-bottom: 2px solid #ddd; }
-
 #nestable-menu { padding: 0; margin: 20px 0; }
-
-#nestable-output,
-#nestable2-output { width: 100%; height: 7em; font-size: 0.75em; line-height: 1.333333em; font-family: Consolas, monospace; padding: 5px; box-sizing: border-box; -moz-box-sizing: border-box; }
+#nestable-output, #nestable2-output { width: 100%; height: 7em; font-size: 0.75em; line-height: 1.333333em; font-family: Consolas, monospace; padding: 5px; box-sizing: border-box; -moz-box-sizing: border-box; }
 
 #nestable2 .dd-handle {
-    color: #fff;
-    border: 1px solid #999;
-    background: #bbb;
+    color: #fff; border: 1px solid #999; background: #bbb;
     background: -webkit-linear-gradient(top, #bbb 0%, #999 100%);
     background:    -moz-linear-gradient(top, #bbb 0%, #999 100%);
     background:         linear-gradient(top, #bbb 0%, #999 100%);
@@ -65,18 +59,7 @@
 #nestable2 .dd-handle:hover { background: #bbb; }
 #nestable2 .dd-item > button:before { color: #fff; }
 
-@media only screen and (min-width: 700px) {
-
-    .dd { float: left; width: 48%; }
-    .dd + .dd { margin-left: 2%; }
-
-}
-
 .dd-hover > .dd-handle { background: #2ea8e5 !important; }
-
-/**
- * Nestable Draggable Handles
- */
 
 .dd3-content { display: block; height: 30px; margin: 5px 0; padding: 5px 10px 5px 40px; color: #333; text-decoration: none; font-weight: bold; border: 1px solid #ccc;
     background: #fafafa;
@@ -88,19 +71,73 @@
     box-sizing: border-box; -moz-box-sizing: border-box;
 }
 .dd3-content:hover { color: #2ea8e5; background: #fff; }
-
 .dd-dragel > .dd3-item > .dd3-content { margin: 0; }
-
 .dd3-item > button { margin-left: 30px; }
 
 .dd3-handle { position: absolute; margin: 0; left: 0; top: 0; cursor: pointer; width: 30px; text-indent: 100%; white-space: nowrap; overflow: hidden;
-    border: 1px solid #aaa;
-    background: #ddd;
+    border: 1px solid #aaa; background: #ddd;
     background: -webkit-linear-gradient(top, #ddd 0%, #bbb 100%);
     background:    -moz-linear-gradient(top, #ddd 0%, #bbb 100%);
     background:         linear-gradient(top, #ddd 0%, #bbb 100%);
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
+    border-top-right-radius: 0; border-bottom-right-radius: 0;
 }
 .dd3-handle:before { content: '≡'; display: block; position: absolute; left: 0; top: 3px; width: 100%; text-align: center; text-indent: 0; color: #fff; font-size: 20px; font-weight: normal; }
 .dd3-handle:hover { background: #ddd; }
+
+
+/* ==========================================================================
+   2. REGLAS DE INTEGRACIÓN Y CORRECCIÓN (PARCHADO)
+   ========================================================================== */
+
+/* Forzar a que Nestable ocupe todo el ancho disponible en AdminLTE */
+.dd {
+    max-width: 100% !important;
+    width: 100% !important;
+    float: none !important; /* Desactiva el float:left original que desencaja el flujo */
+}
+
+/* Forzar la altura del manejador que el script original omitió */
+.dd3-handle {
+    height: 30px !important; /* Debe encajar exactamente con los 30px del .dd3-content */
+}
+
+/* Convertir la barra interna en Flexbox para alinear el botón eliminar sin romper nada */
+.dd3-content {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0 10px 0 40px !important; /* Ajuste milimétrico para el manejador de 30px */
+    line-height: 28px !important; /* Centra el texto verticalmente dentro de los 30px */
+}
+
+/* El texto se estira de forma segura dentro del espacio disponible */
+.dd3-content .menu-texto {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-right: 15px;
+}
+
+.dd3-content .menu-texto a {
+    color: #333;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* Evitar que el botón eliminar flote o se mueva erráticamente */
+.dd3-content .eliminar-menu {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 10;
+    cursor: pointer;
+    margin: 0 !important;
+}
+
+/* Desactivar la regla original de mitades de pantalla para que no rompa el contenedor de AdminLTE */
+@media only screen and (min-width: 700px) {
+    .dd { float: none !important; width: 100% !important; }
+    .dd + .dd { margin-left: 0 !important; }
+}
