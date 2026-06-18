@@ -80,8 +80,7 @@ while ($p = $db->fetch_object($res_periodo)) {
 $sql_estudiantes = "SELECT e.id_estudiante, CONCAT(e.es_apellidos, ' ', e.es_nombres) AS nombre_completo
                       FROM sw_estudiante e
                       INNER JOIN sw_estudiante_periodo_lectivo ep ON ep.id_estudiante = e.id_estudiante 
-                      WHERE ep.es_retirado <> 'S' 
-                        AND ep.activo = 1
+                      WHERE ep.activo = 1
                         AND ep.id_paralelo = $id_paralelo 
                      ORDER BY e.es_apellidos ASC, e.es_nombres ASC";
 $res_estudiantes = $db->consulta($sql_estudiantes);
@@ -101,6 +100,7 @@ if ($db->num_rows($res_estudiantes) == 0) {
                 <th scope="col" colspan="<?php echo $p['total_columnas']; ?>"><?php echo strtoupper($p['nombre']); ?></th>
             <?php endforeach; ?>
             <th scope="col" rowspan="3">PROMEDIO FINAL</th>
+            <th scope="col" rowspan="3">SUPLETORIO</th>
         </tr>
         <tr class="fila-cabecera-2">
             <?php foreach ($estructura as $p): ?>
@@ -221,10 +221,34 @@ if ($db->num_rows($res_estudiantes) == 0) {
                     $promedio_final = truncarDosDecimales($suma_promedios_periodos / $total_periodos_contados);
                 }
 
-                $clase_final = ($promedio_final < 7) ? 'style="color: #dd4b39; background-color: #f9f2f2;"' : 'style="background-color: #f2f9f2;"';
+                $clase_final = '';
+
+                if ($promedio_final >= 0 && $promedio_final <= 4) {
+                    // Rango 0 a 4: No aprueba (Rojo)
+                    $clase_final = 'style="color: #ffffff; background-color: #dd4b39;"';
+                } elseif ($promedio_final > 4 && $promedio_final < 7) {
+                    // Mayor que 4 y menor que 7: Supletorio (Naranja)
+                    $clase_final = 'style="color: #ffffff; background-color: #ff9800;"';
+                } elseif ($promedio_final >= 7) {
+                    // Mayor o igual que 7: Aprobado (Verde)
+                    $clase_final = 'style="color: #ffffff; background-color: #4caf50;"';
+                }
+
                 $promedio_final == 0 ? $promedio_final_texto = "-" : $promedio_final_texto = (string)$promedio_final;
                 ?>
                 <td <?php echo $clase_final; ?>><b><?php echo $promedio_final_texto; ?></b></td>
+                <?php
+                // Obtener la calificacion del examen supletorio
+                $qry = "SELECT calcular_examen_supletorio($id_periodo_lectivo, $id_est_actual, $id_paralelo, $id_asignatura, 2) AS supletorio";
+                $resultado = $db->consulta($qry);
+                $calificacion = $db->fetch_assoc($resultado);
+                $supletorio = $calificacion["supletorio"];
+
+                $supletorio = ($supletorio == 0) ? "" : $supletorio;
+
+                $clase_rojo = ($supletorio < 7) ? 'style="color: #dd4b39; font-weight: bold;"' : '';
+                echo "<td $clase_rojo>$supletorio</td>";
+                ?>
             </tr>
         <?php endwhile; ?>
     </tbody>

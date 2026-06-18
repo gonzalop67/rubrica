@@ -102,7 +102,6 @@
 		z-index: 30 !important;
 	}
 
-
 	/* Clases de utilidad */
 	.text-left {
 		text-align: left;

@@ -230,7 +230,9 @@ if ($es_intensivo == 1) {
 
      $text = mb_convert_encoding("certifica que el/la estudiante:", 'ISO-8859-1', 'UTF-8');
      $pdf->Cell(200, 10, $text, 0, 0, 'L');
-     $pdf->Ln(9);
+     
+     $pdf->Ln(5);
+     
 } else {
      $pdf->SetFont('Arial', '', 9.5);
      $text = mb_convert_encoding("De conformidad con lo prescrito en el Art. 197 del Reglamento General a la Ley Orgánica de Educación Intercultural", 'ISO-8859-1', 'UTF-8');
@@ -239,7 +241,8 @@ if ($es_intensivo == 1) {
 
      $text = mb_convert_encoding("y demás normas vigentes, certifica que el/la estudiante:", 'ISO-8859-1', 'UTF-8');
      $pdf->Cell(0, 10, $text, 0, 0, 'L');
-     $pdf->Ln(9);
+     
+     $pdf->Ln(5);
 }
 
 //Aqui obtengo el nombre completo del estudiante
@@ -266,7 +269,7 @@ $pdf->SetFont('Arial', 'BI', 12);
 $w = $pdf->GetStringWidth($nombreEstudiante);
 $pdf->SetX((210 - $w) / 2);
 $pdf->Cell(150, 10, mb_convert_encoding($nombreEstudiante, 'ISO-8859-1', 'UTF-8'), 0, 0, 'L');
-$pdf->Ln();
+$pdf->Ln(7);
 
 //Aqui obtengo la jornada
 $qry = $db->consulta("SELECT es_figura, 
@@ -315,7 +318,7 @@ $pdf->SetFont('Arial', '', 9.5);
 $text = "obtuvo la siguiente calificación durante el presente periodo educativo $anio_lectivo:";
 $w = $pdf->GetStringWidth($text);
 $pdf->Cell($w, 10, mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8'), 0, 0, 'L');
-$pdf->Ln();
+$pdf->Ln(7);
 
 $contador_no_aprueba = 0;
 

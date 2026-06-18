@@ -171,7 +171,6 @@ class calificaciones extends MySQL
 				   AND p.id_curso = c.id_curso 
 				   AND di.id_paralelo = $this->id_paralelo
 				   AND di.id_asignatura = $this->id_asignatura
-				   AND es_retirado <> 'S'
 				   AND activo = 1 
 				 ORDER BY es_apellidos, es_nombres ASC";
 		$consulta = parent::consulta($qry);
@@ -310,7 +309,7 @@ class calificaciones extends MySQL
 					$observacion = "";
 					$color = "#666";
 					if ($retirado == "S")
-						$observacion = "RETIRAD" . $terminacion;
+						$observacion = "DESERTOR" . $terminacion;
 					else if ($puntaje_final_string != "") {
 						if ($puntaje_final > $rango_hasta) {
 							$observacion = "APRUEBA";
