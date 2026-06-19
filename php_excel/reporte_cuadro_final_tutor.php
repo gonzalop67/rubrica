@@ -157,6 +157,8 @@ $cursos = new cursos();
 // Primero busco la plantilla adecuada de acuerdo al numero de asignaturas del paralelo
 $numAsignaturas = $paralelo->contarAsignaturas($id_paralelo, $id_curso, 1);
 
+$nombreCurso = "";
+
 switch ($numAsignaturas) {
     case 6:
         $colPromedioGeneral = 'V';
@@ -369,6 +371,8 @@ if ($num_total_estudiantes > 0) {
 
                                     if ($supletorio >= $nota_aprobacion) {
                                         $contAprobadas++;
+                                    } else {
+                                        $contNoAprobadas++;
                                     }
 
                                     $supletorio = $supletorio == 0 ? "" : substr($supletorio, 0, strpos($supletorio, '.') + 3);

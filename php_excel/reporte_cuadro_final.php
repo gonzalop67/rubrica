@@ -91,6 +91,28 @@ $id_paralelo = $_POST["id_paralelo"];
 session_start();
 $id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
 
+// Obtener el rango de calificaciones para acceder al examen supletorio según el periodo lectivo
+$qry = "SELECT * FROM sw_equivalencia_supletorios WHERE id_periodo_lectivo = $id_periodo_lectivo AND id_tipo_periodo = 2";
+$resultado = $db->consulta($qry);
+$registro = $db->fetch_object($resultado);
+$rango_desde_supletorio = $registro->rango_desde;
+$rango_hasta_supletorio = $registro->rango_hasta;
+
+// Obtener el rango de calificaciones para acceder al examen remedial según el periodo lectivo
+$qry = "SELECT * FROM sw_equivalencia_supletorios WHERE id_periodo_lectivo = $id_periodo_lectivo AND id_tipo_periodo = 3";
+$resultado = $db->consulta($qry);
+$registro = $db->fetch_object($resultado);
+if (!empty($registro)) {
+    $rango_desde_remedial = $registro->rango_desde;
+    $rango_hasta_remedial = $registro->rango_hasta;
+}
+
+// Obtener la nota mínima para aprobar el periodo lectivo
+$qry = "SELECT pe_nota_aprobacion FROM sw_periodo_lectivo WHERE id_periodo_lectivo = $id_periodo_lectivo";
+$resultado = $db->consulta($qry);
+$registro = $db->fetch_object($resultado);
+$nota_aprobacion = $registro->pe_nota_aprobacion;
+
 $institucion = new institucion();
 $nombreInstitucion = $institucion->obtenerNombreInstitucion();
 
@@ -311,15 +333,15 @@ if ($num_total_estudiantes > 0) {
                     $query = $db->consulta("SELECT pe_anio_inicio FROM sw_periodo_lectivo WHERE id_periodo_lectivo = $id_periodo_lectivo");
                     $pe_anio_inicio = $db->fetch_object($query)->pe_anio_inicio;
 
-                    if ($promedio_anual_truncado >= 7) {
+                    if ($promedio_anual_truncado >= $nota_aprobacion) {
                         $contAprobadas++;
                     } else {
                         if ($pe_anio_inicio < 2023) {
-                            if ($promedio_anual_truncado >= 5 && $promedio_anual_truncado < 7) {
+                            if ($promedio_anual >= $rango_desde_supletorio && $promedio_anual <= $rango_hasta_supletorio) {
                                 if (existeExamenSupRemGracia($id_estudiante, $id_paralelo, $id_asignatura, 2, $id_periodo_lectivo)) {
                                     $supletorio = obtenerExamenSupRemGracia($id_estudiante, $id_paralelo, $id_asignatura, 2, $id_periodo_lectivo);
 
-                                    if ($supletorio >= 7) {
+                                    if ($supletorio >= $nota_aprobacion) {
                                         $contAprobadas++;
                                     }
 
@@ -329,21 +351,23 @@ if ($num_total_estudiantes > 0) {
                                 } else {
                                     $num_supletorios++;
                                 }
-                            } else if ($promedio_anual_truncado > 0 && $promedio_anual_truncado <= 4) {
+                            } else if ($promedio_anual >= $rango_desde_remedial && $promedio_anual <= $rango_hasta_remedial) {
                                 $objPHPExcel->getActiveSheet()->setCellValue($colSupletorio[$contAsignatura] . $row, "R");
                                 $num_remediales++;
                             } else {
                                 $contNoAprobadas++;
                             }
                         } else {
-                            if ($promedio_anual_truncado > 4 && $promedio_anual_truncado < 7) {
+                            if ($promedio_anual >= $rango_desde_supletorio && $promedio_anual_truncado <= $rango_hasta_supletorio) {
                                 if ($db->consulta("SELECT existeExamenSupRemGracia($id_estudiante, $id_paralelo, $id_asignatura, 2, $id_periodo_lectivo)")) {
                                     $consulta = $db->consulta("SELECT obtenerExamenSupRemGracia($id_estudiante, $id_paralelo, $id_asignatura, 2, $id_periodo_lectivo) AS re_calificacion");
                                     $registro = $db->fetch_object($consulta);
                                     $supletorio = $registro->re_calificacion;
 
-                                    if ($supletorio >= 7) {
+                                    if ($supletorio >= $nota_aprobacion) {
                                         $contAprobadas++;
+                                    } else {
+                                        $contNoAprobadas++;
                                     }
 
                                     $supletorio = $supletorio == 0 ? "" : substr($supletorio, 0, strpos($supletorio, '.') + 3);

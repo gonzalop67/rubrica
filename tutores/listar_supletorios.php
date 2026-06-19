@@ -151,7 +151,7 @@ if ($num_total_registros > 0) {
 				$ponderacion_subperiodo = $periodo["pe_ponderacion"];
 				$tipo_periodo = $periodo["tp_descripcion"];
 
-				if ($id_tipo_asignatura === 1) {
+				if ($id_tipo_asignatura == 1) {
 					// Asignatura cuantitativa
 					$qryString = "SELECT calcular_promedio_sub_periodo($id_periodo_evaluacion,$id_estudiante,$id_paralelo,$id_asignatura) AS promedio_sub_periodo";
 					$query = $db->consulta($qryString);
@@ -206,12 +206,15 @@ if ($num_total_registros > 0) {
 						$color = "#ff0000";
 					}
 				} else {
-					if ($examen_supletorio >= $nota_aprobacion) {
+					if (!$examen_supletorio) {
+						$observacion = "SUPLETORIO";
+						$color = "#ff8c00";
+					} elseif ($examen_supletorio >= $nota_aprobacion) {
 						$observacion = "APRUEBA";
 						$color = "#008000";
 					} else {
-						$observacion = "SUPLETORIO";
-						$color = "#ff8c00";
+						$observacion = "NO APRUEBA";
+						$color = "#ff0000";
 					}
 				}
 			} else {
