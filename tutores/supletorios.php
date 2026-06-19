@@ -31,7 +31,7 @@
 					<!-- Línea de división -->
 					<hr>
 					<div class="text-center">
-						<form id="formulario_reporte" action="php_excel/reporte_cuadro_final.php" method="post">
+						<form id="formulario_reporte" action="php_excel/reporte_cuadro_final_tutor.php" method="post">
 							&nbsp;<button class="btn btn-info">Ver Consolidado</button>
 							<input id="id_paralelo" name="id_paralelo" type="hidden" value="" />
 						</form>

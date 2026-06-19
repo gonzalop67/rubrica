@@ -27,10 +27,23 @@ require_once '../scripts/clases/class.periodos_evaluacion.php';
 
 function truncateFloat($number, $digitos)
 {
-	$raiz = 10;
-	$multiplicador = pow($raiz, $digitos);
-	$resultado = ((int)($number * $multiplicador)) / $multiplicador;
-	return $resultado;
+	// Si no se requieren decimales, se castea directamente a entero
+	if ($digitos == 0) {
+		return (int)$number;
+	}
+
+	// Convertimos a string para evitar imprecisiones binarias
+	$numberStr = (string)$number;
+
+	// Buscamos la posición del punto decimal
+	$pos = strpos($numberStr, '.');
+
+	if ($pos !== false) {
+		// Cortamos la cadena sumando la cantidad de dígitos deseados
+		return (float)substr($numberStr, 0, $pos + 1 + $digitos);
+	}
+
+	return (float)$number;
 }
 
 // Variables enviadas mediante POST	
@@ -240,28 +253,29 @@ if ($num_total_estudiantes > 0) {
 						$promedio_sub_periodo = $record->calificacion;
 
 						$suma_subperiodos += $promedio_sub_periodo;
-
 					} // fin while $periodo_evaluacion
 				} // fin if $periodo_evaluacion
 
-				// Promedio Final del Periodo Lectivo
-				$puntaje_final = $suma_subperiodos / $num_total_registros;
+				// 1. Evitar error de división por cero y calcular promedio inicial
+				$puntaje_final = ($num_total_registros > 0) ? ($suma_subperiodos / $num_total_registros) : 0;
 
-				//$nota_final = $puntaje_final == 0 ? "" : substr($puntaje_final, 0, strpos($puntaje_final, '.') + 3);
+				// 2. Truncar a 2 decimales antes de validar rangos para evitar fallos por flotantes
+				$puntaje_final = truncateFloat($puntaje_final, 2);
 
-				/*$puntaje_final = truncateFloat($suma_ponderados_subperiodos, 2);
-
-				$suma_promedios += $suma_ponderados_subperiodos;*/
-
+				// 3. Evaluar rango para el examen supletorio
 				if ($puntaje_final >= $rango_desde && $puntaje_final <= $rango_hasta) {
 					$query = $db->consulta("SELECT calcular_examen_supletorio($id_periodo_lectivo, $id_estudiante, $id_paralelo, $id_asignatura, 2) AS examen_supletorio");
 					$registro = $db->fetch_object($query);
-					$examen_supletorio = $registro->examen_supletorio;
+					$examen_supletorio = (float)$registro->examen_supletorio; // Conversión explícita a flotante
 
+					// Si aprueba el supletorio, la nota final se reemplaza por la nota mínima de aprobación
 					if ($examen_supletorio >= 7) {
-						$puntaje_final = 7;
+						$puntaje_final = 7.00;
 					}
 				}
+
+				// 4. Acumular el promedio final ya procesado
+				$suma_promedios += $puntaje_final;
 
 				if ($retirado == "S") {
 					// $objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignatura] . $row, "-");
@@ -578,9 +592,12 @@ if ($num_total_estudiantes > 0) {
 	// Aplicar el estilo al rango de celdas
 	$sheet->getStyle('B' . $row + 4 . ':C' . $row + 4)->applyFromArray($styleArray);
 
+	$meses = array(0, "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre");
+
 	//$objPHPExcel->getActiveSheet()->setCellValue('B' . $row + 6, date('Y-m-d H:i:s'));
-	$fecha_actual = date('j') . " de " . $meses[(int)date('m')] . " de " . date('Y') . ", " . date('H:i');
-	$objPHPExcel->getActiveSheet()->setCellValue('B' . $row + 6, $fecha_actual);
+	$fecha_actual = date('j') . " de " . $meses[date('n')] . " de " . date('Y') . ", " . date('H:i');
+
+	$objPHPExcel->getActiveSheet()->setCellValue('B' . ($row + 6), $fecha_actual);
 }
 
 $objPHPExcel->setActiveSheetIndex(0);
