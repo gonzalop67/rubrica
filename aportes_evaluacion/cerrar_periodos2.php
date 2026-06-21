@@ -92,6 +92,7 @@
 					<button type="button" class="btn btn-success" onclick="procesarFechaCierre()"><span class="glyphicon glyphicon-save"></span> Procesar</a>
 				</div>
 			</form>
+            <div id="mensaje"></div>
 		</div>
 	</div>
 </div>

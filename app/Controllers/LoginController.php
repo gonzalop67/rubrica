@@ -40,26 +40,26 @@ class LoginController extends Controller
 
     public function login()
     {
-        $username = $_POST['usuario'];
-        $password = $_POST['clave'];
+        $us_login = $_POST['usuario'];
+        $us_password = $_POST['clave'];
         $id_perfil = $_POST['perfil'];
 
         // Verify data login
-        $clave = Encrypter::encrypt($password);
+        $clave = Encrypter::encrypt($us_password);
 
         // return json_encode($password);
 
         $usuario = $this->userModel
-            ->where('username', $username)
-            ->where('password', $clave)
+            ->where('us_login', $us_login)
+            ->where('us_password', $clave)
             ->first();
 
         if (!empty($usuario)) {
             // Verificar si el perfil ingresado pertenece al usuario
-            $id_usuario = $usuario['id'];
+            $id_usuario = $usuario['id_usuario'];
             $usuarioRol = $this->usuarioRol
-                ->where('usuario_id', $id_usuario)
-                ->where('rol_id', $id_perfil)
+                ->where('id_usuario', $id_usuario)
+                ->where('id_perfil', $id_perfil)
                 ->first();
             if (!empty($usuarioRol)) {
                 // ASEGÚRATE DE QUE session_start() se ejecutó antes
@@ -73,7 +73,7 @@ class LoginController extends Controller
                 $_SESSION['nombreInstitucion'] = $institucion['in_nombre'];
                 $_SESSION['urlInstitucion'] = $institucion['in_url'];
 
-                $_SESSION['us_avatar'] = $usuario['avatar'];
+                $_SESSION['us_avatar'] = $usuario['us_foto'];
 
                 $perfil = $this->perfilModel->where('id_perfil', $id_perfil)->first();
                 return json_encode([

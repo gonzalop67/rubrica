@@ -23,9 +23,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // 5. Carga secuencial del Core utilizando rutas unificadas
+require_once __DIR__ . '/../autoload.php'; // <--- PRIMERO EL AUTOLOAD
 require_once $configFile;
 require_once __DIR__ . '/../Core/helpers.php';
-require_once __DIR__ . '/../autoload.php';
 
 // Ejecutamos las rutas dentro de un bloque try-catch para atrapar cualquier fallo del Router
 try {

@@ -65,15 +65,21 @@ class Model
     }
 
     // SOFT DELETE: Métodos modificadores de flujo estilo Laravel
-    public function withTrashed(): self
+    public function withTrashed()
     {
+        $this->resetQuery();
+        $this->useSoftDeletes = true;
         $this->withTrashed = true;
+        $this->onlyTrashed = false;
         return $this;
     }
 
-    public function onlyTrashed(): self
+    public function onlyTrashed()
     {
+        $this->resetQuery(); // Limpia campos structurales (where, values, orderBy)
+        $this->useSoftDeletes = true;
         $this->onlyTrashed = true;
+        $this->withTrashed = false;
         return $this;
     }
 
@@ -187,7 +193,7 @@ class Model
         return $sql;
     }
 
-    // SOFT DELETE: Limpiar los estados para no afectar a la siguiente consulta del script
+    // SOFT DELETE: Limpiar solo las cláusulas estructurales de la consulta actual
     protected function resetQuery()
     {
         $this->select = "*";
@@ -195,8 +201,8 @@ class Model
         $this->values = [];
         $this->orderBy = "";
         $this->query = null;
-        $this->withTrashed = false; // Reset de bandera
-        $this->onlyTrashed = false; // Reset de bandera
+        // ❌ ELIMINADO: No limpies aquí con $this->onlyTrashed = false;
+        // ❌ ELIMINADO: No limpies aquí con $this->withTrashed = false;
     }
 
     public function first()
@@ -237,13 +243,13 @@ class Model
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         if ($page < 1) $page = 1;
 
-        // MEJORA: El conteo ahora usa la misma estructura de buildSelectSql para respetar SoftDeletes
+        // MEJORA CRÍTICA: Se califica 'deleted_at' con el nombre de la tabla para evitar ambigüedades en JOINs
         $softDeleteWhere = "";
         if ($this->useSoftDeletes) {
             if ($this->onlyTrashed) {
-                $softDeleteWhere = "deleted_at IS NOT NULL";
+                $softDeleteWhere = "{$this->table}.deleted_at IS NOT NULL";
             } elseif (!$this->withTrashed) {
-                $softDeleteWhere = "deleted_at IS NULL";
+                $softDeleteWhere = "{$this->table}.deleted_at IS NULL";
             }
         }
 
@@ -297,13 +303,19 @@ class Model
         $queryParams = $_GET;
         unset($queryParams['page']); // Eliminamos la página actual para sobrescribirla después
 
-        $this->resetQuery();
-
         $last_page = (int)ceil($total / $cant);
         if ($last_page < 1) $last_page = 1;
 
         // Construcción de strings de consulta para preservar el buscador en los enlaces
         $queryString = count($queryParams) > 0 ? '&' . http_build_query($queryParams) : '';
+
+        // 🔥 CORRECCIÓN AQUÍ: Movido al final absoluto del proceso.
+        // Primero limpiamos la estructura de la consulta
+        $this->resetQuery();
+
+        // Y finalmente apagamos las banderas para que el modelo quede limpio para el siguiente flujo del script
+        $this->onlyTrashed = false;
+        $this->withTrashed = false;
 
         return [
             'total'        => $total,
@@ -320,6 +332,10 @@ class Model
     // SOFT DELETE: Ahora utiliza buildSelectSql() en vez de SQL duro para respetar los filtros
     public function all()
     {
+        $this->resetQuery();
+        $this->useSoftDeletes = true;
+        $this->withTrashed = false;
+        $this->onlyTrashed = false;
         $sql = $this->buildSelectSql();
         return $this->query($sql, $this->values)->get();
     }

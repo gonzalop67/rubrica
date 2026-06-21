@@ -6,19 +6,28 @@ use App\Models\Model;
 
 class Usuario extends Model
 {
-    protected string $table = 'usuarios';
-    // protected string $primaryKey = 'id';
+    protected string $table = 'sw_usuario';
+    protected string $primaryKey = 'id_usuario';
     
     // Define los campos que se pueden llenar masivamente
     protected array $fillable = [
-        'username',
-        'email',
-        'password',
+        'institucion_id',
+        'us_titulo',
+        'us_titulo_descripcion',
+        'us_apellidos',
+        'us_nombres',
+        'us_shortname',
+        'us_fullname',
+        'us_login',
+        'us_email',
+        'us_password',
         'request_password',
         'token_password',
         'expired_session',
-        'avatar',
-        'activo',
+        'us_foto',
+        'us_genero',
+        'us_activo',
+        'deleted_at'
     ];
 
     // Activa o desactiva el Soft Delete según tus necesidades en la tabla
