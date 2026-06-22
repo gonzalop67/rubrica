@@ -13,7 +13,7 @@ class Permiso extends Model
     protected array $fillable = ['nombre', 'slug', 'descripcion'];
 
     // Activa o desactiva el Soft Delete según tus necesidades en la tabla
-    protected bool $useSoftDeletes = false; 
+    protected bool $useSoftDeletes = true; 
 
     public function validate(array $data, ?int $id = null): bool
     {

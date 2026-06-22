@@ -25,30 +25,32 @@ class Route
     }
 
     public static function dispatch()
-    {
-        // Limpiar la URI
-        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+{
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $basePath = str_replace(['\\', '/public'], ['/', ''], dirname($_SERVER['SCRIPT_NAME']));
+    $uri = trim(str_replace($basePath, '', $uri), '/');
+    
+    $method = $_SERVER['REQUEST_METHOD'];
 
-        $basePath = str_replace(['\\', '/public'], ['/', ''], dirname($_SERVER['SCRIPT_NAME']));
+    // Si no existen rutas registradas para este método (ej. POST), detener inmediatamente
+    if (!isset(self::$routes[$method])) {
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => false, 'mensaje' => "Método $method no permitido."]);
+        return;
+    }
 
-        $uri = trim(str_replace($basePath, '', $uri), '/');
+    // El foreach solo debe iterar sobre las rutas del método solicitado
+    foreach (self::$routes[$method] as $routePath => $routeData) {
 
-        $method = $_SERVER['REQUEST_METHOD'];
+            // 1. Convertir la ruta en una expresión regular segura
+            // Cambiamos los parámetros tipo :id por un grupo de captura (.+) o ([a-zA-Z0-9_-]+)
+            // Escapamos las barras diagonales normales de la URL usando preg_quote
 
-        if (!isset(self::$routes[$method])) {
-            echo "404 $method Not Found";
-            return;
-        }
+            $quotedRoute = preg_quote($routePath, '#');
+            // Buscamos los parámetros que escapó preg_quote (aparecerán como \:id)
+            $pattern = preg_replace('#\\\\:[a-zA-Z0-9]+#', '([a-zA-Z0-9_-]+)', $quotedRoute);
 
-        foreach (self::$routes[$method] as $routePath => $routeData) {
-            // $routeData now contains ['callback' => ..., 'middlewares' => ...]
-
-            $pattern = $routePath;
-
-            if (strpos($routePath, ':') !== false) {
-                $pattern = preg_replace('#:[a-zA-Z]+#', '([a-zA-Z0-9]+)', $routePath);
-            }
-
+            // 2. Evaluar si la URI actual coincide con el patrón
             if (preg_match("#^$pattern$#", $uri, $matches)) {
 
                 $params = array_slice($matches, 1);
@@ -56,10 +58,9 @@ class Route
                 // 1. Run Middlewares
                 if (!empty($routeData['middlewares'])) {
                     foreach ($routeData['middlewares'] as $middleware) {
-                        // If middleware is a class string, instantiate it; if callable, call it
                         if (is_string($middleware) && class_exists($middleware)) {
                             $m = new $middleware();
-                            $m->handle(); // Assuming your middlewares have a handle() method
+                            $m->handle();
                         } else if (is_callable($middleware)) {
                             $middleware();
                         }
@@ -81,8 +82,9 @@ class Route
                 if (is_array($response) || is_object($response)) {
                     header('Content-Type: application/json');
                     echo json_encode($response);
-                } else
+                } else {
                     echo $response;
+                }
 
                 return;
             }

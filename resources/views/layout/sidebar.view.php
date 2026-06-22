@@ -28,7 +28,7 @@
                             <li class="has_sub">
                                 <a href="javascript:void(0);" class="waves-effect"><i class="mdi mdi-layers"></i> <span> Administración </span> <span class="float-right"><i class="mdi mdi-chevron-right"></i></span></a>
                                 <ul class="list-unstyled">
-                                    <li><a href="{{ RUTA_URL }}/permisos">Permisos</a></li>
+                                    <li><a href="{{ RUTA_URL }}/permissions">Permisos</a></li>
                                     <li><a href="{{ RUTA_URL }}/roles">Roles</a></li>
                                     <li><a href="{{ RUTA_URL }}/usuarios">Usuarios</a></li>
                                     <li><a href="{{ RUTA_URL }}/menus">Menús</a></li>

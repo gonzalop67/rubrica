@@ -19,9 +19,18 @@ Route::get('/auth/logout', [LoginController::class, 'logout']);
 
 Route::get('admin/dashboard', [AdminDashboardController::class, 'index'], [$authMiddleware]);
 
-/** Rutas para Permisos */
-Route::get('/permisos', [PermisoController::class, 'index'], [$authMiddleware]);
-
+/** Rutas para Permisos (Quita el / del inicio si tu enrutador usa trim($uri, '/')) */
+Route::get('permissions', [PermisoController::class, 'index'], [$authMiddleware]);
+Route::get('permissions/create', [PermisoController::class, 'create'], [$authMiddleware]);
+Route::post('permissions', [PermisoController::class, 'store'], [$authMiddleware]);
+// Ver el listado de la papelera (GET)
+Route::get('permissions/wastebasket', [PermisoController::class, 'wastebasket'], [$authMiddleware]);
+Route::post('permissions/:id/restore', [PermisoController::class, 'restore'], [$authMiddleware]);
+Route::post('permissions/:id/destroy', [PermisoController::class, 'destroy'], [$authMiddleware]);
+// Rutas comunes
+Route::get('permissions/:id/edit', [PermisoController::class, 'edit'], [$authMiddleware]);
+Route::post('permissions/:id/update', [PermisoController::class, 'update'], [$authMiddleware]);
+Route::post('permissions/:id/delete', [PermisoController::class, 'delete'], [$authMiddleware]);
 
 /** Rutas para Roles */
 Route::get('/roles', [RoleController::class, 'index'], [$authMiddleware]);
