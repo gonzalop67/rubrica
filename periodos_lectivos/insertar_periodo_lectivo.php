@@ -4,7 +4,7 @@
 
 	$periodo_lectivo = new periodos_lectivos();
 
-	$periodo_lectivo->id_modalidad = $_POST["id_modalidad"];
+	$periodo_lectivo->id_oferta_educativa = $_POST["id_oferta_educativa"];
 	$periodo_lectivo->pe_anio_inicio = $_POST["anio_inicial"];
 	$periodo_lectivo->pe_anio_fin = $_POST["anio_final"];
 	$periodo_lectivo->pe_fecha_inicio = $_POST["fec_ini"];

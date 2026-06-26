@@ -1,5 +1,5 @@
 <?php
-require_once('../fpdf16/fpdf.php');
+require_once('../fpdf186/fpdf.php');
 require_once("../scripts/clases/class.mysql.php");
 require_once('../scripts/clases/class.paralelos.php');
 require_once('../scripts/clases/class.institucion.php');

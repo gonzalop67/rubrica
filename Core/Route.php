@@ -25,22 +25,22 @@ class Route
     }
 
     public static function dispatch()
-{
-    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    $basePath = str_replace(['\\', '/public'], ['/', ''], dirname($_SERVER['SCRIPT_NAME']));
-    $uri = trim(str_replace($basePath, '', $uri), '/');
-    
-    $method = $_SERVER['REQUEST_METHOD'];
+    {
+        $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+        $basePath = str_replace(['\\', '/public'], ['/', ''], dirname($_SERVER['SCRIPT_NAME']));
+        $uri = trim(str_replace($basePath, '', $uri), '/');
 
-    // Si no existen rutas registradas para este método (ej. POST), detener inmediatamente
-    if (!isset(self::$routes[$method])) {
-        header('Content-Type: application/json');
-        echo json_encode(['ok' => false, 'mensaje' => "Método $method no permitido."]);
-        return;
-    }
+        $method = $_SERVER['REQUEST_METHOD'];
 
-    // El foreach solo debe iterar sobre las rutas del método solicitado
-    foreach (self::$routes[$method] as $routePath => $routeData) {
+        // Si no existen rutas registradas para este método (ej. POST), detener inmediatamente
+        if (!isset(self::$routes[$method])) {
+            header('Content-Type: application/json');
+            echo json_encode(['ok' => false, 'mensaje' => "Método $method no permitido."]);
+            return;
+        }
+
+        // El foreach solo debe iterar sobre las rutas del método solicitado
+        foreach (self::$routes[$method] as $routePath => $routeData) {
 
             // 1. Convertir la ruta en una expresión regular segura
             // Cambiamos los parámetros tipo :id por un grupo de captura (.+) o ([a-zA-Z0-9_-]+)

@@ -21,7 +21,7 @@ class PermisoController extends Controller
      */
     public function index()
     {
-        $title = 'Permisos | ' . APP_NAME;
+        $title = 'Permisos';
         $search = trim($_GET['search'] ?? '');
 
         if ($search !== '') {
@@ -103,15 +103,6 @@ class PermisoController extends Controller
                 'mensaje' => "Ocurrió un error inesperado: " . $e->getMessage()
             ];
         }
-    }
-
-    /**
-     * Muestra un recurso específico.
-     */
-    public function show($id)
-    {
-        // $data = $this->model->find($id);
-        // return $this->view('admin.permiso.show', compact('data'));
     }
 
     /**

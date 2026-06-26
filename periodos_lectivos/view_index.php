@@ -20,8 +20,8 @@
                     <div class="row">
                         <div class="col-md-12 table-responsive">
                             <div class="form-group">
-                                <label for="id_modalidad">Modalidad:</label>
-                                <select name="id_modalidad" id="id_modalidad" class="form-control">
+                                <label for="id_oferta_educativa">Oferta Educativa:</label>
+                                <select name="id_oferta_educativa" id="id_oferta_educativa" class="form-control">
                                     <option value="">Seleccione...</option>
                                 </select>
                             </div>
@@ -60,16 +60,16 @@
 
 <script type="text/javascript">
     $(document).ready(function() {
-        cargarModalidades();
+        cargarOfertasEducativas();
 
-        $("#tbody_periodos_lectivos").html("<tr><td colspan='6' align='center'>Debe seleccionar una modalidad...</td></tr>");
+        $("#tbody_periodos_lectivos").html("<tr><td colspan='6' align='center'>Debe seleccionar una oferta educativa...</td></tr>");
 
-        $("#id_modalidad").change(function() {
-            let id_modalidad = $(this).val();
-            if (id_modalidad == 0) {
+        $("#id_oferta_educativa").change(function() {
+            let id_oferta_educativa = $(this).val();
+            if (id_oferta_educativa == 0) {
                 $("#tbody_periodos_lectivos").html("<tr><td colspan='6' align='center'>Debe seleccionar una modalidad...</td></tr>");
             } else {
-                pagination(1, id_modalidad);
+                pagination(1, id_oferta_educativa);
             }
         });
 
@@ -110,12 +110,12 @@
         });
     });
 
-    function cargarModalidades() {
+    function cargarOfertasEducativas() {
         $.ajax({
-            url: "periodos_lectivos/cargar_modalidades.php",
+            url: "periodos_lectivos/cargar_ofertas_educativas.php",
             dataType: "html",
             success: function(data) {
-                $("#id_modalidad").append(data);
+                $("#id_oferta_educativa").append(data);
             },
             error: function(jqXHR, textStatus) {
                 alert(jqXHR.responseText);
@@ -123,7 +123,7 @@
         });
     }
 
-    function pagination(partida, id_modalidad) {
+    function pagination(partida, id_oferta_educativa) {
         $("#pagina_actual").val(partida);
         var url = "periodos_lectivos/paginar_periodos_lectivos.php";
         $.ajax({
@@ -131,7 +131,7 @@
             url: url,
             data: {
                 partida: partida,
-                id_modalidad: id_modalidad
+                id_oferta_educativa: id_oferta_educativa
             },
             success: function(data) {
                 var array = eval(data);
@@ -149,7 +149,7 @@
         const pe_fecha_fin = $("#pe_fecha_fin").val().trim();
         const pe_nota_minima = $("#pe_nota_minima").val().trim();
         const pe_nota_aprobacion = $("#pe_nota_aprobacion").val().trim();
-        const id_modalidad = $("#id_modalidad").val();
+        const id_oferta_educativa = $("#id_oferta_educativa").val();
         const quien_inserta_comp_id = $("#quien_inserta_comp_id").val();
 
         let cont_errores = 0;
@@ -217,11 +217,11 @@
             document.getElementById('error-pe_nota_aprobacion').textContent = 'Por favor, introduce la nota mínima de aprobación.';
         }
 
-        if (id_modalidad === "") {
-            // Si no se ha elegido una modalidad
+        if (id_oferta_educativa === "") {
+            // Si no se ha elegido una oferta educativa
             Swal.fire({
 				title: "Oops!",
-				text: "¡Debes escoger una modalidad!",
+				text: "¡Debes escoger una oferta educativa!",
 				icon: "error"
 			});
             $("#nuevoPeriodoLectivoModal").modal("hide");
@@ -234,7 +234,7 @@
                 type: "POST",
                 url: "periodos_lectivos/insertar_periodo_lectivo.php",
                 data: {
-                    id_modalidad: id_modalidad,
+                    id_oferta_educativa: id_oferta_educativa,
                     anio_inicial: pe_anio_inicio,
                     anio_final: pe_anio_fin,
                     fec_ini: pe_fecha_inicio,

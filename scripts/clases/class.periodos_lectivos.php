@@ -4,7 +4,7 @@ class periodos_lectivos extends MySQL
 {
 	var $code = "";
 	var $id_periodo_estado = "";
-	var $id_modalidad = "";
+	var $id_oferta_educativa = "";
 	var $pe_anio_inicio = "";
 	var $pe_anio_fin = "";
 	var $pe_fecha_inicio = "";
@@ -108,10 +108,10 @@ class periodos_lectivos extends MySQL
 
 	function insertarPeriodoLectivo()
 	{
-		$consulta = parent::consulta("INSERT INTO sw_periodo_lectivo SET pe_anio_inicio = $this->pe_anio_inicio, pe_anio_fin = $this->pe_anio_fin, pe_fecha_inicio = '$this->pe_fecha_inicio', pe_fecha_fin = '$this->pe_fecha_fin', pe_nota_minima = $this->pe_nota_minima, pe_nota_aprobacion = $this->pe_nota_aprobacion, pe_estado = 'A', id_modalidad = $this->id_modalidad, quien_inserta_comp_id = $this->quien_inserta_comp_id, id_periodo_estado = 1, id_institucion = 1");
+		$consulta = parent::consulta("INSERT INTO sw_periodo_lectivo SET pe_anio_inicio = $this->pe_anio_inicio, pe_anio_fin = $this->pe_anio_fin, pe_fecha_inicio = '$this->pe_fecha_inicio', pe_fecha_fin = '$this->pe_fecha_fin', pe_nota_minima = $this->pe_nota_minima, pe_nota_aprobacion = $this->pe_nota_aprobacion, pe_estado = 'A', oferta_educativa_id = $this->id_oferta_educativa, quien_inserta_comp_id = $this->quien_inserta_comp_id, id_periodo_estado = 1, id_institucion = 1");
 		if ($consulta) {
 			// Cerrar el periodo lectivo anterior si existe
-			$consulta = parent::consulta("SELECT id_periodo_lectivo FROM sw_periodo_lectivo WHERE id_modalidad = $this->id_modalidad ORDER BY id_periodo_lectivo DESC LIMIT 1, 1");
+			$consulta = parent::consulta("SELECT id_periodo_lectivo FROM sw_periodo_lectivo WHERE id_oferta_educativa = $this->id_oferta_educativa ORDER BY id_periodo_lectivo DESC LIMIT 1, 1");
 			$num_total_registros = parent::num_rows($consulta);
 			if ($num_total_registros == 1) {
 				$periodo_lectivo = parent::fetch_object($consulta);

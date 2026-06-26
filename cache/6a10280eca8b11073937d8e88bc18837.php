@@ -26,7 +26,6 @@
 
 </head>
 
-
 <body class="fixed-left">
 
     <!-- Loader -->

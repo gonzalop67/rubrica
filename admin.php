@@ -104,9 +104,9 @@ $nombrePeriodoLectivo = $meses_abrev[(int)$fecha_inicial[1]] . " " . $fecha_inic
 $aniosPeriodoLectivo = $periodo_lectivo->pe_anio_inicio . " - " . $periodo_lectivo->pe_anio_fin;
 
 //Obtengo el nombre de la oferta educativa asociada
-$consulta = $db->consulta("SELECT mo_nombre FROM sw_modalidad m, sw_periodo_lectivo p WHERE m.id_modalidad = p.id_modalidad AND p.id_periodo_lectivo = $id_periodo_lectivo");
-$modalidad = $db->fetch_object($consulta);
-$nombreModalidad = $modalidad->mo_nombre;
+$consulta = $db->consulta("SELECT nombre FROM sw_ofertas_educativas oe, sw_periodo_lectivo p WHERE oe.id = p.oferta_educativa_id AND p.id_periodo_lectivo = $id_periodo_lectivo");
+$oferta_educativa = $db->fetch_object($consulta);
+$nombreOfertaEducativa = $oferta_educativa->nombre;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -391,7 +391,7 @@ desired effect
             <!-- Status -->
             <!-- <a href="#"><i class="fa fa-circle text-success"></i> Online</a> -->
             <!-- Modalidad -->
-            <small><?php echo $nombreModalidad ?></small>
+            <small><?php echo $nombreOfertaEducativa ?></small>
           </div>
         </div>
 

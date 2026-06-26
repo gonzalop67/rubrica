@@ -435,8 +435,7 @@ class Model
 
         return $result > 0;
     }
-
-
+    
     public function create(array $data)
     {
         if (!empty($this->fillable)) {

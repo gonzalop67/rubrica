@@ -126,7 +126,6 @@
         <!-- Default box -->
         <div class="box box-solid">
             <div class="box-body">
-                <input id="id_paralelo" name="id_paralelo" type="hidden" value="" />
                 <div id="pag_nomina_estudiantes">
                     <!-- Aqui va la paginacion de los estudiantes encontrados -->
                     <div id="total_registros_estudiantes" class="paginacion">
@@ -156,6 +155,12 @@
                             <!-- El contenido de las asignaturas se cargará dinámicamente -->
                         </tbody>
                     </table>
+                </div>
+                <div class="text-center">
+                    <form action="reportes/reporte_cuadro_final_tutor.php" method="post" target="_blank">
+                        <input id="id_paralelo" name="id_paralelo" type="hidden" value="" />
+                        <button type="submit">Reporte en PDF</button>
+                    </form>
                 </div>
             </div>
         </div>

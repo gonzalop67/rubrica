@@ -82,9 +82,9 @@ $query = $db->consulta("SELECT es_intensivo FROM sw_curso c, sw_paralelo p WHERE
 $registro = $db->fetch_object($query);
 $es_intensivo = $registro->es_intensivo;
 
-//Aqui obtengo la modalidad
-$qry = $db->consulta("SELECT mo_slug FROM sw_modalidad mo, sw_periodo_lectivo pl WHERE mo.id_modalidad = pl.id_modalidad AND pl.id_periodo_lectivo = $id_periodo_lectivo");
-$mo_slug = $db->fetch_object($qry)->mo_slug;
+//Aqui obtengo la oferta educativa
+$qry = $db->consulta("SELECT slug FROM sw_ofertas_educativas oe, sw_periodo_lectivo pl WHERE oe.id = pl.oferta_educativa_id AND pl.id_periodo_lectivo = $id_periodo_lectivo");
+$slug = $db->fetch_object($qry)->slug;
 
 //Aqui obtengo el año lectivo
 $qry = $db->consulta("SELECT pe_anio_inicio, 
@@ -185,7 +185,7 @@ $w = $pdf->GetStringWidth($title);
 $pdf->SetXY((210 - $w) / 2, 25);
 $pdf->Cell($w, 10, mb_convert_encoding($title, 'ISO-8859-1', 'UTF-8'), 0, 0, 'C');
 
-if ($mo_slug == 'epja-tecnica-intensiva') {
+if ($slug == 'epja-tecnica-intensiva') {
      $pdf->Ln(5);
 } else {
      $pdf->Ln();
@@ -195,7 +195,7 @@ $pdf->SetFont('Helvetica', '', 10);
 $text = mb_convert_encoding("El Rector(a)/Director(a) de la Institución Educativa:", 'ISO-8859-1', 'UTF-8');
 $pdf->Cell(200, 10, $text, 0, 0, 'L');
 
-if ($mo_slug == 'epja-tecnica-intensiva') {
+if ($slug == 'epja-tecnica-intensiva') {
      $pdf->Ln(5);
 } else {
      $pdf->Ln(9);

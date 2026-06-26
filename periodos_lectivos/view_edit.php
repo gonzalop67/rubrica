@@ -89,25 +89,25 @@
                                 </div>
                                 <div class="row">
                                     <?php
-                                    //Obtener las modalidades
-                                    $modalidades = $db->consulta("SELECT * FROM sw_modalidad WHERE mo_activo = 1 ORDER BY mo_orden ASC");
+                                    //Obtener las ofertas educativas
+                                    $ofertas = $db->consulta("SELECT * FROM sw_ofertas_educativas WHERE activo = 1 ORDER BY orden ASC");
                                     ?>
                                     <div class="col-md-6">
                                         <div class="form-group">
-                                            <label for="id_modalidad">Modalidad:</label>
-                                            <select name="id_modalidad" id="id_modalidad" class="form-control" required disabled>
+                                            <label for="id_oferta_educativo">Oferta Educativa:</label>
+                                            <select name="id_oferta_educativo" id="id_oferta_educativo" class="form-control" required disabled>
                                                 <option value="">Seleccione...</option>
                                                 <?php
-                                                while ($modalidad = $db->fetch_object($modalidades)) {
+                                                while ($oferta = $db->fetch_object($ofertas)) {
                                                 ?>
-                                                    <option value="<?= $modalidad->id_modalidad ?>" <?= $modalidad->id_modalidad == $periodo_lectivo->id_modalidad ? 'selected' : '' ?>>
-                                                        <?= $modalidad->mo_nombre ?>
+                                                    <option value="<?= $oferta->id ?>" <?= $oferta->id == $periodo_lectivo->oferta_educativa_id ? 'selected' : '' ?>>
+                                                        <?= $oferta->nombre ?>
                                                     </option>
                                                 <?php
                                                 }
                                                 ?>
                                             </select>
-                                            <span id="span_id_modalidad" class="help-block"></span>
+                                            <span id="span_id_oferta_educativa" class="help-block"></span>
                                         </div>
                                     </div>
                                     <?php
@@ -190,7 +190,7 @@
             var pe_fecha_fin = $.trim($("#pe_fecha_fin").val());
             var pe_nota_minima = $.trim($("#pe_nota_minima").val());
             var pe_nota_aprobacion = $.trim($("#pe_nota_aprobacion").val());
-            var id_modalidad = $("#id_modalidad").val();
+            var id_oferta_educativa = $("#id_oferta_educativa").val();
             var quien_inserta_comp = $("#quien_inserta_comp").val();
 
             var fecha_actual = new Date(); //devuelve la fecha actual
@@ -215,8 +215,8 @@
                 Swal.fire("Ocurrió un error inesperado!", "Debe ingresar los 4 dígitos para el año final.", "error");
             } else if (parseInt(pe_anio_inicio) > parseInt(pe_anio_fin)) {
                 Swal.fire("Ocurrió un error inesperado!", "El año inicial no puede ser mayor que el año final.", "error");
-            } else if (id_modalidad == 0) {
-                Swal.fire("Ocurrió un error inesperado!", "Debe seleccionar una modalidad.", "error");
+            } else if (id_oferta_educativa == 0) {
+                Swal.fire("Ocurrió un error inesperado!", "Debe seleccionar una oferta educativa.", "error");
             /*} else if (countNivelesChecked == 0) {
                 Swal.fire("Ocurrió un error inesperado!", "Debe seleccionar al menos un nivel de educación.", "error");
             } else if (countSubperiodosChecked == 0) {

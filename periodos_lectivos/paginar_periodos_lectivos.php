@@ -2,11 +2,11 @@
 include("../scripts/clases/class.mysql.php");
 
 $paginaActual = $_POST['partida'];
-$id_modalidad = $_POST['id_modalidad'];
+$id_oferta_educativa = $_POST['id_oferta_educativa'];
 
 $db = new MySQL();
 
-$query = "SELECT * FROM `sw_periodo_lectivo` WHERE id_modalidad = $id_modalidad";
+$query = "SELECT * FROM `sw_periodo_lectivo` WHERE oferta_educativa_id = $id_oferta_educativa";
 $consulta = $db->consulta($query);
 $nroPeriodosLectivos = $db->num_rows($consulta);
 
@@ -19,21 +19,21 @@ $tabla = '';
 if ($paginaActual == 1) {
     $lista = $lista . '<li><a href="javascript:;" disabled>‹</a></li>';
 } else {
-    $lista = $lista . '<li><a href="javascript:pagination(' . ($paginaActual - 1) . ',' . $id_modalidad . ');">‹</a></li>';
+    $lista = $lista . '<li><a href="javascript:pagination(' . ($paginaActual - 1) . ',' . $id_oferta_educativa . ');">‹</a></li>';
 }
 
 for ($i = 1; $i <= $nroPaginas; $i++) {
     if ($i == $paginaActual) {
-        $lista = $lista . '<li class="active"><a href="javascript:pagination(' . $i . ',' . $id_modalidad . ');">' . $i . '</a></li>';
+        $lista = $lista . '<li class="active"><a href="javascript:pagination(' . $i . ',' . $id_oferta_educativa . ');">' . $i . '</a></li>';
     } else {
-        $lista = $lista . '<li><a href="javascript:pagination(' . $i . ',' . $id_modalidad . ');">' . $i . '</a></li>';
+        $lista = $lista . '<li><a href="javascript:pagination(' . $i . ',' . $id_oferta_educativa . ');">' . $i . '</a></li>';
     }
 }
 
 if ($paginaActual == $nroPaginas) {
     $lista = $lista . '<li><a href="javascript:;" disabled>›</a></li>';
 } else {
-    $lista = $lista . '<li><a href="javascript:pagination(' . ($paginaActual + 1) . ',' . $id_modalidad . ');">›</a></li>';
+    $lista = $lista . '<li><a href="javascript:pagination(' . ($paginaActual + 1) . ',' . $id_oferta_educativa . ');">›</a></li>';
 }
 
 if ($paginaActual <= 1) {
@@ -42,7 +42,7 @@ if ($paginaActual <= 1) {
     $limit = $nroLotes * ($paginaActual - 1);
 }
 
-$consulta = $db->consulta("SELECT * FROM `sw_periodo_lectivo` WHERE id_modalidad = $id_modalidad ORDER BY pe_fecha_inicio DESC LIMIT $limit, $nroLotes");
+$consulta = $db->consulta("SELECT * FROM `sw_periodo_lectivo` WHERE oferta_educativa_id = $id_oferta_educativa ORDER BY pe_fecha_inicio DESC LIMIT $limit, $nroLotes");
 $num_total_registros = $db->num_rows($consulta);
 if ($num_total_registros > 0) {
     $contador = $limit;
