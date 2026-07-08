@@ -28,16 +28,16 @@ class selects extends MySQL
 	function cargarPeriodosL()
 	{
 		$meses_abrev = array(0, "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic");
-		$sql = "SELECT * FROM sw_ofertas_educativas WHERE activo = 1 ORDER BY orden";
+		$sql = "SELECT * FROM sw_modalidad WHERE mo_activo = 1 ORDER BY mo_orden";
 		$consulta = parent::consulta($sql);
 		$num_total_registros = parent::num_rows($consulta);
 		$cadena = "";
 		if ($num_total_registros > 0) {
 			while ($oferta = parent::fetch_assoc($consulta)) {
-				$code = $oferta["id"];
-				$name = $oferta["nombre"];
+				$code = $oferta["id_modalidad"];
+				$name = $oferta["mo_nombre"];
 				$cadena .= "<optgroup label='$name'>\n";
-				$consulta2 = parent::consulta("SELECT p.*, pe_descripcion FROM sw_periodo_lectivo p, sw_periodo_estado pe WHERE pe.id_periodo_estado = p.id_periodo_estado AND oferta_educativa_id = $code ORDER BY pe_fecha_inicio DESC");
+				$consulta2 = parent::consulta("SELECT p.*, pe_descripcion FROM sw_periodo_lectivo p, sw_periodo_estado pe WHERE pe.id_periodo_estado = p.id_periodo_estado AND id_modalidad = $code ORDER BY pe_fecha_inicio DESC");
 				while ($periodo_lectivo = parent::fetch_assoc($consulta2)) {
 					$code2 = $periodo_lectivo["id_periodo_lectivo"];
 					$fecha_inicial = explode("-", $periodo_lectivo["pe_fecha_inicio"]);

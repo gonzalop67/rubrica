@@ -173,8 +173,11 @@
 			<select id="selector-asignatura" disabled>
 				<option value="">-- Seleccione primero un paralelo --</option>
 			</select>
+			<a id="btn-excel-php" href="#" target="_blank" style="display:none; margin-left: 10px; padding: 5px 10px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-family: Arial; font-size: 9pt;">
+				Descargar Excel (.xlsx)
+			</a>
 		</div>
-		<div id="contenedor-tabla">
+		<div id="contenedor-tabla" style="margin-top: 2px;">
 			<!-- El loader se mantiene fijo aquí -->
 			<div id="img_loader" style="display:none;text-align:center">
 				<img src="imagenes/ajax-loader.gif" alt="Procesando...">
@@ -193,17 +196,19 @@
 		const selAsignatura = document.getElementById("selector-asignatura");
 		const selPeriodoLectivo = document.getElementById("id_periodo_lectivo");
 
-		// Referencias al loader y al contenedor interno de resultados
+		// Referencias al loader, al contenedor interno y al nuevo botón de Excel
 		const loader = document.getElementById("img_loader");
 		const resultado = document.getElementById("resultado-reporte");
+		const btnExcel = document.getElementById("btn-excel-php");
 
 		// Evento 1: Cambia el Paralelo -> Carga las Asignaturas
 		selParalelo.addEventListener("change", () => {
 			const idParalelo = selParalelo.value;
 
-			// Limpiar selectores secundarios y contenido previo
+			// Limpiar selectores secundarios, ocultar botón de Excel y vaciar contenido previo
 			selAsignatura.innerHTML = '<option value="">-- Seleccione primero un paralelo --</option>';
 			selAsignatura.disabled = true;
+			if (btnExcel) btnExcel.style.display = "none";
 			resultado.innerHTML = '<p style="color: #666;">Seleccione un paralelo y una asignatura para ver las calificaciones.</p>';
 
 			if (!idParalelo) return;
@@ -239,16 +244,18 @@
 		selAsignatura.addEventListener("change", () => {
 			const idParalelo = selParalelo.value;
 			const idAsignatura = selAsignatura.value;
-			const idPeriodoLectivo = selPeriodoLectivo.value;
+			const idPeriodoLectivo = selPeriodoLectivo ? selPeriodoLectivo.value : "";
 
 			// Validar que ambos selectores tengan un valor válido antes de enviar
 			if (!idParalelo || !idAsignatura) {
+				if (btnExcel) btnExcel.style.display = "none";
 				resultado.innerHTML = '<p style="color: #666;">Seleccione un paralelo y una asignatura para ver las calificaciones.</p>';
 				return;
 			}
 
-			// MOSTRAR LOADER
+			// MOSTRAR LOADER y ocultar botón de Excel mientras se procesa la nueva petición
 			loader.style.display = "block";
+			if (btnExcel) btnExcel.style.display = "none";
 			resultado.innerHTML = ""; // Limpiamos la tabla o mensajes previos
 
 			// Usar URLSearchParams para asegurar el correcto mapeo de los datos en $_POST
@@ -274,16 +281,22 @@
 				.then(htmlTabla => {
 					// Reemplaza el contenedor interno con la estructura de la tabla dinámica
 					resultado.innerHTML = htmlTabla;
+
+					// Si la respuesta contiene una tabla válida, configuramos y mostramos el botón Excel
+					if (btnExcel && resultado.querySelector("table")) {
+						btnExcel.href = `calificaciones/exportar_phpspreadsheet.php?id_paralelo=${encodeURIComponent(idParalelo)}&id_asignatura=${encodeURIComponent(idAsignatura)}&id_periodo_lectivo=${encodeURIComponent(idPeriodoLectivo)}`;
+						btnExcel.style.display = "inline-block";
+					}
 				})
 				.catch(error => {
 					console.error("Error:", error);
 					resultado.innerHTML = '<p style="color: #dd4b39;">Error al generar el reporte de la asignatura. Verifique los registros de PHP.</p>';
+					if (btnExcel) btnExcel.style.display = "none";
 				})
 				.finally(() => {
 					// OCULTAR LOADER (Se ejecuta siempre al terminar)
 					loader.style.display = "none";
 				});
-
 		});
 	});
 </script>

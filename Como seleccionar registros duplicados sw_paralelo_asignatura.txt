@@ -21,6 +21,13 @@ AND id_paralelo = 94
 GROUP BY id_asignatura, id_rubrica_personalizada
 HAVING COUNT(*) > 1
 
+SELECT id_estudiante, id_paralelo,
+       id_asignatura, id_rubrica_personalizada, count(*)
+FROM sw_rubrica_estudiante
+GROUP BY id_estudiante, id_paralelo,
+       id_asignatura, id_rubrica_personalizada
+HAVING count(*) > 1
+
 SELECT id_estudiante, id_paralelo, count(*)
 FROM sw_estudiante_periodo_lectivo
 WHERE id_periodo_lectivo = 8

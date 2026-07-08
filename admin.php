@@ -432,7 +432,7 @@ desired effect
                     }
                     ?>
                     <li class="<?php echo $active ?>">
-                      <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&id_menu=<?php echo $submenu["id_menu"] ?>&nivel=<?php echo $submenu["mnu_nivel"] ?>"><i class="fa fa-fw <?php echo $submenu["mnu_icono"] ?>"></i> <?php echo $submenu["mnu_texto"] ?></a>
+                      <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&id_menu=<?php echo $submenu["id_menu"] ?>&nivel=<?php echo $submenu["mnu_nivel"] ?>"><i class="fa fa-circle-o"></i> <?php echo $submenu["mnu_texto"] ?></a>
                     </li>
                   <?php
                   }

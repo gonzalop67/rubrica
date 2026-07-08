@@ -6,7 +6,7 @@ use App\Controllers\Controller;
 
 use App\Models\Admin\Perfil;
 
-class RoleController extends Controller
+class RolController extends Controller
 {
     protected Perfil $roleModel;
 
