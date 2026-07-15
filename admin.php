@@ -104,10 +104,11 @@ $nombrePeriodoLectivo = $meses_abrev[(int)$fecha_inicial[1]] . " " . $fecha_inic
 $aniosPeriodoLectivo = $periodo_lectivo->pe_anio_inicio . " - " . $periodo_lectivo->pe_anio_fin;
 
 //Obtengo el nombre de la oferta educativa asociada
-$consulta = $db->consulta("SELECT nombre FROM sw_ofertas_educativas oe, sw_periodo_lectivo p WHERE oe.id = p.oferta_educativa_id AND p.id_periodo_lectivo = $id_periodo_lectivo");
+$consulta = $db->consulta("SELECT oe.nombre FROM sw_ofertas_educativas oe, sw_periodo_lectivo p WHERE oe.id = p.oferta_educativa_id AND p.id_periodo_lectivo = $id_periodo_lectivo");
 $oferta_educativa = $db->fetch_object($consulta);
 $nombreOfertaEducativa = $oferta_educativa->nombre;
 ?>
+
 <!DOCTYPE html>
 <html lang="es">
 

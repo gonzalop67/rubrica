@@ -441,6 +441,7 @@ class selects extends MySQL
 									WHERE id_modalidad = $id_modalidad
 									  AND id_periodo_lectivo < $max_id_periodo_lectivo");
 		$num_total_registros = parent::num_rows($query);
+		$cadena = "";
 		if ($num_total_registros > 0) {
 			$periodo_lectivo = parent::fetch_object($query);
 			$id_periodo_lectivo_anterior = $periodo_lectivo->id_periodo_lectivo;
@@ -463,7 +464,7 @@ class selects extends MySQL
 										     AND t.id_periodo_lectivo = $id_periodo_lectivo_anterior 
 								           ORDER BY pa_orden ASC");
 			$num_total_registros = parent::num_rows($consulta);
-			$cadena = "";
+
 			if ($num_total_registros > 0) {
 				while ($paralelos = parent::fetch_assoc($consulta)) {
 					$code = $paralelos["id_paralelo"];
