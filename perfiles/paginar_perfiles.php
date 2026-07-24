@@ -1,5 +1,10 @@
 <?php
     include("../scripts/clases/class.mysql.php");
+    include("../scripts/clases/class.encrypter.php");
+
+    session_start();
+    $id_usuario = encrypter::encrypt($_SESSION['id_usuario']);
+    $id_perfil = $_SESSION['id_perfil'];
     
     $paginaActual = $_POST['partida'];
     
@@ -50,11 +55,12 @@
             $tabla .= "<tr>";
             $nombre = $perfil["pe_nombre"];
             $id = $perfil["id_perfil"];
-            $tabla .= "<td>".$id."</td>";
-            $tabla .= "<td>".$nombre."</td>";
-            $tabla .= "<td><div class='btn-group'><a href='javascript:;' class='btn btn-warning item-edit' data='".$id."' title='Editar'><span class='fa fa-pencil'></span></a>";
-            $tabla .= "<a href='javascript:;' class='btn btn-danger item-delete' data='".$id."' title='Eliminar'><span class='fa fa-trash'></span></a></div></td>";
-            $tabla .= "</tr>";	
+            $tabla .= "<td>".$id."</td>\n";
+            $tabla .= "<td>".$nombre."</td>\n";
+            $tabla .= "<td class='text-center'><a href='admin.php?id_usuario=$id_usuario&id_perfil=$id_perfil&enlace=perfiles/view_permisos_asociados.php&perfil_id=$id&nivel=0' class='btn btn-sm btn-primary'><i class='fa fa-shield'></i></a></td>\n";
+            $tabla .= "<td><div class='btn-group'><a href='javascript:;' class='btn btn-warning item-edit' data='".$id."' title='Editar'><span class='fa fa-pencil'></span></a>\n";
+            $tabla .= "<a href='javascript:;' class='btn btn-danger item-delete' data='".$id."' title='Eliminar'><span class='fa fa-trash'></span></a></div></td>\n";
+            $tabla .= "</tr>\n";	
         }
     }
     else {

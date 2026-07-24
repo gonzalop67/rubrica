@@ -29,7 +29,7 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `sw_perfil_permiso` (
   `id_perfil` int(11) UNSIGNED NOT NULL,
-  `id_permiso` int(11) UNSIGNED NOT NULL
+  `id_permiso` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --

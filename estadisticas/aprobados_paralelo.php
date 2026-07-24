@@ -109,7 +109,7 @@
 
     function cargarModalidades() {
         $.ajax({
-            url: "periodos_lectivos/cargar_modalidades.php",
+            url: "periodos_lectivos/cargar_ofertas_educativas.php",
             dataType: "html",
             success: function(data) {
                 // console.log(data);

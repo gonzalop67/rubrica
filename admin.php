@@ -195,6 +195,7 @@ desired effect
 <body class="hold-transition skin-blue sidebar-mini">
   <input type="hidden" id="id_periodo_lectivo" value="<?php echo $id_periodo_lectivo ?>">
   <input type="hidden" id="id_usuario" value="<?php echo $id_usuario ?>">
+  <input type="hidden" id="id_perfil" value="<?php echo $id_perfil ?>">
   <?php
   if ($nombrePerfil == "TUTOR") {
   ?>
@@ -222,63 +223,10 @@ desired effect
         <!-- Navbar Right Menu -->
         <div class="navbar-custom-menu">
           <ul class="nav navbar-nav">
-            <!-- Messages: style can be found in dropdown.less-->
-            <?php
-            $mensajes = $db->consulta("SELECT COUNT(*) AS num_rows FROM sw_mensajes WHERE receptor_id = $id_usuario");
-            $num_mensajes = $db->fetch_object($mensajes)->num_rows;
-            $terminacion = $num_mensajes == 1 ? '' : 's';
-            ?>
-            <li class="dropdown messages-menu">
-              <!-- Menu toggle button -->
-              <a href="#" class="dropdown-toggle" data-toggle="dropdown" title="<?php echo $num_mensajes . ' mensaje' . $terminacion; ?>">
-                <i class="fa fa-comments-o"></i>
-                <span class="label label-danger"><?php echo $num_mensajes ?></span>
-              </a>
-              <ul class="dropdown-menu">
-                <li class="header"><?php echo "Tienes " . $num_mensajes . " mensaje" . $terminacion ?></li>
-                <li>
-                  <?php
-                  $sql = "SELECT us_foto, perfil_emisor, fecha, mensaje FROM sw_usuario u, sw_mensajes m WHERE u.id_usuario = m.emisor_id AND receptor_id = $id_usuario";
-                  $mensajes = $db->consulta($sql);
-                  ?>
-                  <!-- inner menu: contains the messages -->
-                  <ul class="menu">
-                    <?php
-                    while ($row = $db->fetch_object($mensajes)) {
-                    ?>
-                      <li><!-- start message -->
-                        <a href="#">
-                          <div class="pull-left">
-                            <!-- User Image -->
-                            <img src="<?php echo "public/uploads/" . $row->us_foto ?>" class="img-circle" alt="User Image">
-                          </div>
-                          <!-- Message title and timestamp -->
-                          <h4>
-                            <?php echo $row->perfil_emisor ?>
-                            <small><i class="fa fa-clock-o"></i> <?php echo humanizarFecha($row->fecha) ?></small>
-                          </h4>
-                          <!-- The message -->
-                          <p>
-                            <?php
-                            if (strlen($row->mensaje) > 32) {
-                              echo mb_substr($texto, 0, 32) . "...";
-                            } else {
-                              echo $row->mensaje;
-                            }
-                            ?>
-                          </p>
-                        </a>
-                      </li>
-                      <!-- end message -->
-                    <?php } ?>
-                  </ul>
-                  <!-- /.menu -->
-                </li>
-                <li class="footer"><a href="#">Ver todos los mensajes</a></li>
-              </ul>
+            <!-- Busca esta línea en tu barra superior y déjala estructurada así: -->
+            <li class="dropdown messages-menu" id="navbar-messages-container">
+              <!-- El contenido PHP se cargará e inyectará de forma automática aquí -->
             </li>
-            <!-- /.messages-menu -->
-
             <!-- Notifications Menu -->
             <li class="dropdown notifications-menu">
               <!-- Menu toggle button -->
@@ -499,6 +447,44 @@ desired effect
   <!-- AdminLTE App -->
   <script src="dist/js/adminlte.min.js"></script>
   <!-- <script src="dist/js/scripts.js"></script> -->
+
+  <script>
+    $(document).ready(function() {
+      // 1. Carga inmediata apenas se abre el sistema
+      load_navbar_messages();
+
+      // 2. CORREGIDO: Ejecutar de forma automática cada 3 segundos (3000ms)
+      setInterval(function() {
+        load_navbar_messages();
+      }, 3000);
+    });
+
+    // Refresca el menú desplegable de notificaciones superiores
+    function load_navbar_messages() {
+      var emisor_id = $("#id_usuario").val();
+      var id_perfil = $("#id_perfil").val();
+
+      if (!emisor_id) return;
+
+      $.ajax({
+        // RECOMENDACIÓN: Si tu proyecto está en una carpeta raíz, añade una barra diagonal inicial (ej: "/comentarios/...") 
+        // o asegúrate de que la ruta relativa coincida con la ubicación de admin.php
+        url: "comentarios/fetch_navbar_messages.php",
+        method: "POST",
+        data: {
+          emisor_id: emisor_id,
+          id_perfil: id_perfil
+        },
+        success: function(data) {
+          // Reemplaza todo el HTML interno del elemento de la barra superior
+          $('#navbar-messages-container').html(data);
+        },
+        error: function(xhr, status, error) {
+          console.error("Error cargando notificaciones de la barra superior:", error);
+        }
+      });
+    }
+  </script>
 
   <!-- Optionally, you can add Slimscroll and FastClick plugins.
      Both of these plugins are recommended to enhance the

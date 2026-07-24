@@ -19,6 +19,7 @@
                                 <tr>
                                     <th>Id</th>
                                     <th>Nombre</th>
+                                    <th class="text-center">Permisos</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -92,15 +93,6 @@
 
         $('#tbody_perfiles').on('click', '.item-delete', function() {
             var id_perfil = $(this).attr('data');
-            // Swal.fire({
-            //     title: "¿Está seguro que quiere eliminar el registro?",
-            //     text: "No podrá recuperar el registro que va a ser eliminado!",
-            //     icon: "warning",
-            //     showCancelButton: true,
-            //     confirmButtonColor: "#d33",
-            //     cancelButtonColor: "#3085d6",
-            //     confirmButtonText: "Sí, elimínelo!"
-            // }
             Swal.fire({
                 title: "¿Está seguro que quiere eliminar el registro?",
                 text: "No podrá recuperar el registro que va a ser eliminado!",
@@ -111,11 +103,6 @@
                 confirmButtonText: "Sí, ¡elimínelo!"
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Swal.fire({
-                    //     title: "Deleted!",
-                    //     text: "Your file has been deleted.",
-                    //     icon: "success"
-                    // });
                     $.ajax({
                         url: "perfiles/eliminar_perfil.php",
                         data: {

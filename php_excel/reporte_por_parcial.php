@@ -5,6 +5,7 @@ require_once "../vendor/autoload.php";
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 
 /* Error reporting */
@@ -127,80 +128,21 @@ $objPHPExcel->getActiveSheet()->setCellValue('A1', $nombreInstitucion)
 	->setCellValue('B59', $nombreRector)
 	->setCellValue('G59', $nombreSecretario);
 
-// Columna para escribir el promedio de las asignaturas
-switch ($numAsignaturas) {
-	case 6:
-		$colPromedio = 'I';
-		$colObservacion = 'J';
-		break;
-	case 7:
-		$colPromedio = 'J';
-		$colObservacion = 'K';
-		break;
-	case 8:
-		$colPromedio = 'K';
-		$colObservacion = 'L';
-		break;
-	case 9:
-		$colPromedio = 'L';
-		$colObservacion = 'M';
-		break;
-	case 10:
-		$colPromedio = 'M';
-		$colObservacion = 'N';
-		break;
-	case 11:
-		$colPromedio = 'N';
-		$colObservacion = 'O';
-		break;
-	case 12:
-		$colPromedio = 'O';
-		$colObservacion = 'P';
-		break;
-	case 13:
-		$colPromedio = 'P';
-		$colObservacion = 'Q';
-		break;
-	case 14:
-		$colPromedio = 'Q';
-		$colObservacion = 'R';
-		break;
-	case 15:
-		$colPromedio = 'R';
-		$colObservacion = 'S';
-		break;
-	case 16:
-		$colPromedio = 'S';
-		$colObservacion = 'T';
-		break;
-	case 17:
-		$colPromedio = 'T';
-		$colObservacion = 'U';
-		break;
-}
-
-$sheet->mergeCells('A1:' . $colObservacion . '1');
-$sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-$sheet->mergeCells('A2:' . $colObservacion . '2');
-$sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-$sheet->mergeCells('A3:' . $colObservacion . '3');
-$sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
 $filaBase = 7; // fila base en la plantilla en Excel
 
 // Aqui va el codigo para calcular el promedio del aporte de cada estudiante
 
 // Imprimir los nombres de las asignaturas
-$asignaturas = $db->consulta("SELECT as_nombre 
-								FROM sw_asignatura_curso ac, 
-									 sw_paralelo p, 
-									 sw_asignatura a 
-							   WHERE ac.id_curso = p.id_curso 
-								 AND ac.id_asignatura = a.id_asignatura 
-								 AND id_paralelo = $id_paralelo 
-							ORDER BY ac_orden");
+$sql = "SELECT as_nombre 
+		  FROM sw_asignatura_curso ac, 
+			   sw_paralelo p, 
+			   sw_asignatura a 
+		 WHERE ac.id_curso = p.id_curso 
+		   AND ac.id_asignatura = a.id_asignatura 
+		   AND id_paralelo = $id_paralelo 
+	     ORDER BY ac_orden";
+
+$asignaturas = $db->consulta($sql);
 
 $rowAsignatura = 6;
 $contAsignaturas = 0;
@@ -219,6 +161,18 @@ while ($asignatura = $db->fetch_assoc($asignaturas)) {
 	$contAsignaturas++;
 }
 
+$colPromedio = Coordinate::stringFromColumnIndex($contAsignaturas + 3);
+$colObservacion = Coordinate::stringFromColumnIndex($contAsignaturas + 4);
+
+$sheet->mergeCells('A1:' . $colObservacion . '1');
+$sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+$sheet->mergeCells('A2:' . $colObservacion . '2');
+$sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+$sheet->mergeCells('A3:' . $colObservacion . '3');
+$sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
 // Cabecera de Promedio y Observación
 $sheet->getStyle($colAsignaturas[$contAsignaturas] . $rowAsignatura)->applyFromArray([
 	'borders' => [
@@ -228,6 +182,8 @@ $sheet->getStyle($colAsignaturas[$contAsignaturas] . $rowAsignatura)->applyFromA
 		],
 	],
 ]);
+
+$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignaturas] . $rowAsignatura, 'PROMEDIO');
 
 // Obtener la nota mínima para aprobar el periodo lectivo
 $qry = "SELECT pe_nota_aprobacion FROM sw_periodo_lectivo WHERE id_periodo_lectivo = $id_periodo_lectivo";
@@ -241,8 +197,6 @@ $resultado = $db->consulta($qry);
 $registro = $db->fetch_object($resultado);
 $rango_desde = $registro->rango_desde;
 $rango_hasta = $registro->rango_hasta;
-
-$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignaturas] . $rowAsignatura, 'PROMEDIO');
 
 $estudiantes = $db->consulta("SELECT e.id_estudiante, es_apellidos, es_nombres FROM sw_estudiante e, sw_estudiante_periodo_lectivo p WHERE e.id_estudiante = p.id_estudiante AND p.id_paralelo = $id_paralelo AND es_retirado = 'N' AND activo = 1 ORDER BY es_apellidos, es_nombres");
 $num_total_estudiantes = $db->num_rows($estudiantes);
@@ -355,7 +309,6 @@ if ($num_total_estudiantes > 0) {
 			} else {
 				$objPHPExcel->getActiveSheet()->setCellValue($colPromedio . $row, truncar($promedioAsignaturas, 2));
 			}
-
 		} // fin if $total_asignatura
 
 		$row++;
