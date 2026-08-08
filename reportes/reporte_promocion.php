@@ -331,19 +331,19 @@ if ($es_intensivo == 1) {
      $pdf->Ln();
 
      $asignaturas = $db->consulta("SELECT a.id_asignatura, 
-                                     a.id_tipo_asignatura,
-                                     as_nombre,
-                                     ar_nombre 
-                                FROM sw_asignatura_curso ac, 
-                                     sw_paralelo p, 
-                                     sw_asignatura a,
-                                     sw_area ar
-                               WHERE ac.id_curso = p.id_curso 
-                                 AND ac.id_asignatura = a.id_asignatura
-                                 AND ar.id_area = a.id_area
-                                 AND a.id_tipo_asignatura = 1 
-                                 AND id_paralelo = $id_paralelo 
-                               ORDER BY ac_orden");
+                                        a.id_tipo_asignatura,
+                                        as_nombre,
+                                        ar_nombre 
+                                   FROM sw_asignatura_curso ac, 
+                                        sw_paralelo p, 
+                                        sw_asignatura a,
+                                        sw_area ar
+                                   WHERE ac.id_curso = p.id_curso 
+                                   AND ac.id_asignatura = a.id_asignatura
+                                   AND ar.id_area = a.id_area
+                                   AND a.id_tipo_asignatura = 1 
+                                   AND id_paralelo = $id_paralelo 
+                                   ORDER BY ac_orden");
      $numero_asignaturas = $db->num_rows($asignaturas);
      $suma_promedios = 0;
      $contador_no_aprueba = 0;
@@ -352,7 +352,7 @@ if ($es_intensivo == 1) {
           $id_asignatura = $asignatura->id_asignatura;
           $id_tipo_asignatura = $asignatura->id_tipo_asignatura;
           $nombreAsignatura = $asignatura->as_nombre;
-          $nombreAsignatura = substr($nombreAsignatura, 0, 21);
+          $nombreAsignatura = substr($nombreAsignatura, 0, 31);
           $pdf->SetFont('Arial', '', 7);
           $pdf->Cell(50, 6, mb_convert_encoding($nombreAsignatura, 'ISO-8859-1', 'UTF-8'), 1, 0, 'L');
 

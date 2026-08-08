@@ -144,6 +144,26 @@ class horarios extends MySQL
 		return $cadena;
 	}
 
+	function cargarHorarioMatriz($id_paralelo, $id_horario_def)
+	{
+		// Consulta para traer las asociaciones del paralelo con los nombres de las asignaturas
+		// Nota: Reemplaza 'sw_asignatura' y sus campos si tus tablas se llaman de otra forma
+		$sql = "SELECT h.id_dia_semana, h.id_hora_clase, h.id_asignatura, a.as_nombre 
+            FROM sw_horario h
+            INNER JOIN sw_asignatura a ON h.id_asignatura = a.id_asignatura
+            WHERE h.id_paralelo = '$id_paralelo' 
+              AND h.id_horario_def = '$id_horario_def'";
+
+		$consulta = parent::consulta($sql);
+		$arrHorario = array();
+
+		while ($row = parent::fetch_assoc($consulta)) {
+			$arrHorario[] = $row;
+		}
+
+		return json_encode($arrHorario);
+	}
+
 	function existeAsignaturaHoraClase($id_paralelo, $id_dia_semana, $id_hora_clase, $id_horario_def)
 	{
 		$consulta = parent::consulta("SELECT id_horario FROM sw_horario WHERE id_paralelo = $id_paralelo AND id_dia_semana = $id_dia_semana AND id_hora_clase = $id_hora_clase AND id_horario_def = $id_horario_def");
@@ -175,21 +195,37 @@ class horarios extends MySQL
 	{
 		//Primero obtengo el id_usuario para luego verificar si existe otra hora con el mismo docente
 		$consulta = parent::consulta("SELECT id_usuario FROM sw_distributivo WHERE id_paralelo = $this->id_paralelo AND id_asignatura = $this->id_asignatura");
-		$registro = parent::fetch_assoc($consulta);
-		$id_usuario = $registro['id_usuario'];
-		//Inserción del registro en la tabla sw_horario
-		$qry = "INSERT INTO sw_horario (id_paralelo, id_asignatura, id_dia_semana, id_hora_clase, id_usuario, id_horario_def) VALUES (";
-		$qry .= $this->id_paralelo . ",";
-		$qry .= $this->id_asignatura . ",";
-		$qry .= $this->id_dia_semana . ",";
-		$qry .= $this->id_hora_clase . ",";
-		$qry .= $id_usuario . ",";
-		$qry .= $this->id_horario_def . ")";
-		$consulta = parent::consulta($qry);
-		$mensaje = "Asignatura asociada exitosamente...";
-		if (!$consulta)
-			$mensaje = "No se pudo asociar la Asignatura...Error: " . mysqli_error($this->conexion);
-		return $mensaje;
+		if (parent::num_rows($consulta) > 0) {
+			$registro = parent::fetch_assoc($consulta);
+			$id_usuario = $registro['id_usuario'];
+			//Inserción del registro en la tabla sw_horario
+			$qry = "INSERT INTO sw_horario (id_paralelo, id_asignatura, id_dia_semana, id_hora_clase, id_usuario, id_horario_def) VALUES (";
+			$qry .= $this->id_paralelo . ",";
+			$qry .= $this->id_asignatura . ",";
+			$qry .= $this->id_dia_semana . ",";
+			$qry .= $this->id_hora_clase . ",";
+			$qry .= $id_usuario . ",";
+			$qry .= $this->id_horario_def . ")";
+			$consulta = parent::consulta($qry);
+			if ($consulta) {
+				$data = [
+					'error' => false,
+					'mensaje' => "Asignatura asociada exitosamente...",
+				];
+			} else {
+				$data = [
+					'error' => true,
+					'mensaje' => "No se pudo asociar la Asignatura...Error: " . mysqli_error($this->conexion)
+				];
+			}
+		} else {
+			$data = [
+				'error' => true,
+				'mensaje' => "No se ha asignado un docente a esta asignatura..."
+			];
+		}
+
+		return json_encode($data);
 	}
 
 	function cargarTitulosHorarios()

@@ -95,6 +95,8 @@
     <!-- App js -->
     <script src="<?= RUTA_URL ?>/public/assets/Annex/js/app.js"></script>
 
+    @yield('scripts')
+
 </body>
 
 </html>

@@ -5,6 +5,9 @@ require_once("scripts/clases/class.mysql.php");
 require_once("scripts/clases/class.periodos_lectivos.php");
 require_once("scripts/clases/class.encrypter.php");
 
+// Requerimiento del archivo de constantes
+// require_once("App/config/config.php");
+
 function humanizarFecha($fecha)
 {
   $fecha_dada = new DateTime($fecha);
@@ -59,11 +62,13 @@ else {
   }
 
   //Obtengo los nombres del usuario
-  $consulta = $db->consulta("SELECT SUBSTRING_INDEX(us_apellidos, ' ', 1) AS primer_apellido, 
-									                  SUBSTRING_INDEX(us_nombres, ' ', 1) AS primer_nombre,
+  $consulta = $db->consulta("SELECT primer_apellido, 
+									                  primer_nombre,
 									                  us_foto 
-								               FROM sw_usuario 
-								              WHERE id_usuario = $id_usuario");
+								               FROM sw_usuario u,
+                                    sw_persona p 
+								              WHERE p.id_persona = u.persona_id  
+                                AND u.id_usuario = $id_usuario");
   $usuario = $db->fetch_assoc($consulta);
   $nombreUsuario = $usuario["primer_nombre"] . " " . $usuario["primer_apellido"];
   $userImage = "public/uploads/" . $usuario["us_foto"];
@@ -74,11 +79,11 @@ else {
   } else {
     if (isset($_GET["id_menu"])) {
       $consulta = $db->consulta("SELECT mnu_texto, 
-											  mnu_enlace, 
-											  mnu_nivel 
-										 FROM sw_menu 
-										WHERE mnu_publicado = 1 
-										  AND id_menu = " . $_GET['id_menu']);
+                                        mnu_enlace, 
+                                        mnu_nivel 
+                                   FROM sw_menu 
+                                  WHERE mnu_publicado = 1 
+                                    AND id_menu = " . $_GET['id_menu']);
       $pagina = $db->fetch_assoc($consulta);
       $titulo = $pagina["mnu_texto"];
       $enlace = $pagina["mnu_enlace"];
@@ -111,66 +116,52 @@ $nombreOfertaEducativa = $oferta_educativa->nombre;
 
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title><?php echo $titulo ?></title>
-  <!-- Tell the browser to be responsive to screen width -->
-  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
-  <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
-  <!-- jquery-ui -->
-  <link rel="stylesheet" href="assets/template/jquery-ui/jquery-ui.css">
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.min.css">
-  <!-- Ionicons -->
-  <link rel="stylesheet" href="bower_components/Ionicons/css/ionicons.min.css">
-  <!-- Theme style -->
-  <link rel="stylesheet" href="dist/css/AdminLTE.min.css">
-  <!-- AdminLTE Skins. We have chosen the skin-blue for this starter
-        page. However, you can choose any other skin. Make sure you
-        apply the skin class to the body tag so the changes take effect. -->
-  <link rel="stylesheet" href="dist/css/skins/skin-blue.min.css">
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title><?php echo $titulo ?></title>
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
+    
+    <!-- 1. jQuery cargado al inicio de todo -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    
+    <!-- 2. Hojas de Estilo Base -->
+    <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="assets/template/jquery-ui/jquery-ui.css">
+    <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.min.css">
+    <link rel="stylesheet" href="bower_components/Ionicons/css/ionicons.min.css">
+    <link rel="stylesheet" href="dist/css/AdminLTE.min.css">
+    <link rel="stylesheet" href="dist/css/skins/skin-blue.min.css">
+    <link rel="stylesheet" href="estilos.css" type="text/css" />
+    
+    <!-- 3. Componentes Adicionales (CSS) -->
+    <link rel="stylesheet" href="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="assets/template/select2/select2.min.css">
+    <link rel="stylesheet" href="assets/template/toastr/toastr.min.css">
+    <link rel="stylesheet" href="assets/datatables/datatables.css">
 
-  <link href="estilos.css" rel="stylesheet" type="text/css" />
+    <!-- 4. Plugins e Inicializadores Core (JS) -->
+    <script src="assets/template/jquery-ui/jquery-ui.js"></script>
+    <script src="assets/template/jquery-validation/jquery.validate.min.js"></script>
+    <script src="assets/template/jquery-validation/localization/messages_es.min.js"></script>
+    <script src="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.all.min.js"></script>
+    <script src="assets/template/select2/select2.min.js"></script>
+    <script src="assets/template/toastr/toastr.min.js"></script>
+    <script src="assets/datatables/datatables.js"></script>
+    <script src="js/chart.min.js"></script>
+    <script src="js/plotly-latest.min.js"></script>
+    <script src="js/keypress.js"></script>
+    
+    <!-- NOTA: Quitamos js/funciones.js de aquí para cargarlo abajo en el flujo correcto -->
 
-  <!-- jquery-ui -->
-  <script src="assets/template/jquery-ui/jquery-ui.js"></script>
-  <!-- jquery-ui-validation -->
-  <script src="assets/template/jquery-validation/jquery.validate.min.js"></script>
-  <script src="assets/template/jquery-validation/localization/messages_es.min.js"></script>
-  <!-- sweetalert 2 -->
-  <link rel="stylesheet" href="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.min.css">
-  <script src="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.all.min.js"></script>
-  <!-- Chart JS -->
-  <script src="js/chart.min.js"></script>
-  <!-- plotly -->
-  <script src="js/plotly-latest.min.js"></script>
-  <!-- Select2 -->
-  <script src="assets/template/select2/select2.min.js"></script>
-  <link rel="stylesheet" href="assets/template/select2/select2.min.css">
-  <!-- Toastr -->
-  <link rel="stylesheet" href="assets/template/toastr/toastr.min.css">
-  <script src="assets/template/toastr/toastr.min.js"></script>
-  <!-- DataTables -->
-  <link rel="stylesheet" href="assets/datatables/datatables.css">
-  <script src="assets/datatables/datatables.js"></script>
-
-  <script src="js/keypress.js"></script>
-  <script src="js/funciones.js"></script>
-
-  <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
-  <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-  <!--[if lt IE 9]>
-  <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
-  <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
-  <![endif]-->
-
-  <!-- Google Font -->
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700,300italic,400italic,600italic">
+    <!-- HTML5 Shim and Respond.js IE8 support -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans Pro:300,400,600,700,300italic,400italic,600italic">
 </head>
+
 <!--
 BODY TAG OPTIONS:
 =================
@@ -313,7 +304,7 @@ desired effect
                   <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=calificaciones/view_cambiar_periodo_lectivo.php&nivel=0"><i class="fa fa-calendar-check-o" aria-hidden="true"></i> Cambiar Periodo</a>
                 </li>
                 <li role="separator" class="divider"></li>
-                <li><a href="logout.php"><i class="fa fa-sign-out" aria-hidden="true"></i> Salir</a></li>
+                <li><a href="logout.php" class="btn-logout"><i class="fa fa-sign-out" aria-hidden="true"></i> Salir</a></li>
               </ul>
             </li>
             <!-- Control Sidebar Toggle Button -->
@@ -347,64 +338,58 @@ desired effect
         <!-- Sidebar Menu -->
         <ul class="sidebar-menu" data-widget="tree">
           <li class="header" style="font-size: 1.2rem; text-align: center; color: white; padding-top: 4px"><?= $nombrePeriodoLectivo ?></li>
-          <!-- Optionally, you can add icons to the links -->
-          <?php $active = !isset($_GET['id_menu']) ? 'active' : '' ?>
-          <li class="<?php echo $active ?>"><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=dashboard.php&nivel=0"><i class="fa fa-home"></i> <span>Dashboard</span></a></li>
+
+          <!-- Dashboard -->
+          <?php $dashboard_active = !isset($_GET['id_menu']) ? 'active' : ''; ?>
+          <li class="<?php echo $dashboard_active ?>"><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=dashboard.php&nivel=0"><i class="fa fa-home"></i> <span>Dashboard</span></a></li>
+
           <?php
           $menus = $db->consulta("SELECT m.* FROM sw_menu m, sw_menu_perfil mp WHERE m.id_menu = mp.id_menu AND mp.id_perfil = $id_perfil AND mnu_padre = 0 AND mnu_publicado = 1 ORDER BY mnu_orden");
+
           while ($menu = $db->fetch_assoc($menus)) {
             $submenus = $db->consulta("SELECT * FROM sw_menu WHERE mnu_publicado = 1 AND mnu_padre = " . $menu['id_menu'] . " ORDER BY mnu_orden");
             $num_submenus = $db->num_rows($submenus);
+
             if ($num_submenus > 0) {
-          ?>
-              <li class="treeview">
-                <?php
-                $menu_icono = 'fa fa-link';
-                if ($menu["mnu_icono"] != '') {
-                  $menu_icono = $menu["mnu_icono"];
+              // 1. Almacenar submenús y verificar si el padre debe estar activo
+              $submenu_list = [];
+              $padre_active = '';
+
+              while ($submenu = $db->fetch_assoc($submenus)) {
+                if (isset($_GET['id_menu']) && $_GET['id_menu'] == $submenu['id_menu']) {
+                  $submenu['is_active'] = 'active';
+                  $padre_active = 'active'; // Si un hijo está activo, el padre también
+                } else {
+                  $submenu['is_active'] = '';
                 }
-                ?>
-                <a href="#"><i class="<?php echo $menu_icono ?>"></i> <span><?php echo $menu["mnu_texto"] ?></span>
-                  <span class="pull-right-container">
-                    <i class="fa fa-angle-left pull-right"></i>
-                  </span>
+                $submenu_list[] = $submenu;
+              }
+
+              $menu_icono = ($menu["mnu_icono"] != '') ? $menu["mnu_icono"] : 'fa fa-link';
+          ?>
+              <!-- Menú Padre con Submenús -->
+              <li class="treeview <?php echo $padre_active ?>">
+                <a href="#">
+                  <i class="<?php echo $menu_icono ?>"></i> <span><?php echo $menu["mnu_texto"] ?></span>
+                  <span class="pull-right-container"> <i class="fa fa-angle-left pull-right"></i> </span>
                 </a>
                 <ul class="treeview-menu">
-                  <?php
-                  while ($submenu = $db->fetch_assoc($submenus)) {
-                  ?>
-                    <?php
-                    if (isset($_GET['id_menu']) && $_GET['id_menu'] == $submenu['id_menu']) {
-                      $active = 'active';
-                    } else {
-                      $active = '';
-                    }
-                    ?>
-                    <li class="<?php echo $active ?>">
-                      <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&id_menu=<?php echo $submenu["id_menu"] ?>&nivel=<?php echo $submenu["mnu_nivel"] ?>"><i class="fa fa-circle-o"></i> <?php echo $submenu["mnu_texto"] ?></a>
+                  <?php foreach ($submenu_list as $sub) { ?>
+                    <li class="<?php echo $sub['is_active'] ?>">
+                      <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&id_menu=<?php echo $sub["id_menu"] ?>&nivel=<?php echo $sub["mnu_nivel"] ?>"><i class="fa fa-circle-o"></i> <?php echo $sub["mnu_texto"] ?></a>
                     </li>
-                  <?php
-                  }
-                  ?>
+                  <?php } ?>
                 </ul>
               </li>
-            <?php
-            } else {
-            ?>
-              <?php
-              if (isset($_GET['id_menu']) && $_GET['id_menu'] == $menu['id_menu']) {
-                $active = 'active';
-              } else {
-                $active = '';
-              }
-              ?>
-              <li class="<?php echo $active ?>"><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&id_menu=<?php echo $menu["id_menu"] ?>&nivel=<?php echo $menu["mnu_nivel"] ?>"><i class="fa fa-link"></i> <span><?php echo $menu["mnu_texto"] ?></span></a></li>
-          <?php
-            }
-          }
-          ?>
+            <?php } else { ?>
+              <!-- Menú Padre Simple Sin Submenús -->
+              <?php $menu_active = (isset($_GET['id_menu']) && $_GET['id_menu'] == $menu['id_menu']) ? 'active' : ''; ?>
+              <li class="<?php echo $menu_active ?>"><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&id_menu=<?php echo $menu["id_menu"] ?>&nivel=<?php echo $menu["mnu_nivel"] ?>"><i class="fa fa-link"></i> <span><?php echo $menu["mnu_texto"] ?></span></a></li>
+          <?php }
+          } ?>
         </ul>
         <!-- /.sidebar-menu -->
+
       </section>
       <!-- /.sidebar -->
     </aside>
@@ -416,11 +401,11 @@ desired effect
     <!-- Main Footer -->
     <footer class="main-footer">
       <?php
-      $consulta = $db->consulta("SELECT version FROM sw_versiones ORDER BY id DESC LIMIT 1");
-      $version = $db->fetch_object($consulta);
+      //$consulta = $db->consulta("SELECT version FROM sw_versiones ORDER BY id DESC LIMIT 1");
+      //$version = $db->fetch_object($consulta);
       ?>
       <div class="pull-right hidden-xs">
-        <b>Version</b> <span id="version"><?= $version->version ?></span>
+        <b>Version</b> <span id="version"><?= isset($version->version) ? $version->version : "2.4.0" ?></span>
       </div>
       <?php
       $consulta = $db->consulta("SELECT in_nombre,
@@ -454,9 +439,49 @@ desired effect
       load_navbar_messages();
 
       // 2. CORREGIDO: Ejecutar de forma automática cada 3 segundos (3000ms)
-      setInterval(function() {
+      /*setInterval(function() {
         load_navbar_messages();
-      }, 3000);
+      }, 3000);*/
+
+      // 1. Guardar la URL del enlace clicado en localStorage
+      $('.sidebar-menu').on('click', 'a', function() {
+        var href = $(this).attr('href');
+
+        // Evitar guardar enlaces vacíos o contenedores de submenús
+        if (href && href !== '#') {
+          localStorage.setItem('activeMenuUrl', href);
+        }
+      });
+
+      // 2. Recuperar y aplicar el estado activo al cargar la página
+      var savedUrl = localStorage.getItem('activeMenuUrl');
+
+      if (savedUrl) {
+        // Buscar el enlace exacto guardado
+        var $activeLink = $('.sidebar-menu a[href="' + savedUrl + '"]');
+
+        if ($activeLink.length) {
+          // Remover estados activos previos para evitar duplicados
+          $('.sidebar-menu .active').removeClass('active menu-open');
+          $('.sidebar-menu .treeview-menu').hide();
+
+          // Activar el li del submenú actual
+          $activeLink.closest('li').addClass('active');
+
+          // Activar el contenedor padre treeview, abrirlo y mostrar el submenú con slide o display
+          var $parentTree = $activeLink.closest('.treeview');
+          if ($parentTree.length) {
+            $parentTree.addClass('active menu-open');
+            $parentTree.children('.treeview-menu').show(); // AdminLTE requiere show() o slideDown()
+          }
+        }
+      }
+
+      // 3. NUEVO: Limpiar el localStorage al hacer clic en Cerrar Sesión
+      // Asegúrate de poner la clase 'btn-logout' en tu enlace de salir
+      $(document).on('click', '.btn-logout', function() {
+        localStorage.removeItem('activeMenuUrl');
+      });
     });
 
     // Refresca el menú desplegable de notificaciones superiores

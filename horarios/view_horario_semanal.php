@@ -41,11 +41,11 @@
 					</tr>
 					<tr>
 						<td class="fuente9" valign="top">&nbsp;</td>
-						<td> <select id="lstDiasSemana" class="fuente9" multiple size="7"> </select> </td>
+						<td> <select id="lstDiasSemana" class="fuente9" size="7"> </select> </td>
 						<td class="fuente9" valign="top">&nbsp;</td>
-						<td> <select id="lstHorasClase" class="fuente9" multiple size="7"> </select> </td>
+						<td> <select id="lstHorasClase" class="fuente9" size="7"> </select> </td>
 						<td class="fuente9" valign="top">&nbsp;</td>
-						<td valign="top"><select id="lstAsignaturas" class="fuente9" multiple size="7"> </select></td>
+						<td valign="top"><select id="lstAsignaturas" class="fuente9" size="7"> </select></td>
 						<td width="*">&nbsp; </td> <!-- Esto es para igualar las columnas -->
 					</tr>
 				</table>
@@ -282,47 +282,57 @@
 	}
 
 	function asociar_hora_asignatura() {
-		var id_paralelo = document.getElementById("cboParalelos").value;
-		var id_dia_semana = document.getElementById("lstDiasSemana").value;
-		var id_asignatura = document.getElementById("lstAsignaturas").value;
-		var id_hora_clase = document.getElementById("lstHorasClase").value;
-		var id_horario_def = document.getElementById("cboHorarios").value;
-		if (id_paralelo == 0) {
-			document.getElementById("mensaje").innerHTML = "Debe elegir un Paralelo...";
-			document.getElementById("cboParalelos").focus();
-		} else if (id_dia_semana == 0) {
-			document.getElementById("mensaje").innerHTML = "Debe elegir un D&iacute;a de la Semana...";
-			document.getElementById("cboDiasSemana").focus();
-		} else if (id_hora_clase == "") {
-			document.getElementById("mensaje").innerHTML = "Debe elegir una Hora Clase...";
-			document.getElementById("lstHorasClase").focus();
-		} else if (id_asignatura == "") {
-			document.getElementById("mensaje").innerHTML = "Debe elegir una Asignatura...";
-			document.getElementById("lstAsignaturas").focus();
-		} else if (id_horario_def == "") {
-			document.getElementById("mensaje").innerHTML = "Debe elegir un Horario...";
-			document.getElementById("cboHorarios").focus();
+		// Captura de valores unitarios limpia (ya no devuelven arrays)
+		var id_paralelo = $("#cboParalelos").val();
+		var id_dia_semana = $("#lstDiasSemana").val();
+		var id_asignatura = $("#lstAsignaturas").val();
+		var id_hora_clase = $("#lstHorasClase").val();
+		var id_horario_def = $("#cboHorarios").val();
+		var $mensaje = $("#mensaje");
+
+		// Validaciones de formulario
+		if (id_paralelo == 0 || id_paralelo === null) {
+			$mensaje.html("Debe elegir un Paralelo...");
+			$("#cboParalelos").focus();
+		} else if (id_dia_semana === null || id_dia_semana === "") {
+			$mensaje.html("Debe elegir un D&iacute;a de la Semana...");
+			$("#lstDiasSemana").focus();
+		} else if (id_hora_clase === null || id_hora_clase === "") {
+			$mensaje.html("Debe elegir una Hora Clase...");
+			$("#lstHorasClase").focus();
+		} else if (id_asignatura === null || id_asignatura === "") {
+			$mensaje.html("Debe elegir una Asignatura...");
+			$("#lstAsignaturas").focus();
+		} else if (id_horario_def == 0 || id_horario_def === null) {
+			$mensaje.html("Debe elegir un Horario...");
+			$("#cboHorarios").focus();
 		} else {
-			$("#mensaje").hide();
-			$("#mensaje").html("<img src='imagenes/ajax-loader.gif' alt='procesando...' />");
+			// Inicio de procesos AJAX
+			$mensaje.hide().html("<img src='imagenes/ajax-loader.gif' alt='procesando...' />").show();
+
 			$.ajax({
 				type: "POST",
 				url: "horarios/existe_asociacion.php",
-				data: "id_paralelo=" + id_paralelo + "&id_dia_semana=" + id_dia_semana + "&id_hora_clase=" + id_hora_clase + "&id_horario_def=" + id_horario_def,
-				success: function(resultado) {
-					var JSONResultado = eval('(' + resultado + ')');
+				dataType: "json",
+				data: {
+					id_paralelo: id_paralelo,
+					id_dia_semana: id_dia_semana,
+					id_hora_clase: id_hora_clase,
+					id_horario_def: id_horario_def
+				},
+				success: function(JSONResultado) {
 					if (JSONResultado.error) {
-						//Ya existe asociada una asignatura...
 						Swal.fire({
 							title: "Error",
 							text: "Ya existe una Asignatura asociada en esta Hora Clase...",
 							icon: "error"
 						});
 					} else {
-						//Comprobar si existe cruce de horario
+						// Comprobar cruce de horario
 						$.ajax({
 							type: "POST",
 							url: "horarios/comprobar_cruce_horario.php",
+							dataType: "json",
 							data: {
 								id_paralelo: id_paralelo,
 								id_hora_clase: id_hora_clase,
@@ -330,46 +340,31 @@
 								id_dia_semana: id_dia_semana,
 								id_horario_def: id_horario_def
 							},
-							success: function(resultado) {
-								var JSONResultado = eval('(' + resultado + ')');
-								if (JSONResultado.errorno == 2) {
+							success: function(JSONResultadoCruce) {
+								$mensaje.hide().html("");
+								if (JSONResultadoCruce.errorno == 2) {
 									Swal.fire({
 										title: "Error",
 										text: "No se ha designado un docente para la asignatura seleccionada.",
 										icon: "error"
 									});
-								} else if (JSONResultado.errorno == 1) {
-									//Existe cruce de horario...
-									if (confirm("Existe cruce de horario asociado con esta Hora Clase. Desea asociar la asignatura de todas formas?") == true) {
-										$.ajax({
-											method: "POST",
-											url: "horarios/insertar_asociacion.php",
-											data: {
-												id_paralelo: id_paralelo,
-												id_hora_clase: id_hora_clase,
-												id_asignatura: id_asignatura,
-												id_dia_semana: id_dia_semana,
-												id_horario_def: id_horario_def
-											},
-											success: function(resultado) {
-												$("#mensaje").html(resultado);
-												listar_asignaturas_asociadas(false);
-											},
-											error: function(xhr, ajaxOptions, thrownError) {
-												alert(xhr.status + "\n" + xhr.responseText + "\n" + thrownError);
-											}
-										});
-									}
-								} else {
-									$.ajax({
-										type: "POST",
-										url: "horarios/insertar_asociacion.php",
-										data: "id_paralelo=" + id_paralelo + "&id_hora_clase=" + id_hora_clase + "&id_asignatura=" + id_asignatura + "&id_dia_semana=" + id_dia_semana + "&id_horario_def=" + id_horario_def,
-										success: function(resultado) {
-											$("#mensaje").html(resultado);
-											listar_asignaturas_asociadas(false);
+								} else if (JSONResultadoCruce.errorno == 1) {
+									Swal.fire({
+										title: "¿Existe cruce de horario?",
+										text: "Existe un cruce de horario asociado con esta Hora Clase. ¿Desea asociar la asignatura de todas formas?",
+										icon: "warning",
+										showCancelButton: true,
+										confirmButtonColor: "#3085d6",
+										cancelButtonColor: "#d33",
+										confirmButtonText: "Sí, asociar",
+										cancelButtonText: "Cancelar"
+									}).then((result) => {
+										if (result.isConfirmed) {
+											ejecutar_insercion(id_paralelo, id_hora_clase, id_asignatura, id_dia_semana, id_horario_def);
 										}
 									});
+								} else {
+									ejecutar_insercion(id_paralelo, id_hora_clase, id_asignatura, id_dia_semana, id_horario_def);
 								}
 							}
 						});
@@ -377,6 +372,39 @@
 				}
 			});
 		}
+	}
+
+	function ejecutar_insercion(paralelo, hora, asignatura, dia, horario) {
+		$.ajax({
+			method: "POST",
+			url: "horarios/insertar_asociacion.php",
+			data: {
+				id_paralelo: paralelo,
+				id_hora_clase: hora,
+				id_asignatura: asignatura,
+				id_dia_semana: dia,
+				id_horario_def: horario
+			},
+			success: function(resultado) {
+				$("#mensaje").html(resultado);
+				listar_asignaturas_asociadas(false);
+
+				Swal.fire({
+					title: "¡Guardado!",
+					text: "La asignatura se ha asociado correctamente.",
+					icon: "success",
+					timer: 2000,
+					showConfirmButton: false
+				});
+			},
+			error: function(xhr, ajaxOptions, thrownError) {
+				Swal.fire({
+					title: "Error de servidor",
+					text: xhr.status + " - " + thrownError,
+					icon: "error"
+				});
+			}
+		});
 	}
 
 	function eliminarHorario(id_horario) {

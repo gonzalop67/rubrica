@@ -95,6 +95,8 @@
     <!-- App js -->
     <script src="<?= RUTA_URL ?>/public/assets/Annex/js/app.js"></script>
 
+    <?php echo $this->sections['scripts'] ?? ""; ?>
+
 </body>
 
 </html>

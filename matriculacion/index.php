@@ -1029,32 +1029,6 @@
 						});
 					}
 				});
-
-				// if (confirm("¿Desea quitar este estudiante de este periodo lectivo?")) {
-				// 	$("#mensaje").html("<img src='imagenes/ajax-loader.gif' alt='procesando...' />");
-
-				// 	// Primero verifico que no tenga calificaciones
-				// 	$.ajax({
-				// 		type: "POST",
-				// 		url: "matriculacion/verificar_si_tiene_notas.php",
-				// 		data: "id_estudiante=" + id_estudiante,
-				// 		dataType: "json",
-				// 		success: function (response) {
-
-				// 		}
-				// 	});
-
-				// 	// $.ajax({
-				// 	// 	type: "POST",
-				// 	// 	url: "matriculacion/quitar_estudiante.php",
-				// 	// 	data: "id_estudiante=" + id_estudiante + "&id_paralelo=" + id_paralelo,
-				// 	// 	success: function(resultado) {
-				// 	// 		alert(resultado);
-				// 	// 		contarEstudiantesParalelo(id_paralelo);
-				// 	// 		cargar_estudiantes_des_matriculados();
-				// 	// 	}
-				// 	// });
-				// }
 			}
 		}
 
@@ -1071,6 +1045,7 @@
 				dataType: "json",
 				success: function(resultado) {
 					$("#img-loader").html("");
+					console.log(resultado);
 					if (!resultado.error) {
 						//Aqui va el proceso para matricular al estudiante antiguo
 						$.post("matriculacion/seleccionar_estudiante.php", {

@@ -3,6 +3,7 @@
 // Definir rutas
 
 use App\Controllers\Admin\AdminDashboardController;
+use App\Controllers\Admin\MenuController;
 use App\Controllers\Admin\PermisoController;
 use App\Controllers\Admin\RolController;
 use App\Controllers\Admin\UserController;
@@ -53,5 +54,9 @@ Route::get('usuarios/create', [UserController::class, 'create'], [$authMiddlewar
 Route::post('usuarios', [UserController::class, 'store'], [$authMiddleware]);
 // Rutas comunes
 Route::get('usuarios/:id/edit', [UserController::class, 'edit'], [$authMiddleware]);
+
+/** Rutas para Menús */
+Route::get('menus', [MenuController::class, 'index'], [$authMiddleware]);
+Route::post('menus/get_menu_ajax', [MenuController::class, 'get_menu_ajax'], [$authMiddleware]);
 
 Route::dispatch();

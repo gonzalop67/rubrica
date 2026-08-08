@@ -1,4 +1,4 @@
-<!-- Nuevo Menu Modal -->
+<!-- Nuevo Periodo Lectivo Modal -->
 <div class="modal fade" id="nuevoPeriodoLectivoModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -8,42 +8,49 @@
                 </button>
                 <h4 class="modal-title text-center" id="exampleModalLabel">Nuevo Periodo Lectivo</h4>
             </div>
-            <form id="form_insert" onsubmit="return insertarPeriodoLectivo()" autocomplete="off">
+            <form id="form_insert_periodo" autocomplete="off">
                 <div class="modal-body fuente10">
                     <div class="form-group row">
-                        <label for="pe_anio_inicio" class="col-sm-3 col-form-label">Año Inicial:</label>
-                        <div class="col-sm-3">
-                            <input type="text" class="form-control" id="pe_anio_inicio" name="pe_anio_inicio" value="" required>
-                            <span id="error-pe_anio_inicio" class="text-danger"></span>
-                        </div>
-                        <label for="pe_anio_fin" class="col-sm-3 col-form-label">Año Final:</label>
-                        <div class="col-sm-3">
-                            <input type="text" class="form-control" id="pe_anio_fin" name="pe_anio_fin" value="" required>
-                            <span id="error-pe_anio_fin" class="text-danger"></span>
+                        <label for="nombre" class="col-sm-2 col-form-label">Nombre:</label>
+                        <div class="col-sm-10">
+                            <input type="text" class="form-control" id="nombre" name="nombre" value="" required>
+                            <span id="error-nombre" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="form-group row">
-                        <label for="pe_fecha_inicio" class="col-sm-3 col-form-label">Fecha de inicio:</label>
-                        <div class="col-sm-3">
-                            <input type="text" class="form-control" id="pe_fecha_inicio" name="pe_fecha_inicio" value="" autocomplete="off" required>
-                            <span id="error-pe_fecha_inicio" class="text-danger"></span>
+                        <label for="anio_inicio" class="col-sm-2 col-form-label">Año Inicial:</label>
+                        <div class="col-sm-4">
+                            <input type="text" class="form-control" id="anio_inicio" name="anio_inicio" value="" required>
+                            <span id="error-anio_inicio" class="text-danger"></span>
                         </div>
-                        <label for="pe_fecha_fin" class="col-sm-3 col-form-label">Fecha de fin:</label>
-                        <div class="col-sm-3">
-                            <input type="text" class="form-control" id="pe_fecha_fin" name="pe_fecha_fin" value="" required>
-                            <span id="error-pe_fecha_fin" class="text-danger"></span>
+                        <label for="anio_fin" class="col-sm-2 col-form-label">Año Final:</label>
+                        <div class="col-sm-4">
+                            <input type="text" class="form-control" id="anio_fin" name="anio_fin" value="" required>
+                            <span id="error-anio_fin" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="form-group row">
-                        <label for="pe_nota_minima" class="col-sm-3 col-form-label">Nota mínima:</label>
-                        <div class="col-sm-3">
-                            <input type="number" min="0.01" step="0.01" class="form-control" id="pe_nota_minima" name="pe_nota_minima" value="" required>
-                            <span id="error-pe_nota_minima" class="text-danger"></span>
+                        <label for="fecha_inicio" class="col-sm-2 col-form-label">Fecha de inicio:</label>
+                        <div class="col-sm-4">
+                            <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="" autocomplete="off" required>
+                            <span id="error-fecha_inicio" class="text-danger"></span>
                         </div>
-                        <label for="pe_nota_aprobacion" class="col-sm-3 col-form-label">Nota aprobación:</label>
+                        <label for="fecha_fin" class="col-sm-2 col-form-label">Fecha de fin:</label>
+                        <div class="col-sm-4">
+                            <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="" required>
+                            <span id="error-fecha_fin" class="text-danger"></span>
+                        </div>
+                    </div>
+                    <div class="form-group row">
+                        <label for="nota_minima" class="col-sm-3 col-form-label">Nota mínima:</label>
                         <div class="col-sm-3">
-                            <input type="number" min="7" max="10" step="0.01" class="form-control" id="pe_nota_aprobacion" name="pe_nota_aprobacion" value="" required>
-                            <span id="error-pe_nota_aprobacion" class="text-danger"></span>
+                            <input type="number" min="0.01" step="0.01" class="form-control" id="nota_minima" name="nota_minima" value="" required>
+                            <span id="error-nota_minima" class="text-danger"></span>
+                        </div>
+                        <label for="nota_aprobacion" class="col-sm-3 col-form-label">Nota aprobación:</label>
+                        <div class="col-sm-3">
+                            <input type="number" min="7" max="10" step="0.01" class="form-control" id="nota_aprobacion" name="nota_aprobacion" value="" required>
+                            <span id="error-nota_aprobacion" class="text-danger"></span>
                         </div>
                     </div>
                     <div class="form-group row">

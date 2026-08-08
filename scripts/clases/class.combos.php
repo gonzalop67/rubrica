@@ -588,16 +588,34 @@ AND a.id_curso = c.id_curso AND p.id_paralelo = $id_paralelo ORDER BY as_nombre"
 
 	function cargarAsignaturasAsociadas($id_paralelo)
 	{
-		$consulta = parent::consulta("SELECT a.id_asignatura, as_nombre FROM sw_asignatura_curso ac, sw_asignatura a, sw_paralelo p WHERE ac.id_curso = p.id_curso AND ac.id_asignatura = a.id_asignatura AND p.id_paralelo = $id_paralelo ORDER BY ac_orden");
+		$consulta = parent::consulta("SELECT a.id_asignatura, as_nombre 
+                                  FROM sw_asignatura_curso ac, sw_asignatura a, sw_paralelo p 
+                                  WHERE ac.id_curso = p.id_curso 
+                                    AND ac.id_asignatura = a.id_asignatura 
+                                    AND p.id_paralelo = $id_paralelo 
+                                  ORDER BY ac_orden");
+
 		$num_total_registros = parent::num_rows($consulta);
 		$cadena = "";
+
 		if ($num_total_registros > 0) {
 			while ($asignatura = parent::fetch_assoc($consulta)) {
 				$code = $asignatura["id_asignatura"];
 				$name = $asignatura["as_nombre"];
-				$cadena .= "<option value=\"$code\">$name</option>";
+
+				// ADAPTADO: Cambiamos <option> por un <div> arrastrable con estilos limpios
+				$cadena .= '<div class="materia-item" 
+                             draggable="true" 
+                             data-id="' . $code . '" 
+                             style="background:#3c8dbc; color:#fff; padding:8px; margin-bottom:5px; cursor:move; border-radius:3px; user-select:none;">';
+				$cadena .= $name;
+				$cadena .= '</div>';
 			}
+		} else {
+			// Opcional: Mensaje amigable si el curso no tiene materias registradas
+			$cadena = '<p class="text-muted text-center"><small>No hay asignaturas asociadas a este paralelo.</small></p>';
 		}
+
 		return $cadena;
 	}
 

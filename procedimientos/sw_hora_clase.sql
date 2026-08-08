@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.1.0
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost
--- Tiempo de generación: 06-11-2024 a las 23:47:10
--- Versión del servidor: 10.6.19-MariaDB-cll-lve
--- Versión de PHP: 7.3.33
+-- Tiempo de generación: 08-08-2026 a las 05:01:49
+-- Versión del servidor: 10.11.15-MariaDB-cll-lve
+-- Versión de PHP: 8.4.15
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -45,7 +45,7 @@ CREATE TABLE `sw_hora_clase` (
 --
 ALTER TABLE `sw_hora_clase`
   ADD PRIMARY KEY (`id_hora_clase`),
-  ADD KEY `id_horario_def` (`id_horario_def`);
+  ADD KEY `sw_hora_clase_ibfk_1` (`id_horario_def`);
 
 --
 -- AUTO_INCREMENT de las tablas volcadas
@@ -65,7 +65,7 @@ ALTER TABLE `sw_hora_clase`
 -- Filtros para la tabla `sw_hora_clase`
 --
 ALTER TABLE `sw_hora_clase`
-  ADD CONSTRAINT `sw_hora_clase_ibfk_1` FOREIGN KEY (`id_horario_def`) REFERENCES `sw_horario_def` (`id_horario_def`);
+  ADD CONSTRAINT `sw_hora_clase_ibfk_1` FOREIGN KEY (`id_horario_def`) REFERENCES `sw_horario_def` (`id_horario_def`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
