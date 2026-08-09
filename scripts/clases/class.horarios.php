@@ -148,11 +148,20 @@ class horarios extends MySQL
 	{
 		// Consulta para traer las asociaciones del paralelo con los nombres de las asignaturas
 		// Nota: Reemplaza 'sw_asignatura' y sus campos si tus tablas se llaman de otra forma
-		$sql = "SELECT h.id_dia_semana, h.id_hora_clase, h.id_asignatura, a.as_nombre 
-            FROM sw_horario h
-            INNER JOIN sw_asignatura a ON h.id_asignatura = a.id_asignatura
-            WHERE h.id_paralelo = '$id_paralelo' 
-              AND h.id_horario_def = '$id_horario_def'";
+		$sql = "SELECT 
+					h.id_dia_semana, 
+					h.id_hora_clase, 
+					h.id_asignatura, 
+					a.as_nombre,
+					u.us_foto,
+					u.us_shortname,
+					u.us_titulo,
+					u.us_genero
+				FROM sw_horario h 
+				INNER JOIN sw_asignatura a ON h.id_asignatura = a.id_asignatura 
+				INNER JOIN sw_usuario u    ON h.id_usuario = u.id_usuario
+				WHERE h.id_paralelo = '$id_paralelo' 
+				AND h.id_horario_def = '$id_horario_def'";
 
 		$consulta = parent::consulta($sql);
 		$arrHorario = array();

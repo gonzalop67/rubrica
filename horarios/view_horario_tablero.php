@@ -132,6 +132,44 @@
 	.lista-materias-scroll::-webkit-scrollbar-thumb:hover {
 		background: #a8a8a8;
 	}
+
+	/* Forzar a la tabla a mantener columnas proporcionales */
+	table.table {
+		table-layout: fixed !important;
+		width: 100% !important;
+	}
+
+	/* Configuración de la celda constructora */
+	.table-bordered>tbody>tr>td.celda-horario {
+		padding: 4px !important;
+		vertical-align: stretch !important;
+		/* IMPORTANTE: Hace que todas las celdas de la fila se estiren al mismo alto */
+		height: 1px;
+		/* Truco CSS para que los hijos con height: 100% calculen bien su tamaño */
+	}
+
+	/* Tarjeta adaptable que hereda el 100% del alto de la celda más grande */
+	.materia-asignada {
+		color: #fff;
+		background-color: #222d32 !important;
+		border-top: 3px solid #3c8dbc;
+		border-radius: 4px;
+		box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+		padding: 6px 4px;
+		height: 100%;
+		/* Ocupa todo el alto de la fila estirada */
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		/* Centra el contenido verticalmente en celdas estiradas */
+		gap: 4px;
+		transition: background-color 0.2s;
+	}
+
+	.materia-asignada:hover {
+		background-color: #2c3b41 !important;
+	}
 </style>
 <script type="text/javascript" src="js/funciones.js"></script>
 <script type="text/javascript">
@@ -437,11 +475,11 @@
 					// CORREGIDO: data-dia ahora contiene los IDs reales de tu BD (274, 275, 276, 277, 278)
 					var filaHtml = '<tr>' +
 						'<td class="align-middle"><strong>' + hora.hc_nombre + '</strong><br><small class="text-muted">' + hora.rango_tiempo + '</small></td>' +
-						'<td class="celda-horario" data-dia="274" data-hora="' + hora.id_hora_clase + '"></td>' + // Lun (274)
-						'<td class="celda-horario" data-dia="275" data-hora="' + hora.id_hora_clase + '"></td>' + // Mar (275)
-						'<td class="celda-horario" data-dia="276" data-hora="' + hora.id_hora_clase + '"></td>' + // Mié (276)
-						'<td class="celda-horario" data-dia="277" data-hora="' + hora.id_hora_clase + '"></td>' + // Jue (277)
-						'<td class="celda-horario" data-dia="278" data-hora="' + hora.id_hora_clase + '"></td>' + // Vie (278)
+						'<td class="celda-horario" style="width: 17%;" data-dia="274" data-hora="' + hora.id_hora_clase + '"></td>' + // Lunes
+						'<td class="celda-horario" style="width: 17%;" data-dia="275" data-hora="' + hora.id_hora_clase + '"></td>' + // Martes
+						'<td class="celda-horario" style="width: 17%;" data-dia="276" data-hora="' + hora.id_hora_clase + '"></td>' + // Miércoles
+						'<td class="celda-horario" style="width: 17%;" data-dia="277" data-hora="' + hora.id_hora_clase + '"></td>' + // Jueves
+						'<td class="celda-horario" style="width: 17%;" data-dia="278" data-hora="' + hora.id_hora_clase + '"></td>' + // Viernes
 						'</tr>';
 					$tbody.append(filaHtml);
 				});
@@ -494,11 +532,27 @@
 					});
 
 					if ($celdaEspecifica && $celdaEspecifica.length > 0) {
-						// CORREGIDO: Se cambia "reg.nombre_asignatura" por "reg.as_nombre" que es el campo real de tu JSON
+						// CONTROL DE FOTO POR DEFECTO: Si el docente no tiene foto asignada en la BD
+						var rutaFoto = "public/uploads/no-disponible.png"; // Si no tiene asociado un avatar
+						if (reg.us_foto && reg.us_foto.trim() !== "") {
+							rutaFoto = "public/uploads/" + reg.us_foto; // Ajusta la carpeta real donde guardas las fotos
+						}
+						// Inyectamos el nuevo diseño visual con la foto del docente
+						// INYECCIÓN HTML: Ahora el contenedor depende 100% de las clases flexibles del CSS
 						$celdaEspecifica.html(
-							'<div class="materia-asignada" style="background:#222d32; color:#fff; padding:5px; font-size:11px; border-radius:3px; position:relative;">' +
-							reg.as_nombre +
-							'<span class="btn-eliminar-celda" data-dia="' + reg.id_dia_semana + '" data-hora="' + reg.id_hora_clase + '" style="position:absolute; top:2px; right:4px; color:#f39c12; cursor:pointer; font-weight:bold;">&times;</span>' +
+							'<div class="materia-asignada">' +
+
+							// Foto miniatura del docente
+							'<img src="' + rutaFoto + '" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.6); flex-shrink:0;" onerror="this.src=\'public/uploads/no-disponible.png\'">' +
+
+							// Contenedor de textos adaptable
+							'<div style="width:100%; line-height:1.2; padding:0 2px;">' +
+							'<span style="display:block; font-weight:bold; font-size:10px; white-space:normal; word-break:break-word; color:#fff;" title="' + reg.as_nombre + '">' + reg.as_nombre + '</span>' +
+							'<small style="display:block; color:rgba(255,255,255,0.75); font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">' + reg.us_shortname + '</small>' +
+							'</div>' +
+
+							// Botón eliminar flotante en la esquina
+							'<span class="btn-eliminar-celda" data-dia="' + reg.id_dia_semana + '" data-hora="' + reg.id_hora_clase + '" style="position:absolute; top:1px; right:4px; color:rgba(255,255,255,0.5); cursor:pointer; font-weight:bold; font-size:11px; transition:color 0.2s;" onmouseover="this.style.color=\'#ff4d4d\'" onmouseout="this.style.color=\'rgba(255,255,255,0.5)\'">&times;</span>' +
 							'</div>'
 						);
 					}
