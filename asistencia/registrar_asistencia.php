@@ -1,4 +1,6 @@
+<!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
+
     <!-- Content Header (Page header) -->
     <section class="content-header">
         <h1>
@@ -9,39 +11,73 @@
 
     <!-- Main content -->
     <section class="content">
+
         <!-- Default box -->
         <div class="box box-solid">
             <div class="box-body">
+
+                <!-- Form Row -->
                 <div class="row">
                     <div class="col-md-12 col-sm-12 col-xs-12">
                         <form id="frm-fecha" action="" method="post" autocomplete="off">
+                            <!-- Hidden Inputs for PHP variables -->
                             <input type="hidden" id="id_curso" value="<?php echo $_GET['id_curso'] ?>">
                             <input type="hidden" id="id_paralelo" value="<?php echo $_GET['id_paralelo'] ?>">
                             <input type="hidden" id="id_asignatura" value="<?php echo $_GET['id_asignatura'] ?>">
-                            <input id="id_dia_semana" name="id_dia_semana" type="hidden" />
-                            <div class="form-group row">
-                                <label for="fecha" class="col-md-2 col-sm-2 col-xs-4 col-form-label text-right">Fecha:</label>
-                                <div class="controls col-md-4 col-sm-4 col-xs-8">
-                                    <div class="input-group date">
-                                        <input type="text" name="fecha" id="fecha" class="form-control">
-                                        <label class="input-group-addon generic-btn" style="cursor: pointer;" onclick="$('#fecha').focus();"><i class="fa fa-calendar" aria-hidden="true"></i></label>
+                            <input type="hidden" id="id_periodo_lectivo" value="<?php echo $_GET['id_periodo_lectivo'] ?>">
+                            <input type="hidden" id="id_dia_semana" name="id_dia_semana" />
+
+                            <!-- Form Controls Grid (3 Columnas en MD y LG) -->
+                            <div class="row">
+
+                                <!-- Bloque 1: Horario -->
+                                <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
+                                    <div class="form-group">
+                                        <label for="cboHorarios" class="control-label">Horario:</label>
+                                        <select class="form-control fuente9" id="cboHorarios" name="cboHorarios" required>
+                                            <option value="">Seleccione...</option>
+                                        </select>
                                     </div>
                                 </div>
-                                <label for="cboHoraClase" class="col-md-2 col-sm-2 col-xs-4 col-form-label text-right">Hora Clase:</label>
-                                <div class="col-md-4 col-sm-4 col-xs-8">
-                                    <select class="form-control fuente9" id="cboHoraClase" name="cboHoraClase" required>
-                                        <option value="">Seleccione...</option>
-                                    </select>
+
+                                <!-- Bloque 2: Fecha -->
+                                <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
+                                    <div class="form-group">
+                                        <label for="fecha" class="control-label">Fecha:</label>
+                                        <div class="input-group date">
+                                            <input type="text" name="fecha" id="fecha" class="form-control">
+                                            <label class="input-group-addon generic-btn" style="cursor: pointer; margin-bottom: 0;" onclick="$('#fecha').focus();">
+                                                <i class="fa fa-calendar" aria-hidden="true"></i>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                <!-- Bloque 3: Hora Clase -->
+                                <div class="col-lg-4 col-md-4 col-sm-12 col-xs-12">
+                                    <div class="form-group">
+                                        <label for="cboHoraClase" class="control-label">Hora Clase:</label>
+                                        <select class="form-control fuente9" id="cboHoraClase" name="cboHoraClase" required>
+                                            <option value="">Seleccione...</option>
+                                        </select>
+                                    </div>
+                                </div>
+
                             </div>
                         </form>
                     </div>
                 </div>
+
+                <!-- Title Row -->
                 <div class="row">
                     <div class="col-md-12 col-sm-12 col-xs-12">
-                        <div id="tituloNomina" class="text-center"> NOMINA DE ESTUDIANTES </div>
+                        <div id="tituloNomina" class="text-center" style="margin-top: 20px; margin-bottom: 20px; font-weight: bold;">
+                            NÓMINA DE ESTUDIANTES
+                        </div>
                     </div>
                 </div>
+
+                <!-- Table Row -->
                 <div class="row">
                     <div class="col-md-12 col-sm-12 col-xs-12 table-responsive">
                         <table id="t_asistencia" class="table">
@@ -54,14 +90,15 @@
                                 </tr>
                             </thead>
                             <tbody id="lista_estudiantes_paralelo">
-                                <!-- Aquí van los estudiantes con sus asistencias recuperados
-                                    desde la Base de Datos mediante AJAX -->
+                                <!-- Estudiantes cargados dinámicamente mediante AJAX -->
                             </tbody>
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
+
     </section>
 </div>
 <!-- /.content-wrapper -->
@@ -69,76 +106,145 @@
 <script src="../assets/template/jquery-ui/jquery-ui.min.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
+        // Configurar título dinámico
+        document.getElementById("tituloNomina").innerHTML = "NÓMINA DE ESTUDIANTES (<?php echo htmlspecialchars($_GET['nombre'], ENT_QUOTES, 'UTF-8'); ?> - <?php echo htmlspecialchars($_GET['curso'], ENT_QUOTES, 'UTF-8'); ?>)";
 
-        document.getElementById("tituloNomina").innerHTML = "NOMINA DE ESTUDIANTES (<?php echo $_GET['nombre'] ?> - <?php echo $_GET['curso'] ?>)";
+        // Cargar horarios al iniciar
+        cargarHorarios();
 
+        // Evento al cambiar la hora clase
         $("#cboHoraClase").change(function() {
             cargarInasistencias();
         });
 
+        // Configuración del Datepicker
         $("#fecha").datepicker({
             dateFormat: 'yy-mm-dd',
             firstDay: 1,
             onClose: function(selectDate) {
-                document.getElementById("cboHoraClase").disabled = true;
-                //Consultar el dia de la semana
-                var ds_ordinal = dia_semana(selectDate);
-                var id_periodo_lectivo = <?php echo $_GET['id_periodo_lectivo'] ?>;
+                // Si el usuario cierra el calendario sin seleccionar fecha, no hacer nada
+                if (!selectDate) return;
+
+                const $cboHoraClase = $("#cboHoraClase");
+                const id_horario_def = document.getElementById("cboHorarios").value;
+
+                // VALIDACIÓN: Si no hay horario seleccionado, advertir y frenar la petición
+                if (!id_horario_def || id_horario_def === "") {
+                    Swal.fire({
+                        icon: "warning",
+                        title: "Atención",
+                        text: "Por favor, seleccione un Horario antes de elegir la fecha."
+                    });
+                    document.getElementById("fecha").value = ""; // Limpiar fecha
+                    return;
+                }
+
+                // Deshabilitar control mientras procesa
+                $cboHoraClase.prop("disabled", true);
+
+                const ds_ordinal = dia_semana(selectDate);
+                const id_periodo_lectivo = <?php echo intval($_GET['id_periodo_lectivo']); ?>;
+
+                // 1. Consultar ID del día de la semana
                 $.ajax({
                     type: "post",
                     url: "../horarios/consultar_id_dia_semana.php",
                     data: {
                         ds_ordinal: ds_ordinal,
-                        id_periodo_lectivo: id_periodo_lectivo
+                        id_periodo_lectivo: id_periodo_lectivo,
+                        id_horario_def: id_horario_def
                     },
                     dataType: "html",
                     success: function(resultado) {
-                        if (resultado == false) {
-                            // swal("Oops! Ocurrió un error inesperado", "No se han definido D&iacute;as de la Semana...", "error");
+                        if (!resultado || resultado.trim() === "false") {
                             Swal.fire({
                                 icon: "error",
                                 title: "Oops! Ocurrió un error inesperado",
-                                text: "No se han definido Días de la Semana...",
+                                text: "No se han definido Días de la Semana..."
                             });
-                        } else {
-                            const JSONIdDiaSemana = eval('(' + resultado + ')');
+                            $cboHoraClase.prop("disabled", false);
+                            return;
+                        }
+
+                        try {
+                            // Reemplazo seguro de eval() por JSON.parse
+                            const JSONIdDiaSemana = typeof resultado === "string" ? JSON.parse(resultado) : resultado;
                             const id_dia_semana = JSONIdDiaSemana.id_dia_semana;
                             const id_asignatura = $("#id_asignatura").val();
                             const id_paralelo = $("#id_paralelo").val();
+
+                            // Mostrar loader en la tabla
                             $("#lista_estudiantes_paralelo").html("<tr><td colspan='4' align='center'><img src='../imagenes/ajax-loader-blue.GIF' alt='Procesando...'></td></tr>");
+
+                            // 2. Consultar horas clase
                             $.ajax({
                                 type: "post",
                                 url: "../horarios/consultar_horas_clase.php",
                                 data: {
                                     id_asignatura: id_asignatura,
                                     id_paralelo: id_paralelo,
-                                    id_dia_semana: id_dia_semana
+                                    id_dia_semana: id_dia_semana,
+                                    id_horario_def: id_horario_def // <- SOLUCIÓN: Aquí faltaba enviarlo al segundo script PHP
                                 },
                                 dataType: "html",
-                                success: function(resultado) {
-                                    const datos = JSON.parse(resultado);
-                                    document.getElementById("cboHoraClase").length = 1;
-                                    if (parseInt(datos.num_registros) == 0) {
-                                        // swal("Oops! Ocurrió un error inesperado", "No se han definido Horas Clase para la Asignatura seleccionada...", "error");
-                                        Swal.fire({
-                                            icon: "error",
-                                            title: "Oops! Ocurrió un error inesperado",
-                                            text: "No se han definido Horas Clase para la Asignatura seleccionada...",
-                                        });
-                                    } else {
-                                        $("#cboHoraClase").append(datos.cadena);
+                                success: function(resultadoHoras) {
+                                    try {
+                                        const datos = typeof resultadoHoras === "string" ? JSON.parse(resultadoHoras) : resultadoHoras;
+                                        console.log(datos);
+
+                                        // Limpiar select dejando solo "Seleccione..."
+                                        $cboHoraClase.prop("length", 1);
+
+                                        if (parseInt(datos.num_registros) === 0) {
+                                            Swal.fire({
+                                                icon: "error",
+                                                title: "Oops! Ocurrió un error inesperado",
+                                                text: "No se han definido Horas Clase para la Asignatura seleccionada..."
+                                            });
+                                        } else {
+                                            $cboHoraClase.append(datos.cadena);
+                                        }
+                                    } catch (e) {
+                                        console.error("Error al procesar JSON de horas clase:", e);
+                                    } finally {
+                                        // Habilitar el select solo CUANDO TERMINA la petición real
+                                        $cboHoraClase.prop("disabled", false);
+                                        $("#lista_estudiantes_paralelo").html("");
                                     }
+                                },
+                                error: function() {
+                                    $cboHoraClase.prop("disabled", false);
                                     $("#lista_estudiantes_paralelo").html("");
                                 }
                             });
+
+                        } catch (error) {
+                            console.error("Error al procesar JSON del día:", error);
+                            $cboHoraClase.prop("disabled", false);
                         }
+                    },
+                    error: function() {
+                        $cboHoraClase.prop("disabled", false);
                     }
                 });
-                document.getElementById("cboHoraClase").disabled = false;
             }
         });
-
     });
+
+    function cargarHorarios() {
+        var id_periodo_lectivo = $("#id_periodo_lectivo").val();
+        $.ajax({
+            url: "cargar_titulos_horarios.php",
+            method: "POST",
+            data: {
+                id_periodo_lectivo: id_periodo_lectivo
+            },
+            dataType: "html",
+            success: function(data) {
+                $("#cboHorarios").append(data);
+            }
+        });
+    }
 
     function dia_semana(fecha) {
         fecha = fecha.split('-');
@@ -168,58 +274,96 @@
     }
 
     const cargarHorasClase = () => {
-        var fecha = document.getElementById("fecha").value;
-        document.getElementById("cboHoraClase").disabled = true;
-        //Consultar el dia de la semana
-        var ds_ordinal = dia_semana(fecha);
-        var id_periodo_lectivo = <?php echo $_GET['id_periodo_lectivo'] ?>;
+        const fecha = document.getElementById("fecha").value;
+        const id_horario_def = $("#cboHorarios").val(); // Obtener valor del select de horarios
+        const $cboHoraClase = $("#cboHoraClase");
+
+        // VALIDACIÓN: Si no hay horario seleccionado o está vacío, no continuar
+        if (!id_horario_def || id_horario_def === "") {
+            console.warn("cargarHorasClase cancelado: No se ha seleccionado un horario todavía.");
+            $cboHoraClase.prop("length", 1); // Limpiar combo de horas clase
+            $cboHoraClase.prop("disabled", true);
+            return; // Detiene la ejecución aquí de forma segura
+        }
+
+        // VALIDACIÓN: Si no hay fecha seleccionada, tampoco continuar
+        if (!fecha || fecha === "") {
+            console.warn("cargarHorasClase cancelado: La fecha está vacía.");
+            return;
+        }
+
+        $cboHoraClase.prop("disabled", true);
+
+        // Consultar el día de la semana
+        const ds_ordinal = dia_semana(fecha);
+        const id_periodo_lectivo = <?php echo intval($_GET['id_periodo_lectivo']); ?>;
+
+        // Primera petición: Consultar ID del día de la semana
         $.post("../horarios/consultar_id_dia_semana.php", {
-                ds_ordinal: ds_ordinal,
-                id_periodo_lectivo: id_periodo_lectivo
-            },
-            function(resultado) {
-                if (resultado == false) {
-                    swal("Oops! Ocurrió un error inesperado", "No se han definido D&iacute;as de la Semana...", "error");
-                } else {
-                    var JSONIdDiaSemana = eval('(' + resultado + ')');
-                    var id_dia_semana = JSONIdDiaSemana.id_dia_semana;
-                    // document.getElementById("id_dia_semana").value = id_dia_semana;
-                    if (id_dia_semana == null) {
-                        // swal("Oops! Ocurrió un error inesperado", "No se ha definido el D&iacute;a de la Semana...", "error");
+            ds_ordinal: ds_ordinal,
+            id_periodo_lectivo: id_periodo_lectivo,
+            id_horario_def: id_horario_def
+        }, function(resultado) {
+
+            if (!resultado) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Oops! Ocurrió un error inesperado",
+                    text: "No se han definido Días de la Semana..."
+                });
+                return;
+            }
+
+            try {
+                const JSONIdDiaSemana = typeof resultado === "string" ? JSON.parse(resultado) : resultado;
+                const id_dia_semana = JSONIdDiaSemana.id_dia_semana;
+
+                if (!id_dia_semana) {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Oops! Ocurrió un error inesperado",
+                        text: "No se ha definido el Día de la Semana..."
+                    });
+                    return;
+                }
+
+                // Segunda petición: Consultar horas clase (Ahora garantizamos que id_horario_def tiene valor)
+                $.post("../horarios/consultar_horas_clase.php", {
+                    id_asignatura: id_asignatura,
+                    id_paralelo: id_paralelo,
+                    id_dia_semana: id_dia_semana,
+                    id_horario_def: id_horario_def
+                }, function(resultadoHoras) {
+
+                    console.log(resultadoHoras);
+                    const datos = typeof resultadoHoras === "string" ? JSON.parse(resultadoHoras) : resultadoHoras;
+
+                    $cboHoraClase.prop("length", 1);
+
+                    if (parseInt(datos.num_registros) === 0) {
                         Swal.fire({
                             icon: "error",
                             title: "Oops! Ocurrió un error inesperado",
-                            text: "No se ha definido el Día de la Semana...",
+                            text: "No se han definido Horas Clase para la Asignatura seleccionada..."
                         });
                     } else {
-                        $.post("../horarios/consultar_horas_clase.php", {
-                                id_asignatura: id_asignatura,
-                                id_paralelo: id_paralelo,
-                                id_dia_semana: id_dia_semana
-                            },
-                            function(resultado) {
-                                console.log(resultado);
-                                datos = JSON.parse(resultado);
-                                document.getElementById("cboHoraClase").length = 1;
-                                if (parseInt(datos.num_registros) == 0) {
-                                    // swal("Oops! Ocurrió un error inesperado", "No se han definido Horas Clase para la Asignatura seleccionada...", "error");
-                                    Swal.fire({
-                                        icon: "error",
-                                        title: "Oops! Ocurrió un error inesperado",
-                                        text: "No se han definido Horas Clase para la Asignatura seleccionada...",
-                                    });
-                                } else {
-                                    $("#cboHoraClase").append(datos.cadena);
-                                }
-                                document.getElementById("cboHoraClase").disabled = false;
-                                $("#lista_estudiantes_paralelo").html("");
-                            }
-                        );
+                        $cboHoraClase.append(datos.cadena);
                     }
-                }
+
+                    $cboHoraClase.prop("disabled", false);
+                    $("#lista_estudiantes_paralelo").html("");
+                });
+
+            } catch (e) {
+                console.error("Error al procesar JSON:", e);
+                Swal.fire({
+                    icon: "error",
+                    title: "Error de formato",
+                    text: "La respuesta del servidor no es un JSON válido."
+                });
             }
-        );
-    }
+        });
+    };
 
     function cargarInasistencias() {
         // Procedimiento para cargar las inasistencia de los estudiantes

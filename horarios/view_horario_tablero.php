@@ -540,7 +540,7 @@
 						// Inyectamos el nuevo diseño visual con la foto del docente
 						// INYECCIÓN HTML: Ahora el contenedor depende 100% de las clases flexibles del CSS
 						$celdaEspecifica.html(
-							'<div class="materia-asignada">' +
+							'<div class="materia-asignada" style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:60px; text-align:center;">' +
 
 							// Foto miniatura del docente
 							'<img src="' + rutaFoto + '" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.6); flex-shrink:0;" onerror="this.src=\'public/uploads/no-disponible.png\'">' +
@@ -551,8 +551,12 @@
 							'<small style="display:block; color:rgba(255,255,255,0.75); font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">' + reg.us_shortname + '</small>' +
 							'</div>' +
 
-							// Botón eliminar flotante en la esquina
-							'<span class="btn-eliminar-celda" data-dia="' + reg.id_dia_semana + '" data-hora="' + reg.id_hora_clase + '" style="position:absolute; top:1px; right:4px; color:rgba(255,255,255,0.5); cursor:pointer; font-weight:bold; font-size:11px; transition:color 0.2s;" onmouseover="this.style.color=\'#ff4d4d\'" onmouseout="this.style.color=\'rgba(255,255,255,0.5)\'">&times;</span>' +
+							// ICONO MEJORADO PARA QUITAR ASOCIACIÓN (Con fondo dinámico al pasar el cursor)
+							'<span class="btn-eliminar-celda" data-dia="' + reg.id_dia_semana + '" data-hora="' + reg.id_hora_clase + '" ' +
+							'style="position:absolute; top:2px; right:4px; color:#fff; background:rgba(0,0,0,0.3); width:16px; height:16px; line-height:14px; border-radius:50%; text-align:center; cursor:pointer; font-weight:bold; font-size:11px; transition:all 0.2s;" ' +
+							'onmouseover="this.style.background=\'#dd4b39\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'rgba(0,0,0,0.3)\';">' +
+							'&times;' +
+							'</span>' +
 							'</div>'
 						);
 					}

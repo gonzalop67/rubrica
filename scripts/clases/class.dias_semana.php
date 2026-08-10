@@ -224,11 +224,32 @@ class dias_semana extends MySQL
 
 	function obtenerIdDiaSemana()
 	{
-		$consulta = parent::consulta("SELECT id_dia_semana 
-										FROM sw_dia_semana 
-									   WHERE id_horario_def = $this->id_horario_def 
-										 AND ds_orden = $this->ds_ordinal");
-		return json_encode(parent::fetch_assoc($consulta));
+		// 1. Buscamos el nombre del día actual según el calendario (LUNES, MARTES, etc.)
+		$sqlNombre = "SELECT ds_nombre FROM sw_dia_semana WHERE id_horario_def = " . intval($this->id_horario_def) . " AND ds_orden = " . intval($this->ds_ordinal);
+		$consultaNombre = parent::consulta($sqlNombre);
+		$resultadoNombre = parent::fetch_assoc($consultaNombre);
+
+		if ($resultadoNombre) {
+			$nombreDia = $resultadoNombre['ds_nombre'];
+
+			// 2. Buscamos el ID antiguo (rango 270) que coincide con ese mismo nombre y que está en sw_horario
+			$sqlIdReal = "SELECT DISTINCT ho.id_dia_semana 
+                      FROM sw_horario ho
+                      INNER JOIN sw_dia_semana di ON ho.id_dia_semana = di.id_dia_semana
+                      WHERE di.ds_nombre = '" . $nombreDia . "' 
+                        AND ho.id_horario_def = " . intval($this->id_horario_def) . " LIMIT 1";
+
+			$consultaIdReal = parent::consulta($sqlIdReal);
+			$resultadoIdReal = parent::fetch_assoc($consultaIdReal);
+
+			if ($resultadoIdReal) {
+				// Le devolvemos a la Asistencia el ID exacto que usa el Tablero
+				return json_encode($resultadoIdReal);
+			}
+		}
+
+		// Si no encuentra coincidencia por nombre, devolvemos un objeto vacío
+		return json_encode(array('id_dia_semana' => null));
 	}
 
 	function actualizarDiaSemana()
