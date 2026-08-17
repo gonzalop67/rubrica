@@ -31,6 +31,7 @@
                                     <th>Id</th>
                                     <th>Nombre</th>
                                     <th>Ponderación</th>
+                                    <th>Estado</th>
                                     <th>Acciones</th>
                                 </tr>
                             </thead>
@@ -82,7 +83,7 @@
             dayNamesMin: ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'],
             firstDay: 1
         });
-        $("#aportes_evaluacion").html("<tr><td colspan='4' align='center'>Debes seleccionar un periodo de evaluacion...</td></tr>");
+        $("#aportes_evaluacion").html("<tr><td colspan='5' align='center'>Debes seleccionar un periodo de evaluacion...</td></tr>");
 
         $('table tbody').sortable({
             update: function(event, ui) {
@@ -135,7 +136,7 @@
     function listarAportesEvaluacion() {
         var id = document.getElementById("cboPeriodosEvaluacion").value;
         if (id == 0) {
-            $("#aportes_evaluacion").html("<tr><td colspan='4' align='center'>Debes seleccionar un per&iacute;odo de evaluaci&oacute;n...</td></tr>");
+            $("#aportes_evaluacion").html("<tr><td colspan='5' align='center'>Debes seleccionar un per&iacute;odo de evaluaci&oacute;n...</td></tr>");
             $("#btn-new").attr("disabled", true);
         } else {
             $.post("aportes_evaluacion/cargar_aportes_evaluacion.php", {

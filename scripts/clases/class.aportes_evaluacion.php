@@ -132,7 +132,7 @@ class aportes_evaluacion extends MySQL
 
 	function cargarAportesEvaluacion()
 	{
-		$consulta = parent::consulta("SELECT id_aporte_evaluacion, ap_nombre, ap_ponderacion, ap_orden FROM sw_aporte_evaluacion WHERE id_periodo_evaluacion = $this->id_periodo_evaluacion ORDER BY ap_orden");
+		$consulta = parent::consulta("SELECT id_aporte_evaluacion, ap_nombre, ap_ponderacion, ap_orden, ap_estado FROM sw_aporte_evaluacion WHERE id_periodo_evaluacion = $this->id_periodo_evaluacion ORDER BY ap_orden");
 		$num_total_registros = parent::num_rows($consulta);
 		$cadena = "";
 		if ($num_total_registros > 0) {
@@ -141,10 +141,12 @@ class aportes_evaluacion extends MySQL
 				$name = $aportes_evaluacion["ap_nombre"];
 				$ponderacion = ($aportes_evaluacion["ap_ponderacion"] * 100) . "%";
 				$orden = $aportes_evaluacion["ap_orden"];
+				$estado = $aportes_evaluacion["ap_estado"] == "A" ? "Activo" : "Cerrado";
 				$cadena .= "<tr data-index='$id' data-orden='$orden'>\n";
 				$cadena .= "<td>$id</td>\n";
 				$cadena .= "<td>$name</td>\n";
 				$cadena .= "<td>$ponderacion</td>\n";
+				$cadena .= "<td>$estado</td>\n";
 
 				$cadena .= "<td>\n";
 				$cadena .= "<div class='btn-group'>\n";
