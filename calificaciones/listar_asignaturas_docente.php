@@ -58,12 +58,12 @@ try {
                 c.id_curso, 
                 pa.id_paralelo, 
                 a.as_nombre ASC";
-            
+
     $resultado_consulta = $db->consulta($sql);
-    
+
     // 7. Mapear los registros al arreglo que espera tu interfaz JavaScript
     $asignaturas = array();
-    
+
     while ($fila = $db->fetch_assoc($resultado_consulta)) {
         $asignaturas[] = array(
             "id_asignatura" => $fila['id_asignatura'],
@@ -73,10 +73,15 @@ try {
             "paralelo" => $fila['pa_nombre']
         );
     }
-    
-    // 8. Retornar el JSON limpio al cliente front-end
-    echo json_encode($asignaturas);
 
+    // 🎯 CORRECCIÓN AQUÍ: Estructuramos el JSON para que combine todo lo que pide JavaScript
+    $respuesta_final = array(
+        "num_registros" => count($asignaturas), // 👈 Aquí le damos el número exacto de materias
+        "asignaturas"   => $asignaturas         // 👈 Aquí van los detalles de las materias
+    );
+
+    // 8. Retornar el JSON limpio y estructurado al cliente front-end
+    echo json_encode($respuesta_final);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(["error" => "Error interno en la base de datos: " . $e->getMessage()]);

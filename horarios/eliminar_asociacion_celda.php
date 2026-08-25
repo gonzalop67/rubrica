@@ -2,7 +2,7 @@
 // 1. Configurar cabeceras para salida JSON
 header('Content-Type: application/json; charset=utf-8');
 
-// 2. Incluir tu archivo de conexión real (ajusta la ruta según tu proyecto)
+// 2. Incluir tu archivo de conexión real
 require_once "../scripts/clases/class.mysql.php"; 
 
 // 3. Instanciar tu clase personalizada de base de datos
@@ -22,12 +22,12 @@ if ($id_paralelo === 0 || $id_dia_semana === 0 || $id_hora_clase === 0 || $id_ho
 }
 
 try {
-    // 5. Definir la consulta de eliminación por coordenadas exactas
-    // NOTA: Asegúrate de reemplazar 'sw_horario_clase_detalle' por el nombre real de tu tabla asociativa
-    $sql = "DELETE FROM sw_horario 
+    // 5. Definir la consulta de eliminación ajustada a las columnas y tabla actuales
+    // CORREGIDO: sw_horario_clases, dia_semana e id_horario_detalle
+    $sql = "DELETE FROM sw_horario_clases 
             WHERE id_paralelo = '$id_paralelo' 
-              AND id_dia_semana = '$id_dia_semana' 
-              AND id_hora_clase = '$id_hora_clase' 
+              AND dia_semana = '$id_dia_semana' 
+              AND id_horario_detalle = '$id_hora_clase' 
               AND id_horario_def = '$id_horario_def'";
 
     // 6. Ejecutar la consulta con tu método nativo

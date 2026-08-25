@@ -54,7 +54,7 @@ if ($num_total_registros > 0) {
         $fecha_creacion = $horario["fecha_creacion"];
         $fecha_inicial = $horario["fecha_inicial"];
         $fecha_final = $horario["fecha_final"];
-        $status = $horario["status"];
+        $status = $horario["estado"];
         $estado = ($status == 1) ? 'ACTIVO' : 'INACTIVO';
         $tabla .= "<td>$contador</td>";
         $tabla .= "<td>$code</td>\n";

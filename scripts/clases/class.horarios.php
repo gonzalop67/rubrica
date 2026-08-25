@@ -146,37 +146,73 @@ class horarios extends MySQL
 
 	function cargarHorarioMatriz($id_paralelo, $id_horario_def)
 	{
-		// Consulta para traer las asociaciones del paralelo con los nombres de las asignaturas
-		// Nota: Reemplaza 'sw_asignatura' y sus campos si tus tablas se llaman de otra forma
-		$sql = "SELECT 
-					h.id_dia_semana, 
-					h.id_hora_clase, 
-					h.id_asignatura, 
-					a.as_nombre,
-					u.us_foto,
-					u.us_shortname,
-					u.us_titulo,
-					u.us_genero
-				FROM sw_horario h 
-				INNER JOIN sw_asignatura a ON h.id_asignatura = a.id_asignatura 
-				INNER JOIN sw_usuario u    ON h.id_usuario = u.id_usuario
-				WHERE h.id_paralelo = '$id_paralelo' 
-				AND h.id_horario_def = '$id_horario_def'";
+		// Limpiamos los datos de entrada
+		$id_paralelo    = $this->filtrar($id_paralelo);
+		$id_horario_def = $this->filtrar($id_horario_def);
 
-		$consulta = parent::consulta($sql);
-		$arrHorario = array();
+		// PASO 1: Obtener la lista de horas de la plantilla (Las filas del tablero)
+		$sqlHoras = "SELECT id_horario_detalle, nombre, hora_inicio, hora_fin 
+					FROM sw_horario_detalles 
+					WHERE id_horario_def = '$id_horario_def' 
+					ORDER BY hora_inicio ASC";
+		$resHoras = parent::consulta($sqlHoras);
 
-		while ($row = parent::fetch_assoc($consulta)) {
-			$arrHorario[] = $row;
+		$arrHoras = array();
+		while ($row = parent::fetch_assoc($resHoras)) {
+			$arrHoras[] = $row;
 		}
 
-		return json_encode($arrHorario);
+		// PASO 2: Obtener las asignaciones que ya existen (Ajustado a sw_horario_clases)
+		$sqlClases = "SELECT 
+                    h.dia_semana AS id_dia_semana, 
+                    h.id_horario_detalle AS id_hora_clase, 
+                    h.id_asignatura, 
+                    a.as_nombre,
+                    u.us_foto,
+                    u.us_shortname,
+                    u.us_titulo,
+                    u.us_genero
+                FROM sw_horario_clases h 
+                INNER JOIN sw_asignatura a ON h.id_asignatura = a.id_asignatura 
+                INNER JOIN sw_usuario u    ON h.id_usuario = u.id_usuario
+                WHERE h.id_paralelo = '$id_paralelo' 
+                AND h.id_horario_def = '$id_horario_def'";
+
+		$resClases = parent::consulta($sqlClases);
+		$arrClases = array();
+		while ($row = parent::fetch_assoc($resClases)) {
+			$arrClases[] = $row;
+		}
+
+		// PASO 3: Devolvemos ambos paquetes juntos en un objeto organizado
+		$respuesta = array(
+			"horas" => $arrHoras,
+			"clases" => $arrClases
+		);
+
+		return json_encode($respuesta);
 	}
 
 	function existeAsignaturaHoraClase($id_paralelo, $id_dia_semana, $id_hora_clase, $id_horario_def)
 	{
-		$consulta = parent::consulta("SELECT id_horario FROM sw_horario WHERE id_paralelo = $id_paralelo AND id_dia_semana = $id_dia_semana AND id_hora_clase = $id_hora_clase AND id_horario_def = $id_horario_def");
+		// Limpiamos los datos con tu método de filtrado para evitar inyecciones SQL
+		// Si estás dentro de la misma clase que extiende de MySQL, usas $this->filtrar()
+		$id_paralelo        = $this->filtrar($id_paralelo);
+		$id_dia_semana      = $this->filtrar($id_dia_semana);
+		$id_hora_clase      = $this->filtrar($id_hora_clase);
+		$id_horario_def     = $this->filtrar($id_horario_def);
+
+		// CORREGIDO: Nombres de tabla y columnas actualizados
+		$sql = "SELECT id_horario_clase 
+            FROM sw_horario_clases 
+            WHERE id_paralelo = '$id_paralelo' 
+              AND dia_semana = '$id_dia_semana' 
+              AND id_horario_detalle = '$id_hora_clase' 
+              AND id_horario_def = '$id_horario_def'";
+
+		$consulta = parent::consulta($sql);
 		$num_total_registros = parent::num_rows($consulta);
+
 		return $num_total_registros > 0;
 	}
 
@@ -202,20 +238,50 @@ class horarios extends MySQL
 
 	function asociarAsignaturaHoraClase()
 	{
-		//Primero obtengo el id_usuario para luego verificar si existe otra hora con el mismo docente
-		$consulta = parent::consulta("SELECT id_usuario FROM sw_distributivo WHERE id_paralelo = $this->id_paralelo AND id_asignatura = $this->id_asignatura");
+		// SEGURIDAD: Forzamos a que todas las propiedades sean números enteros limpios.
+		// Si desde JavaScript viajó un "undefined" o un texto vacío, aquí se transformará en 0, 
+		// evitando por completo el error fatal de sintaxis SQL.
+		$id_paralelo        = (int)$this->id_paralelo;
+		$id_asignatura      = (int)$this->id_asignatura;
+		$id_horario_detalle = (int)$this->id_hora_clase; // Mapea tu propiedad al id_horario_detalle real
+		$dia_semana         = (int)$this->id_dia_semana; // Mapea tu propiedad al dia_semana real
+		$id_horario_def     = (int)$this->id_horario_def;
+
+		// Primero obtenemos el id_usuario (docente) asignado a esta materia en este paralelo
+		$sqlDocente = "SELECT id_usuario FROM sw_distributivo 
+                   WHERE id_paralelo = $id_paralelo AND id_asignatura = $id_asignatura 
+                   LIMIT 1";
+		$consulta = parent::consulta($sqlDocente);
+
 		if (parent::num_rows($consulta) > 0) {
 			$registro = parent::fetch_assoc($consulta);
 			$id_usuario = $registro['id_usuario'];
-			//Inserción del registro en la tabla sw_horario
-			$qry = "INSERT INTO sw_horario (id_paralelo, id_asignatura, id_dia_semana, id_hora_clase, id_usuario, id_horario_def) VALUES (";
-			$qry .= $this->id_paralelo . ",";
-			$qry .= $this->id_asignatura . ",";
-			$qry .= $this->id_dia_semana . ",";
-			$qry .= $this->id_hora_clase . ",";
-			$qry .= $id_usuario . ",";
-			$qry .= $this->id_horario_def . ")";
+
+			// Si el docente existe pero es nulo o cero en la relación distributiva
+			if (empty($id_usuario)) {
+				$id_usuario = "NULL";
+			}
+
+			// CORREGIDO: Inserción apuntando exactamente a tu nueva tabla 'sw_horario_clases' 
+			// y a tus nombres de columnas reales actualizados
+			$qry = "INSERT INTO sw_horario_clases (
+                    id_paralelo, 
+                    id_asignatura, 
+                    dia_semana, 
+                    id_horario_detalle, 
+                    id_usuario, 
+                    id_horario_def
+                ) VALUES (
+                    $id_paralelo,
+                    $id_asignatura,
+                    $dia_semana,
+                    $id_horario_detalle,
+                    $id_usuario,
+                    $id_horario_def
+                )";
+
 			$consulta = parent::consulta($qry);
+
 			if ($consulta) {
 				$data = [
 					'error' => false,
@@ -224,7 +290,7 @@ class horarios extends MySQL
 			} else {
 				$data = [
 					'error' => true,
-					'mensaje' => "No se pudo asociar la Asignatura...Error: " . mysqli_error($this->conexion)
+					'mensaje' => "No se pudo asociar la Asignatura..."
 				];
 			}
 		} else {

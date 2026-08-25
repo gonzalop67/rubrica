@@ -208,15 +208,21 @@
 			var id_paralelo = $("#cboParalelos").val();
 			var id_horario_def = $("#cboHorarios").val();
 
-			// CORREGIDO: Se cambia .data() por .attr() para garantizar lecturas en celdas creadas por AJAX
-			var id_dia_semana = $celda.attr('data-dia');
-			var id_hora_clase = $celda.attr('data-hora');
+			// Busca el punto 3 (EVENTO DROP) en tu JS y pon estas dos líneas de captura:
+			var id_dia_semana = $(this).closest('.celda-horario').attr('data-dia');
+			var id_hora_clase = $(this).closest('.celda-horario').attr('data-hora');
 
 			var id_asignatura = idAsignaturaArrastrada;
 			var nombre_asignatura = asignaturaArrastrada;
 
+			// Control de seguridad en el navegador antes de enviar al servidor
 			if (!id_paralelo || id_paralelo == "0" || !id_horario_def || id_horario_def == "0") {
 				Swal.fire("Atención", "Por favor seleccione Horario y Paralelo antes de diseñar.", "warning");
+				return;
+			}
+
+			if (!id_asignatura || id_asignatura === "undefined") {
+				Swal.fire("Error", "No se pudo recuperar el ID de la asignatura arrastrada. Intente arrastrar desde el texto.", "error");
 				return;
 			}
 
@@ -260,6 +266,7 @@
 										cancelButtonText: "Cancelar"
 									}).then((result) => {
 										if (result.isConfirmed) {
+											// LLAMADA CORREGIDA: Aseguramos pasar id_dia_semana correctamente
 											ejecutar_insercion_visual($celda, id_paralelo, id_hora_clase, id_asignatura, id_dia_semana, id_horario_def, nombre_asignatura);
 										}
 									});
@@ -396,7 +403,7 @@
 
 	function cargarHorarios() {
 		$.ajax({
-			url: "dias_semana/cargar_titulos_horarios.php",
+			url: "horarios/cargar_titulos_horarios.php",
 			method: "get",
 			dataType: "html",
 			success: function(data) {
@@ -496,74 +503,75 @@
 
 	// LLENAR MATRIZ: Lee las coordenadas mapeadas y pinta usando "as_nombre"
 	function obtener_y_llenar_matriz() {
+		var id_horario = $("#cboHorarios").val();
 		var id_paralelo = $("#cboParalelos").val();
-		var id_horario_def = $("#cboHorarios").val();
+		var $tbody = $("table.table tbody");
 
-		$(".celda-horario").html('');
-
-		if (!id_paralelo || id_paralelo == "0" || !id_horario_def || id_horario_def == "0") {
-			return;
-		}
+		$tbody.html('<tr><td colspan="6" class="text-center"><i class="fa fa-refresh fa-spin"></i> Cargando matriz visual...</td></tr>');
 
 		$.ajax({
 			type: "POST",
-			url: "horarios/cargar_matriz.php",
+			url: "horarios/cargar_matriz.php", // Llama a tu archivo de backend
 			dataType: "json",
 			data: {
 				id_paralelo: id_paralelo,
-				id_horario_def: id_horario_def
+				id_horario_def: id_horario
 			},
-			success: function(registros) {
-				if (!registros || registros.length === 0) return;
+			success: function(response) {
+				$tbody.empty();
 
-				registros.forEach(function(reg) {
-					var buscarDia = parseInt(reg.id_dia_semana);
-					var buscarHora = parseInt(reg.id_hora_clase);
-					var $celdaEspecifica = null;
+				if (!response.horas || response.horas.length === 0) {
+					$tbody.html('<tr><td colspan="6" class="text-warning text-center">Este horario no tiene bloques de horas configurados.</td></tr>');
+					return;
+				}
 
-					$(".celda-horario").each(function() {
-						var celdaDia = parseInt($(this).attr('data-dia'));
-						var celdaHora = parseInt($(this).attr('data-hora'));
+				// 1. Dibujamos las filas basándonos en la definición de horas reales de la BDD
+				$.each(response.horas, function(index, hora) {
+					var filaHtml = `<tr>
+                    <td style="vertical-align: middle; background: #fafafa; font-weight: bold; border-right: 2px solid #ddd;">
+                        ${hora.nombre}<br>
+                        <small class="text-muted">${hora.hora_inicio.substring(0, 5)} - ${hora.hora_fin.substring(0, 5)}</small>
+                    </td>`;
 
-						if (celdaDia === buscarDia && celdaHora === buscarHora) {
-							$celdaEspecifica = $(this);
-							return false;
+					// 2. Creamos las 5 celdas de la semana (Días 1 al 5)
+					for (var dia = 1; dia <= 5; dia++) {
+						var contenidoCelda = "";
+
+						// 3. Buscamos si en la lista de clases guardadas hay algo para esta hora y día
+						if (response.clases && response.clases.length > 0) {
+							$.each(response.clases, function(i, clase) {
+								if (clase.id_hora_clase == hora.id_horario_detalle && clase.id_dia_semana == dia) {
+									contenidoCelda = `
+									<div class="materia-asignada" style="position: relative; padding-right: 15px;">
+										<!-- La cruz pequeña en la esquina superior derecha -->
+										<button type="button" class="btn-eliminar-celda" 
+												data-dia="${dia}" 
+												data-hora="${hora.id_horario_detalle}" 
+												style="position: absolute; top: 2px; right: 4px; background: transparent; border: 0; color: #ff7675; font-size: 11px; font-weight: bold; padding: 0; line-height: 1;" 
+												title="Quitar">&times;</button>
+										
+										<!-- Textos de la materia -->
+										<span style="font-weight: bold; font-size: 11px; line-height: 1.2;">${clase.as_nombre}</span>
+										<small style="font-size: 9px; display: block; opacity: 0.8; margin-top: 2px;">${clase.us_shortname}</small>
+									</div>`;
+									return false; // Romper $.each interno
+								}
+							});
 						}
-					});
 
-					if ($celdaEspecifica && $celdaEspecifica.length > 0) {
-						// CONTROL DE FOTO POR DEFECTO: Si el docente no tiene foto asignada en la BD
-						var rutaFoto = "public/uploads/no-disponible.png"; // Si no tiene asociado un avatar
-						if (reg.us_foto && reg.us_foto.trim() !== "") {
-							rutaFoto = "public/uploads/" + reg.us_foto; // Ajusta la carpeta real donde guardas las fotos
-						}
-						// Inyectamos el nuevo diseño visual con la foto del docente
-						// INYECCIÓN HTML: Ahora el contenedor depende 100% de las clases flexibles del CSS
-						$celdaEspecifica.html(
-							'<div class="materia-asignada" style="position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:60px; text-align:center;">' +
-
-							// Foto miniatura del docente
-							'<img src="' + rutaFoto + '" style="width:22px; height:22px; border-radius:50%; object-fit:cover; border:1px solid rgba(255,255,255,0.6); flex-shrink:0;" onerror="this.src=\'public/uploads/no-disponible.png\'">' +
-
-							// Contenedor de textos adaptable
-							'<div style="width:100%; line-height:1.2; padding:0 2px;">' +
-							'<span style="display:block; font-weight:bold; font-size:10px; white-space:normal; word-break:break-word; color:#fff;" title="' + reg.as_nombre + '">' + reg.as_nombre + '</span>' +
-							'<small style="display:block; color:rgba(255,255,255,0.75); font-size:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">' + reg.us_shortname + '</small>' +
-							'</div>' +
-
-							// ICONO MEJORADO PARA QUITAR ASOCIACIÓN (Con fondo dinámico al pasar el cursor)
-							'<span class="btn-eliminar-celda" data-dia="' + reg.id_dia_semana + '" data-hora="' + reg.id_hora_clase + '" ' +
-							'style="position:absolute; top:2px; right:4px; color:#fff; background:rgba(0,0,0,0.3); width:16px; height:16px; line-height:14px; border-radius:50%; text-align:center; cursor:pointer; font-weight:bold; font-size:11px; transition:all 0.2s;" ' +
-							'onmouseover="this.style.background=\'#dd4b39\'; this.style.color=\'#fff\';" onmouseout="this.style.background=\'rgba(0,0,0,0.3)\';">' +
-							'&times;' +
-							'</span>' +
-							'</div>'
-						);
+						// IMPORTANTE: Aquí inyectamos data-hora apuntando al id_horario_detalle real
+						filaHtml += `
+                        <td class="celda-horario" data-dia="${dia}" data-hora="${hora.id_horario_detalle}">
+                            ${contenidoCelda}
+                        </td>`;
 					}
+
+					filaHtml += `</tr>`;
+					$tbody.append(filaHtml);
 				});
 			},
 			error: function() {
-				console.error("Error crítico al intentar consultar las asignaciones en cargar_matriz.php");
+				$tbody.html('<tr><td colspan="6" class="text-danger text-center">Error al procesar la matriz.</td></tr>');
 			}
 		});
 	}
@@ -615,5 +623,49 @@
 		if (typeof cargar_asignaturas_asociadas === "function") {
 			cargar_asignaturas_asociadas();
 		}
+	}
+
+	function cargar_estructura_horas() {
+		var id_horario = $("#cboHorarios").val();
+		var $tbody = $("table.table tbody");
+
+		$tbody.html('<tr><td colspan="6" class="text-center"><i class="fa fa-refresh fa-spin"></i> Estructurando rangos de horas...</td></tr>');
+
+		$.ajax({
+			type: "POST",
+			url: "horarios/obtener_solo_horas.php", // Un archivo ligero solo para las filas
+			dataType: "json",
+			data: {
+				id_horario_def: id_horario
+			},
+			success: function(response) {
+				$tbody.empty();
+
+				if (!response || response.length === 0) {
+					$tbody.html('<tr><td colspan="6" class="text-warning text-center">Este horario no tiene bloques de horas configurados.</td></tr>');
+					return;
+				}
+
+				// Dibujamos las filas bases de la matriz vacía
+				$.each(response, function(index, hora) {
+					var filaHtml = `<tr>
+                    <td style="vertical-align: middle; background: #fafafa; font-weight: bold; border-right: 2px solid #ddd;">
+                        ${hora.nombre}<br>
+                        <small class="text-muted">${hora.hora_inicio.substring(0, 5)} - ${hora.hora_fin.substring(0, 5)}</small>
+                    </td>`;
+
+					// Creamos los 5 casilleros de la semana vacíos pero con sus identificadores listos
+					for (var dia = 1; dia <= 5; dia++) {
+						filaHtml += `<td class="celda-horario" data-dia="${dia}" data-hora="${hora.id_horario_detail}"></td>`;
+					}
+
+					filaHtml += `</tr>`;
+					$tbody.append(filaHtml);
+				});
+			},
+			error: function() {
+				$tbody.html('<tr><td colspan="6" class="text-danger text-center">Error al cargar el esqueleto de horas.</td></tr>');
+			}
+		});
 	}
 </script>

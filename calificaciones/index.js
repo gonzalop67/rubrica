@@ -6,17 +6,40 @@ $(document).ready(function () {
     // Cargar los paralelos al iniciar la página
     cargarParalelosDocente();
 
-    // EVENTO REFACTORIZADO: Al cambiar el paralelo, ya no buscamos aportes
+    // EVENTO REFACTORIZADO Y ASEGURADO: Al cambiar el paralelo
     $("#cboParalelos").on("change", function () {
-        // 1. Cargar las asignaturas asociadas en el panel derecho
+        var $combo = $(this);
+        var valorSeleccionado = $combo.val();
+
+        // 1. VALIDACIÓN PREVENTIVA: Si el valor es nulo, vacío o es el texto por defecto ("0"), frenar
+        if (!valorSeleccionado || valorSeleccionado.trim() === "" || valorSeleccionado === "0") {
+            // Limpiar ambos paneles con mensajes coherentes
+            $("#contenedor_asignaturas_docente").html(
+                '<div class="text-muted text-center" style="padding: 40px 20px;">' +
+                '<i class="fa fa-arrow-up fa-2x" style="margin-bottom: 10px; color: #ccc;"></i>' +
+                '<p style="margin: 0;">Seleccione un paralelo arriba para cargar...</p>' +
+                '</div>'
+            );
+            $("#lista_estudiantes_paralelo").html(
+                '<div class="text-center p-4 text-muted" style="padding: 30px;">' +
+                '<i class="fa fa-hand-o-left fa-2x" style="margin-bottom: 10px; color: #ccc;"></i> <p style="margin: 0;">Seleccione una asignatura del panel izquierdo para cargar los alumnos...</p>' +
+                '</div>'
+            );
+            $("#num_asignaturas").html("Número de Asignaturas: 0");
+            $("#ver_reporte").hide();
+            return; // Detiene la ejecución aquí de forma segura
+        }
+
+        // 2. Cargar las asignaturas asociadas en el panel derecho (Ya habiendo verificado el ID)
         cargarAsignaturasDocente();
 
-        // 2. Limpiar el panel izquierdo indicando que elija una materia para ver su sábana
+        // 3. Limpiar el panel izquierdo indicando que elija una materia para ver su sábana
         $("#lista_estudiantes_paralelo").html(
             '<div class="text-center p-4 text-muted" style="padding: 30px;">' +
-            '<i class="fa fa-arrow-right"></i> Seleccione una asignatura del panel derecho para cargar su Sábana Completa de Calificaciones...' +
+            '<i class="fa fa-hand-o-left fa-2x" style="margin-bottom: 10px; color: #ccc;"></i> <p style="margin: 0;">Seleccione una asignatura del panel izquierdo para cargar los alumnos...</p>' +
             '</div>'
         );
+
         // Ocultar botón de reporte hasta que elija una materia
         $("#ver_reporte").hide();
     });
@@ -115,6 +138,52 @@ $(document).ready(function () {
 
         if ($proximoInput.length) {
             $proximoInput.focus().select();
+        }
+    });
+
+    // =========================================================================
+    // 🎯 CONTROL DE ENFOQUE AUTOMÁTICO EN SCROLL (FLEXBOX EXCEL)
+    // =========================================================================
+    // Escucha cuando el docente navega o escribe dentro de las celdas estilo Excel
+    $(document).on('keyup focusin', '.excel-cell', function () {
+        var $celdaActual = $(this);
+        var $contenedorScroll = $("#tabla-sabana-scroll");
+
+        // Si por alguna razón el contenedor hijo no existe, no hacemos nada
+        if ($contenedorScroll.length === 0) return;
+
+        // Calcular las posiciones físicas en la pantalla
+        var posicionCeldaTop = $celdaActual.offset().top;
+        var posicionContenedorTop = $contenedorScroll.offset().top;
+
+        /* 
+         * 1. 🛑 CONTROL DE SUBIDA (EVITAR QUE LA CABECERA TAPE AL ALUMNO 1 Y 2)
+         * Sumamos 120 píxeles que es el espacio aproximado que ocupan tus 3 filas fijas.
+         */
+        var limiteSuperiorCabecera = posicionContenedorTop + 120;
+
+        if (posicionCeldaTop < limiteSuperiorCabecera) {
+            // Calculamos cuántos píxeles debemos devolver hacia arriba
+            var scrollActual = $contenedorScroll.scrollTop();
+            var diferenciaHaciaArriba = limiteSuperiorCabecera - posicionCeldaTop;
+
+            // Movemos el scroll del contenedor para revelar al estudiante escondido
+            $contenedorScroll.scrollTop(scrollActual - diferenciaHaciaArriba - 10);
+        }
+
+        /* 
+         * 2. 🔽 CONTROL DE BAJADA (EVITAR QUE EL ALUMNO SE SALGA POR ABAJO DEL PANEL)
+         */
+        var alturaContenedor = $contenedorScroll.innerHeight();
+        var limiteInferiorPanel = posicionContenedorTop + alturaContenedor;
+        var altoCelda = $celdaActual.outerHeight();
+
+        if ((posicionCeldaTop + altoCelda) > limiteInferiorPanel) {
+            var scrollActual = $contenedorScroll.scrollTop();
+            var diferenciaHaciaAbajo = (posicionCeldaTop + altoCelda) - limiteInferiorPanel;
+
+            // Movemos el scroll hacia abajo para seguir la escritura del docente
+            $contenedorScroll.scrollTop(scrollActual + diferenciaHaciaAbajo + 15);
         }
     });
 
@@ -499,7 +568,7 @@ function cargarParalelosDocente() {
                 $listaEstudiantes
                     .removeClass("text-success")
                     .addClass("text-danger fw-bold")
-                    .html('<div class="p-3"><i class="fa fa-info-circle"></i> Debe elegir un paralelo...</div>');
+                    .html('<div style="padding: 3px"><i class="fa fa-info-circle"></i> Debe elegir un paralelo...</div>');
             }
         })
         .fail(function () {
@@ -573,7 +642,7 @@ function contarAsignaturasDocente() {
 
             if (datosLimpios === "false" || datosLimpios === "") {
                 Swal.close();
-                limpiarPanelDerecho("No se encontraron asignaturas asignadas.");
+                limpiarPanelesPorError("No se encontraron asignaturas asignadas.");
             } else {
                 try {
                     var respuestaServer = JSON.parse(datosLimpios);
@@ -587,24 +656,23 @@ function contarAsignaturasDocente() {
                         obtenerDetalleAsignaturas(id_paralelo);
                     } else {
                         Swal.close();
-                        limpiarPanelDerecho("No hay asignaturas disponibles para este paralelo.");
+                        limpiarPanelesPorError("No hay asignaturas disponibles para este paralelo.");
                     }
                 } catch (error) {
                     Swal.close();
                     console.error("Error al procesar JSON de conteo:", error, datosLimpios);
-                    limpiarPanelDerecho("Error en el formato de datos.");
+                    limpiarPanelesPorError("Error en el formato de datos.");
                 }
             }
         })
         .fail(function () {
             Swal.close();
-            limpiarPanelDerecho("Error de conexión al contar asignaturas.");
+            limpiarPanelesPorError("Error de conexión al contar asignaturas.");
         });
 }
 
 /**
  * Paso 2: Hace la segunda petición para traer el ID y Nombre de las materias.
- * Recibe directamente la respuesta estructurada gracias a las cabeceras JSON del PHP.
  */
 function obtenerDetalleAsignaturas(id_paralelo) {
     $.post("calificaciones/listar_asignaturas_docente.php", {
@@ -617,7 +685,7 @@ function obtenerDetalleAsignaturas(id_paralelo) {
             if (typeof resultadoDetalle === "object" && resultadoDetalle !== null) {
                 // Verificar si el servidor devolvió un nodo con mensaje de error
                 if (resultadoDetalle.error) {
-                    limpiarPanelDerecho(resultadoDetalle.error);
+                    limpiarPanelesPorError(resultadoDetalle.error);
                     Swal.fire({
                         icon: 'error',
                         title: 'Error del Servidor',
@@ -632,21 +700,21 @@ function obtenerDetalleAsignaturas(id_paralelo) {
                 try {
                     var datosLimpios = resultadoDetalle ? resultadoDetalle.trim() : "";
                     if (datosLimpios === "" || datosLimpios === "false") {
-                        limpiarPanelDerecho("No se pudieron cargar los detalles.");
+                        limpiarPanelesPorError("No se pudieron cargar los detalles.");
                     } else {
                         var listaAsignaturas = JSON.parse(datosLimpios);
                         listarAsignaturasDocente(listaAsignaturas);
                     }
                 } catch (e) {
                     console.error("Error al procesar el string de asignaturas:", e);
-                    limpiarPanelDerecho("Error en el formato de datos devuelto.");
+                    limpiarPanelesPorError("Error en el formato de datos devuelto.");
                 }
             }
         })
         .fail(function (jqXHR) {
             Swal.close();
             console.error("Error en la petición de detalles:", jqXHR.responseText);
-            limpiarPanelDerecho("Error al recuperar el listado de asignaturas.");
+            limpiarPanelesPorError("Error al recuperar el listado de asignaturas.");
         });
 }
 
@@ -654,10 +722,11 @@ function obtenerDetalleAsignaturas(id_paralelo) {
  * Paso 3: Renderiza las asignaturas en el panel derecho y maneja el evento de selección.
  */
 function listarAsignaturasDocente(listaAsignaturasJSON) {
-    var $contenedor = $("#lista_asignaturas");
+    // 🎯 CORRECCIÓN CLAVE: Apuntar al ID correcto de tu HTML para la lista de materias
+    var $contenedor = $("#contenedor_asignaturas_docente");
 
     if (!Array.isArray(listaAsignaturasJSON) || listaAsignaturasJSON.length === 0) {
-        $contenedor.html('<div class="list-group-item text-center text-muted">No hay asignaturas disponibles</div>');
+        $contenedor.html('<div class="list-group-item text-center text-muted" style="padding: 15px;">No hay asignaturas disponibles</div>');
         return;
     }
 
@@ -666,14 +735,11 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
     listaAsignaturasJSON.forEach(function (item) {
         var id = item.id_asignatura || item.id || "0";
         var nombre = item.nombre_asignatura || item.nombre || item.asignatura || "Sin nombre";
-
-        // 🎯 REVISIÓN CLAVE: Debe coincidir exactamente con la clave de tu consulta PHP (tipo_asignatura)
         var tipoAsignatura = item.tipo_asignatura || item.id_tipo_asignatura || "1";
 
         // Estructura limpia usando componentes de AdminLTE
-        // 🎯 Asegúrate de que el atributo data-tipo esté bien concatenado:
         var htmlItem =
-            '<a href="#" class="list-group-item data-asignatura-btn" data-id="' + id + '" data-tipo="' + tipoAsignatura + '" style="padding: 12px 15px; border-left: 3px solid transparent; transition: all 0.2s;">' +
+            '<a href="#" class="list-group-item data-asignatura-btn" data-id="' + id + '" data-tipo="' + tipoAsignatura + '" style="padding: 12px 15px; border-left: 3px solid transparent; transition: all 0.2s; display: block; text-decoration: none;">' +
             '<span class="label label-primary pull-right" style="font-size: 10px; padding: 3px 6px;">ID: ' + id + '</span>' +
             '<h4 class="list-group-item-heading" style="font-size: 13px; margin-bottom: 0; font-weight: 600; color: #333;">' +
             '<i class="fa fa-book text-muted" style="margin-right: 5px;"></i> ' + nombre +
@@ -682,70 +748,77 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
 
         $contenedor.append(htmlItem);
     });
-
-    // =========================================================================
-    // 🎯 MOTOR INTERACTIVO: LOGICA DE CLIC EN LA ASIGNATURA (PANEL DE DOCENTES)
-    // =========================================================================
-    // Cambiado a $(document) para mantener la persistencia tras las cargas dinámicas de AJAX.
-    $(document).on("click", ".data-asignatura-btn", function (e) {
-        e.preventDefault();
-
-        var $botonSeleccionado = $(this);
-
-        // 1. Efecto visual: Quitar estado activo a todas y ponérselo a la seleccionada (Estilo AdminLTE)
-        $(".data-asignatura-btn")
-            .removeClass("active")
-            .css({
-                "border-left-color": "transparent",
-                "background-color": "#fff"
-            });
-
-        $botonSeleccionado
-            .addClass("active")
-            .css({
-                "border-left-color": "#3c8dbc",
-                "background-color": "#f4f4f4"
-            });
-
-        // 2. Capturar el ID de la asignatura seleccionada
-        var idAsignaturaSeleccionada = $botonSeleccionado.data("id");
-
-        // 🎯 NUEVO: Capturar el tipo de asignatura (1 = cuantitativa, otro = cualitativa)
-        var tipoAsignaturaSeleccionada = $botonSeleccionado.data("tipo"); // 🎯 Esto es lo que queremos probar
-
-        // 3. Asignar el ID al campo oculto que procesa tu formulario de reportes
-        $("#id_asignatura").val(idAsignaturaSeleccionada);
-
-        // 4. Mostrar un spinner de carga en el contenedor de estudiantes (Panel Izquierdo)
-        $("#lista_estudiantes_paralelo").html(
-            '<div class="text-center p-5 text-muted" style="padding: 40px;">' +
-            '<i class="fa fa-refresh fa-spin fa-2x"></i>' +
-            '<p class="small mt-2" style="margin-top: 10px;">Buscando nómina de estudiantes...</p>' +
-            '</div>'
-        );
-
-        /* 
-         * 5. ¡LLAMAR A TU FUNCIÓN DE ALUMNOS!
-         * Enviamos tanto el ID de la materia como el Tipo al cargador para 
-         * que el archivo PHP sepa qué tipo de sábana de notas renderizar.
-         */
-        obtenerNominaEstudiantes(idAsignaturaSeleccionada, tipoAsignaturaSeleccionada);
-    });
-
 }
 
+// =========================================================================
+// 🎯 MOTOR INTERACTIVO: LOGICA DE CLIC EN LA ASIGNATURA (PANEL DE DOCENTES)
+// =========================================================================
+$(document).on("click", ".data-asignatura-btn", function (e) {
+    e.preventDefault();
+
+    var $botonSeleccionado = $(this);
+
+    // 1. Efecto visual: Quitar estado activo a todas y ponérselo a la seleccionada (Estilo AdminLTE)
+    $(".data-asignatura-btn")
+        .removeClass("active")
+        .css({
+            "border-left-color": "transparent",
+            "background-color": "#fff"
+        });
+
+    $botonSeleccionado
+        .addClass("active")
+        .css({
+            "border-left-color": "#3c8dbc",
+            "background-color": "#f4f4f4"
+        });
+
+    // 2. Capturar el ID y el Tipo de Asignatura guardados en los atributos "data-" del botón
+    var idAsignaturaSeleccionada = $botonSeleccionado.data("id");
+    var tipoAsignaturaSeleccionada = $botonSeleccionado.data("tipo");
+
+    // 3. Asignar el ID al campo oculto que procesa tu formulario de reportes
+    $("#id_asignatura").val(idAsignaturaSeleccionada);
+
+    // 4. Mostrar un spinner de carga en el contenedor de estudiantes (Panel Izquierdo)
+    $("#lista_estudiantes_paralelo").html(
+        '<div class="text-center text-muted" style="padding: 100px 20px;">' +
+        '<i class="fa fa-refresh fa-spin fa-2x" style="color: #3c8dbc; margin-bottom: 10px;"></i>' +
+        '<p class="small" style="margin-top: 10px;">Buscando nómina de estudiantes y calificaciones...</p>' +
+        '</div>'
+    );
+
+    // 5. Mostrar el botón de reportes impresos ahora que hay una materia activa
+    $("#ver_reporte").show();
+
+    // 6. 🚀 ¡LLAMADA ENLAZADA A TU FUNCIÓN DE NÓMINA!
+    // Enviamos el ID y el Tipo exactamente como lo requiere obtenerNominaEstudiantes()
+    obtenerNominaEstudiantes(idAsignaturaSeleccionada, tipoAsignaturaSeleccionada);
+});
+
 /**
- * Función utilitaria para limpiar el panel derecho ante errores o vacíos.
+ * Función auxiliar para limpiar la pantalla de manera correcta según tu nuevo diseño
  */
-function limpiarPanelDerecho(mensaje) {
+function limpiarPanelesPorError(mensaje) {
+    $("#contenedor_asignaturas_docente").html(
+        '<div class="text-center text-muted" style="padding: 20px;">' +
+        '<p class="small">' + mensaje + '</p>' +
+        '</div>'
+    );
+    $("#lista_estudiantes_paralelo").html(
+        '<div class="text-center text-muted" style="padding: 30px;">' +
+        '<i class="fa fa-exclamation-circle text-warning"></i> No se pueden cargar alumnos.' +
+        '</div>'
+    );
     $("#num_asignaturas").html("Número de Asignaturas: 0");
-    $("#lista_asignaturas").html('<div class="list-group-item text-center text-muted"><i class="fa fa-info-circle"></i> ' + mensaje + '</div>');
+    $("#ver_reporte").hide();
 }
 
 /**
  * Obtiene la nómina de estudiantes basada en el paralelo y la asignatura seleccionada.
  * Removidas todas las referencias antiguas al "Aporte de Evaluación".
  * @param {string|number} idAsignatura - ID de la asignatura seleccionada en el panel derecho.
+ * @param {string|number} tipoAsignatura - Tipo de la asignatura seleccionada.
  */
 function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
     var id_paralelo = $("#cboParalelos").val();
@@ -769,12 +842,10 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
     $.post("calificaciones/cargar_estudiantes.php", {
         id_paralelo: id_paralelo,
         id_asignatura: idAsignatura,
-        id_tipo_asignatura: tipoAsignatura // 🎯 Pasamos el parámetro al backend de la sábana
+        id_tipo_asignatura: tipoAsignatura // Pasamos el parámetro al backend de la sábana
     })
         .done(function (resultadoAlumnos) {
             Swal.close(); // Cerrar el cargando de SweetAlert2 
-
-            // console.log(resultadoAlumnos);
 
             var datosLimpios = resultadoAlumnos ? resultadoAlumnos.trim() : "";
 
@@ -788,16 +859,19 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
                 );
                 $("#ver_reporte").hide();
             } else {
-                // Inyectar la gran sábana de notas generada por el PHP 
+                // 🎯 ¡TU IDEA EN ACCIÓN! Envolvemos la tabla pura de PHP dentro de un div limpio sin clases de Bootstrap
+                var tablaEnvoltorioConScroll = '<div id="tabla-sabana-scroll">' + resultadoAlumnos + '</div>';
+
+                // Inyectar el nuevo bloque envuelto en el panel principal izquierdo
                 $("#lista_estudiantes_paralelo")
                     .removeClass("text-danger fw-bold")
-                    .html(resultadoAlumnos);
+                    .html(tablaEnvoltorioConScroll);
 
                 // Hacer visible el botón inferior para descargar el Reporte en Excel 
                 $("#ver_reporte").fadeIn();
 
-                // Contar de manera automática cuántas filas de alumnos reales se dibujaron 
-                var totalFilas = $("#lista_estudiantes_paralelo").find("tr.row-alumno-sabana").length;
+                // 🎯 CORRECCIÓN DE CONTEO: Apuntamos al nuevo contenedor hijo para contar las filas reales de alumnos
+                var totalFilas = $("#tabla-sabana-scroll").find("tr.row-alumno-sabana").length;
                 if (totalFilas > 0) {
                     $("#lbl_total_estudiantes").html(totalFilas);
                 }

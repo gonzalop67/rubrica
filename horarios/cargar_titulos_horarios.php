@@ -2,9 +2,13 @@
 require_once("../scripts/clases/class.mysql.php");
 $db = new MySQL();
 
-$id_periodo_lectivo = $_POST["id_periodo_lectivo"];
+session_start();
 
-$consulta = $db->consulta("SELECT * FROM sw_horario_def WHERE id_periodo_lectivo = " . $id_periodo_lectivo . " ORDER BY fecha_inicial DESC");
+$id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
+
+$sql = "SELECT * FROM sw_horario_def WHERE id_periodo_lectivo = " . $id_periodo_lectivo . " ORDER BY fecha_inicial DESC";
+
+$consulta = $db->consulta($sql);
 $num_total_registros = $db->num_rows($consulta);
 $cadena = "";
 

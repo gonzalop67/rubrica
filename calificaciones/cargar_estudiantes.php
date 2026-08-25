@@ -329,19 +329,26 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
 ?>
     <table class="table table-bordered table-striped table-hover text-center align-middle" style="margin-bottom: 0; font-size: 12px;">
         <thead>
-            <!-- Cabecera 1: Períodos -->
+            <!-- Cabecera 1: Períodos (Fila 1) -->
             <tr style="background-color: #3c8dbc; color: #fff;">
-                <th rowspan="3" style="vertical-align: middle; width: 5%;">Nro.</th>
-                <th rowspan="3" style="vertical-align: middle; width: 25%; text-align: left;">Nómina de Estudiantes (Numérica)</th>
+                <!-- 🎯 MODIFICADO: Quitamos rowspan="3" y le damos una clase de control -->
+                <th class="th-fijo-columna" style="vertical-align: middle; width: 5%;">Nro.</th>
+                <th class="th-fijo-columna" style="vertical-align: middle; width: 25%; text-align: left;">Nómina de Estudiantes</th>
                 <?php foreach ($estructura as $p): ?>
                     <th colspan="<?php echo $p['total_columnas']; ?>" style="vertical-align: middle;"><b><?php echo strtoupper($p['nombre']); ?></b></th>
                 <?php endforeach; ?>
-                <th rowspan="3" style="vertical-align: middle; background-color: #337ab7; width: 8%;">PROMEDIO FINAL</th>
-                <th rowspan="3" style="vertical-align: middle; background-color: #605ca8; width: 7%;">SUPLETORIO</th>
-                <th rowspan="3" style="vertical-align: middle; background-color: #337ab7; width: 8%;">ESTADO</th>
+                <!-- 🎯 MODIFICADO: Quitamos rowspan="3" a las columnas finales -->
+                <th class="th-fijo-columna" style="vertical-align: middle; background-color: #337ab7; width: 8%;">PROMEDIO FINAL</th>
+                <th class="th-fijo-columna" style="vertical-align: middle; background-color: #605ca8; width: 7%;">SUPLETORIO</th>
+                <th class="th-fijo-columna" style="vertical-align: middle; background-color: #337ab7; width: 8%;">ESTADO</th>
             </tr>
-            <!-- Cabecera 2: Parciales -->
+
+            <!-- Cabecera 2: Parciales (Fila 2) -->
             <tr style="background-color: #f4f4f4; color: #333;">
+                <!-- 🎯 NUEVO: Celdas vacías de relleno para compensar la falta de rowspan -->
+                <th style="background-color: #f4f4f4;"></th>
+                <th style="background-color: #f4f4f4;"></th>
+
                 <?php foreach ($estructura as $p): ?>
                     <?php if (!empty($p['aportes'])):
                         foreach ($p['aportes'] as $a):
@@ -353,11 +360,21 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                     else: ?>
                         <th style="font-size: 11px; vertical-align: middle; color:#999;">Sin configurar</th>
                     <?php endif; ?>
-                    <th rowspan="2" style="background-color: #e7e7e7; vertical-align: middle; width: 6%;"><b>PROM.</b></th>
+                    <th style="background-color: #e7e7e7; vertical-align: middle; width: 6%;"><b>PROM.</b></th>
                 <?php endforeach; ?>
+
+                <!-- 🎯 NUEVO: Relleno para las 3 columnas finales en la fila 2 -->
+                <th style="background-color: #e7e7e7;"></th>
+                <th style="background-color: #e7e7e7;"></th>
+                <th style="background-color: #e7e7e7;"></th>
             </tr>
-            <!-- Cabecera 3: Insumos -->
+
+            <!-- Cabecera 3: Insumos (Fila 3) -->
             <tr style="background-color: #fafafa; color: #666; font-size: 10px;">
+                <!-- 🎯 NUEVO: Celdas vacías de relleno para la fila 3 -->
+                <th style="background-color: #fafafa;"></th>
+                <th style="background-color: #fafafa;"></th>
+
                 <?php foreach ($estructura as $p): ?>
                     <?php if (!empty($p['aportes'])):
                         foreach ($p['aportes'] as $a):
@@ -372,6 +389,11 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                         <th style="vertical-align: middle; color:#999;">-</th>
                     <?php endif; ?>
                 <?php endforeach; ?>
+
+                <!-- 🎯 NUEVO: Relleno para las 3 columnas finales en la fila 3 -->
+                <th style="background-color: #fafafa;"></th>
+                <th style="background-color: #fafafa;"></th>
+                <th style="background-color: #fafafa;"></th>
             </tr>
         </thead>
         <tbody>
