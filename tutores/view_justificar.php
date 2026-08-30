@@ -12,10 +12,10 @@
                 <div class="row">
                     <div class="col-md-12 col-sm-12 col-xs-12">
                         <form id="frm-fecha" action="" method="post" autocomplete="off">
-                            <input type="hidden" id="id_curso" value="<?php echo $_GET['id_curso'] ?>">
-                            <input type="hidden" id="id_paralelo" value="<?php echo $_GET['id_paralelo'] ?>">
-                            <input type="hidden" id="id_asignatura" value="<?php echo $_GET['id_asignatura'] ?>">
-                            <input id="id_dia_semana" name="id_dia_semana" type="hidden" />
+                            <input type="hidden" id="id_curso" name="id_curso" value="<?php echo $_GET['id_curso'] ?>">
+                            <input type="hidden" id="id_paralelo_tutor" name="id_paralelo_tutor" value="<?php echo $_GET['id_paralelo'] ?>">
+                            <input type="hidden" id="id_asignatura" name="id_asignatura" value="<?php echo $_GET['id_asignatura'] ?>">
+                            <input type="hidden" id="id_dia_semana" name="id_dia_semana" />
                             <div class="form-group row">
                                 <label for="fecha" class="col-md-2 col-sm-2 col-xs-4 col-form-label text-right">Horario:</label>
                                 <div class="col-md-4 col-sm-4 col-xs-8">
@@ -72,8 +72,9 @@
 
         $("#cboHorarios").change(function(e) {
             $("#tabla_asistencia").html("");
-            if ($("#fecha").val() !== "") {
-                obtenerAsistencia($("#fecha").val());
+            const fechaActual = $("#fecha").val();
+            if (fechaActual !== "") {
+                obtenerAsistencia(fechaActual);
             }
         });
 
@@ -81,10 +82,11 @@
             dateFormat: 'yy-mm-dd',
             firstDay: 1,
             onClose: function(selectDate) {
-                obtenerAsistencia(selectDate);
+                if (selectDate !== "") {
+                    obtenerAsistencia(selectDate);
+                }
             }
         });
-
     });
 
     function dia_semana(fecha) {
@@ -114,129 +116,186 @@
         return semana[Math.ceil(Math.ceil(Math.ceil((anno - 1) % 7) + Math.ceil((Math.floor((anno - 1) / 4) - Math.floor((3 * (Math.floor((anno - 1) / 100) + 1)) / 4)) % 7) + mes + dia % 7) % 7)];
     }
 
-    function cargarHorarios() {
-        var request = $.ajax({
-            url: "dias_semana/cargar_titulos_horarios.php",
-            method: "get",
-            dataType: "html"
-        });
-
-        request.done(function(data) {
+    /**
+     * Carga los títulos de los horarios en el combobox desplegable
+     */
+    async function cargarHorarios() {
+        try {
+            const data = await $.ajax({
+                url: "dias_semana/cargar_titulos_horarios.php",
+                method: "get",
+                dataType: "html"
+            });
             $("#cboHorarios").append(data);
-        });
+        } catch (error) {
+            console.error("Error al cargar horarios:", error);
+        }
     }
 
-    function obtenerAsistencia(fecha) {
-        //Consultar el dia de la semana
-        var ds_ordinal = dia_semana(fecha);
-        var id_horario_def = $("#cboHorarios").val();
-        //Gif animado para preloader
+    /**
+     * Consulta y genera el listado de asistencia para justificar faltas
+     */
+    async function obtenerAsistencia(fecha) {
+        const id_horario_def = $("#cboHorarios").val();
+
+        if (id_horario_def === "") {
+            Swal.fire({
+                icon: "warning",
+                title: "Horario requerido",
+                text: "Por favor, seleccione un horario antes de elegir la fecha."
+            });
+            $("#fecha").val("");
+            return;
+        }
+
+        const ds_ordinal = dia_semana(fecha);
+
+        // Capturar los valores de los inputs corregidos
+        const id_curso = $("#id_curso").val();
+        const id_paralelo_tutor = $("#id_paralelo_tutor").val();
+        const id_asignatura = $("#id_asignatura").val();
+
+        // Mostrar precargador animado (Preloader)
         $("#tabla_asistencia").html("<div class='text-center'><img src='imagenes/ajax-loader.gif'></div>");
-        $.ajax({
-            type: "post",
-            url: "horarios/consultar_id_dia_semana.php",
-            data: {
-                ds_ordinal: ds_ordinal,
-                id_horario_def: id_horario_def
-            },
-            dataType: "json",
-            success: function(resultado) {
-                if (resultado == false) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Oops! Ocurrió un error inesperado",
-                        text: "No se han definido Días de la Semana...",
-                    });
-                } else {
-                    var id_dia_semana = resultado.id_dia_semana;
-                    var id_paralelo_tutor = $("#id_paralelo_tutor").val();
-                    $.ajax({
-                        type: "post",
-                        url: "tutores/consultar_asistencia_justificar.php",
-                        data: {
-                            id_dia_semana: id_dia_semana,
-                            id_horario_def: id_horario_def,
-                            id_paralelo_tutor: id_paralelo_tutor,
-                            ae_fecha: fecha
-                        },
-                        dataType: "json",
-                        success: function(resultado) {
-                            if (resultado.ok) {
-                                $("#tabla_asistencia").html(resultado.cadena);
-                            } else {
-                                Swal.fire({
-                                    'title': "Error...",
-                                    'text': resultado.mensaje,
-                                    'icon': 'error'
-                                });
-                            }
-                        }
-                    });
-                }
+
+        try {
+            const resultado = await $.ajax({
+                type: "post",
+                url: "tutores/consultar_asistencia_justificar.php",
+                data: {
+                    id_dia_semana: ds_ordinal,
+                    id_horario_def: id_horario_def,
+                    id_curso: id_curso,
+                    id_paralelo_tutor: id_paralelo_tutor, // Ahora viajará con el ID correcto
+                    id_asignatura: id_asignatura,
+                    ae_fecha: fecha
+                },
+                dataType: "json"
+            });
+
+            if (resultado.ok) {
+                $("#tabla_asistencia").html(resultado.cadena);
+            } else {
+                Swal.fire({
+                    title: "Atención",
+                    text: resultado.mensaje,
+                    icon: 'warning'
+                });
+                $("#tabla_asistencia").html("");
             }
-        });
+
+        } catch (error) {
+            console.error("Error al obtener asistencia para justificar:", error);
+            Swal.fire({
+                icon: "error",
+                title: "Error de conexión",
+                text: "No se pudo conectar con el servidor. Inténtalo de nuevo."
+            });
+            $("#tabla_asistencia").html("");
+        }
     }
 
-    function justificar_asistencia_tutor(obj, id_estudiante, id_paralelo, ae_fecha) {
-        $.ajax({
-            type: "POST",
-            url: "tutores/obtener_justificacion.php",
-            data: {
-                id_estudiante: id_estudiante,
-                id_paralelo: id_paralelo,
-                ae_fecha: ae_fecha
-            },
-            dataType: "json",
-            success: function(response) {
-                $("#form_update")[0].reset();
-                $("#error-justificacion").html("");
-                $("#justificacion").val(response.justificacion);
-                $("#id_asistencia_tutor").val(response.id_asistencia_tutor);
-            }
-        });
-        $("#editarJustificacionModal").modal("show");
+    /**
+     * Abre el modal y carga los datos de la justificación actual del alumno
+     */
+    async function justificar_asistencia_tutor(obj, id_estudiante, id_paralelo, ae_fecha) {
+        try {
+            const response = await $.ajax({
+                type: "POST",
+                url: "tutores/obtener_justificacion.php",
+                data: {
+                    id_estudiante,
+                    id_paralelo,
+                    ae_fecha
+                },
+                dataType: "json"
+            });
+
+            $("#form_update")[0].reset();
+            $("#error-justificacion").html("").hide();
+            $("#justificacion").val(response.justificacion);
+            $("#id_asistencia_tutor").val(response.id_asistencia_tutor);
+            $("#editarJustificacionModal").modal("show");
+
+        } catch (error) {
+            console.error("Error al obtener justificación:", error);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudieron recuperar los datos de la justificación."
+            });
+        }
     }
 
-    function deshacer_asistencia_tutor(id_asistencia_tutor) {
-
-        $.ajax({
-            type: "POST",
-            url: "tutores/deshacer_justificacion.php",
-            data: {
-                id_asistencia_tutor: id_asistencia_tutor
-            },
-            dataType: "html",
-            success: function(response) {
-                console.log(response);
-                obtenerAsistencia($("#fecha").val());
-            }
-        });
+    /**
+     * Remueve la justificación guardada de una falta
+     */
+    async function deshacer_asistencia_tutor(id_asistencia_tutor) {
+        try {
+            const response = await $.ajax({
+                type: "POST",
+                url: "tutores/deshacer_justificacion.php",
+                data: {
+                    id_asistencia_tutor
+                },
+                dataType: "html"
+            });
+            console.log(response);
+            obtenerAsistencia($("#fecha").val());
+        } catch (error) {
+            console.error("Error al deshacer justificación:", error);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: "No se pudo deshacer la justificación."
+            });
+        }
     }
 
-    $("#form_update").on("submit", function(e) {
+    /**
+     * Envío del formulario del Modal para guardar/actualizar la justificación
+     */
+    $("#form_update").on("submit", async function(e) {
         e.preventDefault();
 
         const id_asistencia_tutor = $("#id_asistencia_tutor").val();
-        const justificacion = $("#justificacion").val();
+        const justificacion = $("#justificacion").val().trim();
 
-        if (justificacion.trim() == "") {
-            $("#error-justificacion").html("Debe ingresar la justificación...");
-            $("#error-justificacion").fadeIn();
-        } else {
-            $.ajax({
+        if (justificacion === "") {
+            $("#error-justificacion").html("Debe ingresar la justificación...").fadeIn();
+            return;
+        }
+
+        try {
+            await $.ajax({
                 type: "POST",
                 url: "tutores/actualizar_justificacion.php",
                 data: {
-                    id_asistencia_tutor: id_asistencia_tutor,
-                    justificacion: justificacion
+                    id_asistencia_tutor,
+                    justificacion
                 },
-                dataType: "json",
-                success: function(response) {
-                    obtenerAsistencia($("#fecha").val());
-                    $("#form_update")[0].reset();
-                    $("#editarJustificacionModal").modal("hide");
-                }
+                dataType: "json"
+            });
+
+            obtenerAsistencia($("#fecha").val());
+            $("#form_update")[0].reset();
+            $("#editarJustificacionModal").modal("hide");
+
+            Swal.fire({
+                icon: "success",
+                title: "Guardado",
+                text: "La justificación se registró con éxito.",
+                timer: 1500,
+                showConfirmButton: false
+            });
+
+        } catch (error) {
+            console.error("Error al actualizar justificación:", error);
+            Swal.fire({
+                icon: "error",
+                title: "Error al guardar",
+                text: "Hubo un fallo en la red y no se pudo guardar. Inténtalo de nuevo."
             });
         }
-    })
+    });
 </script>
