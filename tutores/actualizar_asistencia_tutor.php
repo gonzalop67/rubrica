@@ -1,37 +1,55 @@
 <?php
-    include("../scripts/clases/class.mysql.php");
-    $db = new MySQL();
+include("../scripts/clases/class.mysql.php");
+$db = new MySQL();
 
-    // Variables POST
-    $id_estudiante= $_POST["id_estudiante"];
-    $id_paralelo= $_POST["id_paralelo"];
-    $ae_fecha= $_POST["ae_fecha"];
-    $id_inasistencia= $_POST["id_inasistencia"];
+// 1. Recibir y desinfectar variables POST (Seguridad ante todo)
+$id_estudiante   = $db->filtrar($_POST["id_estudiante"]);
+$id_paralelo     = $db->filtrar($_POST["id_paralelo"]);
+$ae_fecha        = $db->filtrar($_POST["ae_fecha"]);
+$id_inasistencia = $db->filtrar($_POST["id_inasistencia"]);
 
-    $query = "UPDATE sw_asistencia_tutor SET id_inasistencia = $id_inasistencia WHERE id_estudiante = $id_estudiante AND id_paralelo = $id_paralelo AND at_fecha = '$ae_fecha'";
-    $consulta = $db->consulta($query);
+// 2. Ejecutar la actualización del estado que el tutor seleccionó en el checkbox
+$query = "UPDATE sw_asistencia_tutor 
+              SET id_inasistencia = $id_inasistencia 
+              WHERE id_estudiante = $id_estudiante 
+                AND id_paralelo = $id_paralelo 
+                AND at_fecha = '$ae_fecha'";
 
-    $observacion = "";
+$db->consulta($query);
 
-    if ($id_inasistencia == 1) {
-        $observacion = "ASISTE";
-    } else {
-        $observacion = "FALTA INJUSTIFICADA";
-    }
+// 3. Definir dinámicamente la observación de texto que se pintará en caliente en el HTML
+$observacion = "";
+if (intval($id_inasistencia) === 1) {
+    $observacion = "ASISTE";
+} else {
+    $observacion = "FALTA INJUSTIFICADA";
+}
 
-    $query = "SELECT COUNT(*) AS asistentes FROM sw_asistencia_tutor WHERE id_paralelo = $id_paralelo AND at_fecha = '$ae_fecha' AND id_inasistencia = 1";
-    $registro = $db->consulta($query)->fetch_object();
-    $asistentes = $registro->asistentes;
+// 4. Recalcular el número acumulado de alumnos ASISTENTES hoy en el paralelo
+$queryAsis = "SELECT COUNT(*) AS asistentes FROM sw_asistencia_tutor 
+                  WHERE id_paralelo = $id_paralelo 
+                    AND at_fecha = '$ae_fecha' 
+                    AND id_inasistencia = 1";
 
-    $query = "SELECT COUNT(*) AS ausentes FROM sw_asistencia_tutor WHERE id_paralelo = $id_paralelo AND at_fecha = '$ae_fecha' AND id_inasistencia != 1";
-    $registro = $db->consulta($query)->fetch_object();
-    $ausentes = $registro->ausentes;
+$resAsis = $db->consulta($queryAsis);
+$regAsis = $db->fetch_assoc($resAsis); // CORREGIDO: Adaptado a tu método nativo de la clase
+$asistentes = $regAsis['asistentes'];
 
-    $datos = [
-        'asistentes' => $asistentes,
-        'ausentes' => $ausentes,
-        'observacion' => $observacion
-    ];
+// 5. Recalcular el número acumulado de alumnos AUSENTES hoy en el paralelo
+$queryAus = "SELECT COUNT(*) AS ausentes FROM sw_asistencia_tutor 
+                 WHERE id_paralelo = $id_paralelo 
+                   AND at_fecha = '$ae_fecha' 
+                   AND id_inasistencia != 1";
 
-    echo json_encode($datos);
-?>
+$resAus = $db->consulta($queryAus);
+$regAus = $db->fetch_assoc($resAus); // CORREGIDO: Adaptado a tu método nativo de la clase
+$ausentes = $regAus['ausentes'];
+
+// 6. Empaquetar y responder en el formato JSON idéntico que espera tu script jQuery
+$datos = [
+    'asistentes' => $asistentes,
+    'ausentes' => $ausentes,
+    'observacion' => $observacion
+];
+
+echo json_encode($datos);

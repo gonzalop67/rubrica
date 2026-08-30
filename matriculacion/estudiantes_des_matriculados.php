@@ -34,6 +34,7 @@
 			$cadena .= "<td>\n";
 			$cadena .= "<div class='btn-group'>\n";
 			$cadena .= "<a href='javascript:;' class='btn btn-info btn-sm item-deleted' data=" . $codigo . " title='Volver a matricular'><span class='fa fa-undo'></span></a>\n";
+			$cadena .= "<a href='javascript:;' class='btn btn-danger btn-sm item-hard-delete' data=" . $codigo . " title='Quitar de este periodo lectivo'><span class='fa fa-times'></span></a>\n";
 			$cadena .= "</div>\n";
 			$cadena .= "</td>\n";
 			$cadena .= "</tr>\n";

@@ -112,49 +112,48 @@
         });
     }
 
-    function obtenerAsistencia(fecha) {
-        //Consultar el dia de la semana
-        var ds_ordinal = dia_semana(fecha);
-        var id_horario_def = $("#cboHorarios").val();
-        //Gif animado para preloader
+    async function obtenerAsistencia(fecha) {
+        // 1. Obtener los datos directamente del navegador
+        const ds_ordinal = dia_semana(fecha); // Este valor ya es tu "id_dia_semana"
+        const id_horario_def = $("#cboHorarios").val();
+        const id_paralelo_tutor = $("#id_paralelo_tutor").val();
+
+        // 2. Mostrar la animación de carga (Preloader)
         $("#tabla_asistencia").html("<div class='text-center'><img src='imagenes/ajax-loader.gif'></div>");
-        $.ajax({
-            type: "post",
-            url: "horarios/consultar_id_dia_semana.php",
-            data: {
-                ds_ordinal: ds_ordinal,
-                id_horario_def: id_horario_def
-            },
-            dataType: "json",
-            success: function(resultado) {
-                if (resultado == false) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Oops! Ocurrió un error inesperado",
-                        text: "No se han definido Días de la Semana...",
-                    });
-                } else {
-                    var id_dia_semana = resultado.id_dia_semana;
-                    var id_paralelo_tutor = $("#id_paralelo_tutor").val();
-                    $.ajax({
-                        type: "post",
-                        url: "tutores/consultar_asistencia_dia_semana.php",
-                        data: {
-                            id_dia_semana: id_dia_semana,
-                            id_horario_def: id_horario_def,
-                            id_paralelo_tutor: id_paralelo_tutor,
-                            ae_fecha: fecha
-                        },
-                        dataType: "json",
-                        success: function(resultado) {
-                            // console.log(resultado);
-                            $("#tabla_asistencia").html(resultado.cadena);
-                            $("#tituloNomina").html('ASISTENTES: ' + resultado.asistentes + ' - AUSENTES: ' + resultado.ausentes);
-                        }
-                    });
-                }
-            }
-        });
+
+        try {
+            // 3. Única petición Ajax: Vamos directo a consultar la asistencia
+            const resultado = await $.ajax({
+                type: "post",
+                url: "tutores/consultar_asistencia_dia_semana.php",
+                data: {
+                    id_dia_semana: ds_ordinal, // Usamos el valor local directamente aquí
+                    id_horario_def: id_horario_def,
+                    id_paralelo_tutor: id_paralelo_tutor,
+                    ae_fecha: fecha
+                },
+                dataType: "json"
+            });
+
+            // 4. Dibujar los resultados en la pantalla
+            console.log(resultado);
+            $("#tabla_asistencia").html(resultado.cadena);
+            $("#tituloNomina").html(`ASISTENTES: ${resultado.asistentes} - AUSENTES: ${resultado.ausentes}`);
+
+        } catch (error) {
+            // DETECTAR EL ERROR REAL:
+            // Imprime el código de estado (ej: 404, 500) y la respuesta del servidor
+            console.error("Código de estado HTTP:", error.status);
+            console.error("Texto del error:", error.statusText);
+            console.error("Respuesta cruda del servidor:", error.responseText);
+
+            Swal.fire({
+                icon: "error",
+                title: "Error de conexión",
+                text: `No se pudo obtener la lista. (Código: ${error.status})`,
+            });
+            $("#tabla_asistencia").html("");
+        }
     }
 
     function actualizar_asistencia_tutor(obj, id_estudiante, id_paralelo, ae_fecha) {

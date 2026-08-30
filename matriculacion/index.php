@@ -185,6 +185,45 @@
 				});
 			});
 
+			$('#t_deleted tbody').on('click', '.item-hard-delete', function() {
+				let id_estudiante_periodo_lectivo = $(this).attr('data');
+				let id_paralelo = $("#id_paralelo").val();
+
+				Swal.fire({
+					title: "¿Desea quitar definitivamente este estudiante de este periodo lectivo?",
+					icon: "warning",
+					showCancelButton: true,
+					confirmButtonColor: "#d33",
+					cancelButtonColor: "#3085d6",
+					confirmButtonText: "Sí, quítelo!",
+					cancelButtonText: 'Cancelar',
+				}).then((result) => {
+					if (result.isConfirmed) {
+						$.ajax({
+							url: "matriculacion/des_matricular_definitivamente.php",
+							method: "post",
+							data: {
+								id_estudiante_periodo_lectivo: id_estudiante_periodo_lectivo
+							},
+							dataType: "json",
+							success: function(resultado) {
+								$('#deletedStudentModal').modal('hide');
+								Swal.fire({
+									title: resultado.titulo,
+									text: resultado.mensaje,
+									icon: resultado.tipo_mensaje
+								});
+								contarEstudiantesParalelo(id_paralelo);
+								cargar_estudiantes_des_matriculados();
+							},
+							error: function(jqXHR, textStatus) {
+								console.log(jqXHR.responseText);
+							}
+						});
+					}
+				});
+			});
+
 			$("#form-search").submit(function(e) {
 				e.preventDefault();
 				//Aqui va el codigo para buscar estudiantes antiguos
@@ -209,19 +248,6 @@
 				}
 
 			});
-
-			// $("#export_csv").click(function(){
-			// 	const id_paralelo = $("#id_paralelo").val();
-			// 	$.ajax({
-			// 		type: "POST",
-			// 		url: "matriculacion/exportar_csv.php",
-			// 		data: "id_paralelo="+id_paralelo,
-			// 		dataType: "html",
-			// 		success: function (response) {
-			// 			console.log(response);
-			// 		}
-			// 	});
-			// })
 		});
 
 		function cargar_paralelos() {

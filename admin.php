@@ -55,6 +55,7 @@ else {
                      AND c.id_curso = p.id_curso
                      AND id_usuario = $id_usuario 
                      AND pt.id_periodo_lectivo = $id_periodo_lectivo";
+    // echo $qryString;
     $consulta = $db->consulta($qryString);
     $num_registros = $db->num_rows($consulta);
     $paralelo_tutor = $db->fetch_object($consulta);
