@@ -10,9 +10,12 @@
         <!-- PANEL DE FILTROS (Mantiene su estructura superior independiente) -->
         <div class="box box-solid box-primary" style="margin-bottom: 15px;">
             <div class="box-body" style="padding: 10px;">
+
                 <div id="barra_principal" class="well well-sm clearfix" style="background-color: #f9f9f9; border-radius: 3px; margin-bottom: 0; padding: 15px;">
-                    <div class="row clearfix">
-                        <div class="col-xs-12">
+                    <div class="row clearfix" style="display: flex; align-items: flex-end; flex-wrap: wrap; gap: 15px;">
+
+                        <!-- El selector de paralelos ahora ocupa espacio flexible a la izquierda -->
+                        <div class="col-md-6 col-xs-12" style="flex-grow: 1;">
                             <div class="form-group clearfix" style="margin-bottom: 0;">
                                 <label for="cboParalelos" class="control-label" style="font-size: 13px; font-weight: bold; margin-bottom: 5px; color: #333; display: block;">
                                     <i class="fa fa-users text-blue"></i> Seleccione el Paralelo para abrir la Sábana de Calificaciones:
@@ -22,12 +25,29 @@
                                 </select>
                             </div>
                         </div>
+
+                        <!-- 🎯 NUEVA ZONA DE MANDOS INMUNE: Botones protegidos en el panel superior -->
+                        <div class="col-md-5 col-xs-12 text-right" style="display: flex; gap: 10px; justify-content: flex-end; margin-bottom: 0; padding-bottom: 2px;">
+
+                            <!-- Botón de Excel -->
+                            <button type="submit" form="formulario_rubrica" id="ver_reporte" class="btn btn-sm" style="display: none; height: 34px; font-weight: bold; background-color: #ffffff !important; color: #1f7244 !important; border: 1px solid #1f7244 !important; padding: 6px 12px; border-radius: 3px; transition: all 0.2s ease;">
+                                <i class="fa fa-file-excel-o" style="color: #1f7244 !important; margin-right: 4px;"></i> Reporte Excel
+                            </button>
+
+                            <!-- Botón de Guardar Todo Optimizado y Estilizado -->
+                            <button type="button" id="save_all" class="btn btn-save-modern" style="display: none; height: 34px; font-weight: bold; padding: 6px 18px; border: none; border-radius: 4px; transition: all 0.3s ease;">
+                                <i class="fa fa-save" style="margin-right: 6px;"></i> Guardar Todo
+                            </button>
+
+                        </div>
+
                     </div>
                     <input id="id_estudiante" type="hidden" />
                     <input id="id_rubrica_personalizada" type="hidden" />
                     <input id="numero_pagina" type="hidden" />
                     <input id="id_asignatura" type="hidden" />
                 </div>
+
             </div>
         </div>
 
@@ -59,46 +79,40 @@
                 </div>
             </div>
 
-            <!-- ➡️ COLUMNA DERECHA: Estudiantes y Sábana de Notas (Ocupa el 68% del ancho flexible) -->
+            <!-- ➡️ COLUMNA DERECHA: Estudiantes y Sábana de Notas -->
             <div class="columna-flex-estudiantes">
                 <div class="box box-solid box-success" id="pag_nomina_estudiantes" style="margin-bottom: 0; height: 100%; display: flex; flex-direction: column;">
+                    <!-- 🎯 NUEVO BOX-HEADER CON BOTONES INTEGRADOS (Estilo Nativo AdminLTE) -->
+                    <div class="box-header with-border" style="background-color: #00a65a; color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 10px 15px; flex-shrink: 0;">
+                        <h3 class="box-title" style="font-size: 14px; font-weight: bold; color: #fff; margin: 0; line-height: 30px;">
+                            <i class="fa fa-users"></i> NÓMINA DE ESTUDIANTES
+                        </h3>
+                    </div>
 
                     <div class="box-body panel-sabana-scroll">
-                        <!-- Barra superior de resumen -->
-                        <div id="total_registros_estudiantes" class="well well-sm" style="display: flex; justify-content: space-between; align-items: center; background-color: #f4f4f4; margin-bottom: 15px;">
+                        <!-- Barra superior de resumen simplificada (Solo texto, sin botones molestos) -->
+                        <div id="total_registros_estudiantes" class="well well-sm" style="background-color: #f4f4f4; margin-bottom: 15px; padding: 8px 15px;">
                             <div id="num_estudiantes" style="font-weight: bold;">
-                                Estudiantes: <span class="label label-primary" id="lbl_total_estudiantes">0</span>
-                            </div>
-                            <div id="btn-guardar">
-                                <button type="button" id="save_all" class="btn btn-success btn-sm">
-                                    <i class="fa fa-save"></i> Guardar Todo
-                                </button>
+                                Estudiantes Matriculados: <span class="label label-primary" id="lbl_total_estudiantes">0</span>
                             </div>
                         </div>
 
-                        <h3 class="box-title" style="font-size: 15px; font-weight: bold; border-bottom: 2px solid #00a65a; padding-bottom: 5px; margin-bottom: 15px;">
-                            NÓMINA DE ESTUDIANTES
-                        </h3>
-
-                        <form id="formulario_rubrica" action="php_excel/reporte_por_parcial_docente.php" method="post" style="display: flex; flex-direction: column; flex-grow: 1;">
+                        <form id="formulario_rubrica" action="calificaciones/reporte_sabana_calificaciones.php" method="post" style="display: flex; flex-direction: column; flex-grow: 1;">
+                            <!-- 🎯 INPUTS FÍSICOS COMPARTIDOS PARA EL REPORTE EXCEL -->
+                            <input type="hidden" id="id_paralelo_excel" name="id_paralelo_excel" value="" />
+                            <input type="hidden" id="id_asignatura_excel" name="id_asignatura_excel" value="" />
+                            
                             <div id="img_loader_estudiantes" class="text-center"></div>
 
                             <!-- Contenedor interno de la tabla pura con scroll independiente -->
-                            <div id="lista_estudiantes_paralelo" class="table-responsive" style="border: 1px solid #d2d6de; background-color: #fff; border-radius: 3px; flex-grow: 1; overflow: auto;">
+                            <div id="lista_estudiantes_paralelo" class="table-responsive">
                                 <div class="text-muted text-center" style="padding: 50px 20px; color: #999;">
                                     <i class="fa fa-hand-o-left fa-2x" style="margin-bottom: 10px; color: #ccc;"></i>
                                     <p style="margin: 0;">Seleccione una asignatura del panel izquierdo para cargar los alumnos...</p>
                                 </div>
                             </div>
-
-                            <div id="ver_reporte" class="text-center" style="margin-top: 15px; display:none;">
-                                <button type="submit" class="btn btn-primary btn-flat btn-sm">
-                                    <i class="fa fa-file-excel-o"></i> Ver Reporte Excel
-                                </button>
-                            </div>
                         </form>
                     </div>
-
                 </div>
             </div>
 
@@ -291,6 +305,137 @@
     #tabla-sabana-scroll table thead tr:nth-child(3) th:nth-child(2) {
         border-top: none !important;
         border-bottom: none !important;
+    }
+
+    /* =========================================================================
+   📌 REFORZAMIENTO PARA COLUMNAS FIJAS DE ALUMNOS (CORREGIDO)
+   ========================================================================= */
+
+    /* 1. Primera Columna - Fija a la izquierda */
+    #tabla-sabana-scroll table tbody tr td:nth-child(1),
+    #tabla-sabana-scroll table thead tr th:nth-child(1) {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        left: 0px !important;
+        z-index: 5 !important;
+    }
+
+    #tabla-sabana-scroll table tbody tr td:nth-child(1) {
+        background-color: #ffffff !important;
+    }
+
+    /* 2. Segunda Columna - Fija dinámicamente */
+    #tabla-sabana-scroll table tbody tr td:nth-child(2),
+    #tabla-sabana-scroll table thead tr th:nth-child(2) {
+        position: -webkit-sticky !important;
+        position: sticky !important;
+        z-index: 5 !important;
+    }
+
+    #tabla-sabana-scroll table tbody tr td:nth-child(2) {
+        background-color: #ffffff !important;
+        font-weight: 500;
+        /* Sombra sutil SOLO en la segunda columna para marcar el fin del bloque fijo */
+        box-shadow: 2px 0 5px -2px rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Asegurar que el hover mantenga el fondo opaco */
+    .row-alumno-sabana:hover td:nth-child(1),
+    .row-alumno-sabana:hover td:nth-child(2) {
+        background-color: #f5f5f5 !important;
+    }
+
+    /* =========================================================================
+   🎯 CRUCE CRÍTICO: Intersección de Cabeceras Triples con Columnas Fijas
+   ========================================================================= */
+    #tabla-sabana-scroll table thead tr:nth-child(1) th:nth-child(1) {
+        z-index: 45 !important;
+        top: 0px !important;
+    }
+
+    #tabla-sabana-scroll table thead tr:nth-child(1) th:nth-child(2) {
+        z-index: 45 !important;
+        top: 0px !important;
+    }
+
+    #tabla-sabana-scroll table thead tr:nth-child(2) th:nth-child(1) {
+        z-index: 44 !important;
+        top: 38px !important;
+    }
+
+    #tabla-sabana-scroll table thead tr:nth-child(2) th:nth-child(2) {
+        z-index: 44 !important;
+        top: 38px !important;
+    }
+
+    #tabla-sabana-scroll table thead tr:nth-child(3) th:nth-child(1) {
+        z-index: 43 !important;
+        top: 76px !important;
+    }
+
+    #tabla-sabana-scroll table thead tr:nth-child(3) th:nth-child(2) {
+        z-index: 43 !important;
+        top: 76px !important;
+    }
+
+    #tabla-sabana-scroll table th,
+    #tabla-sabana-scroll table td {
+        border-right: 1px solid #d2d6de !important;
+        border-bottom: 1px solid #d2d6de !important;
+    }
+
+    #ver_reporte:hover {
+        background-color: #1f7244 !important;
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+    }
+
+    #ver_reporte:hover i {
+        color: #ffffff !important;
+    }
+
+    /* =========================================================================
+   🎨 BOTÓN DE GUARDAR TODO ESTILO PREMIUM
+   ========================================================================= */
+    .btn-save-modern {
+        background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%) !important;
+        color: #ffffff !important;
+        box-shadow: 0 3px 6px rgba(40, 167, 69, 0.25) !important;
+        letter-spacing: 0.3px;
+        cursor: pointer;
+    }
+
+    /* Efecto Interactividad (Hover y Focus) */
+    .btn-save-modern:hover {
+        background: linear-gradient(135deg, #218838 0%, #19692c 100%) !important;
+        box-shadow: 0 5px 12px rgba(40, 167, 69, 0.4) !important;
+        transform: translateY(-1px);
+        /* Elevación milimétrica muy elegante */
+    }
+
+    .btn-save-modern:active {
+        transform: translateY(1px);
+        /* Efecto de hundimiento realista al presionarlo */
+        box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2) !important;
+    }
+
+    /* ⚡ EFECTO BONUS: Animación de alerta interactiva para cuando la tabla esté modificada */
+    .btn-save-pulse {
+        animation: pulsoGuardar 2s infinite ease-in-out;
+    }
+
+    @keyframes pulsoGuardar {
+        0% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.6);
+        }
+
+        70% {
+            box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
     }
 </style>
 

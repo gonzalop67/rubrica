@@ -474,6 +474,16 @@ $(document).ready(function () {
     });
 
     /* ===================================================================
+   🎯 OPTIMIZADOR EXCEL: DETECTOR DE CELDAS MODIFICADAS
+   =================================================================== */
+    $(document).on("input change", "#tabla-sabana-scroll .excel-cell", function () {
+        $(this).addClass("dirty-cell");
+
+        // 🎯 Activamos la animación de pulso en el botón de guardar
+        $("#save_all").addClass("btn-save-pulse");
+    });
+
+    /* ===================================================================
     EFECTO FOCUS: Comportamiento Inteligente al Entrar a la Celda
     ===================================================================
     Distingue automáticamente si el docente entra a un cuadro numérico 
@@ -517,6 +527,32 @@ $(document).ready(function () {
         $celda.css('border-bottom', '2px solid #3c8dbc');
     });
 
+    // Escuchar el envío del formulario para validar datos
+    $("#formulario_rubrica").on("submit", function (e) {
+        var idParalelo = $("#id_paralelo_excel").val();
+        var idAsignatura = $("#id_asignatura_excel").val();
+
+        // Validar que los campos físicos no estén vacíos
+        if (!idAsignatura || idAsignatura === "" || !idParalelo || idParalelo === "") {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Atención',
+                text: 'Por favor, seleccione un paralelo y una asignatura antes de generar el reporte.'
+            });
+            return false;
+        }
+
+        // Notificación sutil (El navegador procesará la descarga nativa por POST)
+        Swal.fire({
+            icon: 'success',
+            title: 'Generando Excel',
+            text: 'Tu archivo se descargará en unos segundos...',
+            timer: 3000,
+            showConfirmButton: false
+        });
+    });
+
 });
 
 /**
@@ -530,14 +566,11 @@ function verificarConfiguracionCopiarPegar() {
         dataType: "json"
     })
         .done(function (resp) {
+            // Guardamos el estado en el input oculto (ej: "1" o "0")
             $("#in_copiar_y_pegar").val(resp.in_copiar_y_pegar);
 
-            // Uso de clases utilitarias de Bootstrap para ocultar/mostrar elementos
-            if (resp.in_copiar_y_pegar == 1) {
-                $("#btn-guardar").removeClass("hidden");
-            } else {
-                $("#btn-guardar").addClass("hidden");
-            }
+            // NOTA: No controlamos el botón aquí al cargar la página porque la sábana 
+            // aún no existe ni se ha seleccionado ninguna asignatura.
         })
         .fail(function (jqXHR) {
             console.error("Error al obtener estado copiar/pegar:", jqXHR.responseText);
@@ -756,6 +789,10 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
 $(document).on("click", ".data-asignatura-btn", function (e) {
     e.preventDefault();
 
+    // Ocultamos ambos botones temporalmente mientras se realiza la nueva carga en segundo plano
+    $("#ver_reporte").hide();
+    $("#save_all").hide(); // Evita que se quede el botón viejo si la nueva materia tarda en cargar
+
     var $botonSeleccionado = $(this);
 
     // 1. Efecto visual: Quitar estado activo a todas y ponérselo a la seleccionada (Estilo AdminLTE)
@@ -780,7 +817,10 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
     // 3. Asignar el ID al campo oculto que procesa tu formulario de reportes
     $("#id_asignatura").val(idAsignaturaSeleccionada);
 
-    // 4. Mostrar un spinner de carga en el contenedor de estudiantes (Panel Izquierdo)
+    // Ocultamos el botón temporalmente mientras se realiza la nueva carga en segundo plano
+    $("#ver_reporte").hide();
+
+    // 4. Mostrar un spinner de carga en el contenedor de estudiantes (Panel Derecho)
     $("#lista_estudiantes_paralelo").html(
         '<div class="text-center text-muted" style="padding: 100px 20px;">' +
         '<i class="fa fa-refresh fa-spin fa-2x" style="color: #3c8dbc; margin-bottom: 10px;"></i>' +
@@ -788,11 +828,7 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
         '</div>'
     );
 
-    // 5. Mostrar el botón de reportes impresos ahora que hay una materia activa
-    $("#ver_reporte").show();
-
-    // 6. 🚀 ¡LLAMADA ENLAZADA A TU FUNCIÓN DE NÓMINA!
-    // Enviamos el ID y el Tipo exactamente como lo requiere obtenerNominaEstudiantes()
+    // 5. 🚀 ¡LLAMADA ENLAZADA A TU FUNCIÓN DE NÓMINA!
     obtenerNominaEstudiantes(idAsignaturaSeleccionada, tipoAsignaturaSeleccionada);
 });
 
@@ -845,38 +881,50 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
         id_tipo_asignatura: tipoAsignatura // Pasamos el parámetro al backend de la sábana
     })
         .done(function (resultadoAlumnos) {
-            Swal.close(); // Cerrar el cargando de SweetAlert2 
+            Swal.close();
 
             var datosLimpios = resultadoAlumnos ? resultadoAlumnos.trim() : "";
 
-            // Validar si el backend no devolvió registros o dio error 
             if (datosLimpios === "false" || datosLimpios === "") {
                 $("#lbl_total_estudiantes").html("0");
                 $("#lista_estudiantes_paralelo").html(
                     '<div class="text-center p-4 text-muted" style="padding: 20px;">' +
-                    '<i class="fa fa-users"></i> No se encontraron estudiantes matriculados en este paralelo.' +
+                    '<i class="fa fa-users"></i> No se encontraron estudiantes matriculados.' +
                     '</div>'
                 );
                 $("#ver_reporte").hide();
+                $("#save_all").hide();
             } else {
-                // 🎯 ¡TU IDEA EN ACCIÓN! Envolvemos la tabla pura de PHP dentro de un div limpio sin clases de Bootstrap
                 var tablaEnvoltorioConScroll = '<div id="tabla-sabana-scroll">' + resultadoAlumnos + '</div>';
 
-                // Inyectar el nuevo bloque envuelto en el panel principal izquierdo
                 $("#lista_estudiantes_paralelo")
                     .removeClass("text-danger fw-bold")
                     .html(tablaEnvoltorioConScroll);
 
-                // Hacer visible el botón inferior para descargar el Reporte en Excel 
-                $("#ver_reporte").fadeIn();
+                // 🎯 SINCRONIZACIÓN DE INPUTS FÍSICOS:
+                // Asignamos las variables vigentes a los campos que acabamos de crear en el HTML
+                $("#id_paralelo_excel").val(id_paralelo);
+                $("#id_asignatura_excel").val(idAsignatura);
 
-                // 🎯 CORRECCIÓN DE CONTEO: Apuntamos al nuevo contenedor hijo para contar las filas reales de alumnos
+                // Mostrar los botones de control arriba
+                $("#ver_reporte").show();
+
+                var permiteCopiarPegar = $("#in_copiar_y_pegar").val();
+                if (permiteCopiarPegar == "1" || permiteCopiarPegar === "1") {
+                    $("#save_all").show();
+                } else {
+                    $("#save_all").hide();
+                }
+
+                ajustarColumnasSticky();
+
                 var totalFilas = $("#tabla-sabana-scroll").find("tr.row-alumno-sabana").length;
                 if (totalFilas > 0) {
                     $("#lbl_total_estudiantes").html(totalFilas);
                 }
             }
         })
+
         .fail(function (jqXHR) {
             Swal.close();
             console.error("Error al cargar estudiantes:", jqXHR.responseText);
@@ -894,48 +942,86 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
 }
 
 /**
+ * Mide con precisión decimal la primera columna de la sábana de notas (Nº / ID)
+ * y desplaza milimétricamente la segunda columna (Nombres) eliminando la separación fantasma.
+ */
+function ajustarColumnasSticky() {
+    // 1. Buscamos la primera celda del cuerpo generada para usarla de patrón métrico
+    var primeraCelda = document.querySelector('#tabla-sabana-scroll table tbody tr td:nth-child(1)');
+
+    if (!primeraCelda) return;
+
+    // 2. Extraemos el ancho decimal exacto calculado por el motor de renderizado del navegador
+    var anchoReal = primeraCelda.getBoundingClientRect().width;
+
+    // 3. Seleccionamos todos los TH (las 3 filas de cabecera) y los TD de la segunda columna
+    var elementosColumnaDos = document.querySelectorAll(
+        '#tabla-sabana-scroll table thead tr th:nth-child(2), #tabla-sabana-scroll table tbody tr td:nth-child(2)'
+    );
+
+    // 4. Inyectamos dinámicamente el valor en el atributo left
+    elementosColumnaDos.forEach(function (celda) {
+        celda.style.setProperty('left', anchoReal + 'px', 'important');
+    });
+}
+
+// 🌐 RESILIENCIA AL REVENTADO VISUAL: Si el usuario cambia el tamaño o hace zoom, recalculamos las distancias
+window.addEventListener('resize', function () {
+    ajustarColumnasSticky();
+});
+
+/**
  * Recolecta todas las calificaciones ingresadas o modificadas en la sábana 
  * y las envía en un solo bloque masivo (JSON) al servidor.
  */
 function guardarTabla() {
-    // 1. Crear un arreglo vacío para guardar las notas válidas
     var loteCalificaciones = [];
 
-    // 2. Recorrer todos los inputs de notas en la pantalla
-    $("#lista_estudiantes_paralelo").find(".excel-cell").each(function () {
+    // 1. 🎯 BUSQUEDA FILTRADA: Apuntamos al nuevo contenedor con scroll y solo a las celdas editadas
+    var $celdasModificadas = $("#tabla-sabana-scroll").find(".excel-cell.dirty-cell");
+
+    $celdasModificadas.each(function () {
         var $input = $(this);
         var valorTexto = $input.val().trim();
 
-        // Solo guardamos si el docente escribió una nota real (ignoramos celdas vacías o con guion)
-        if (valorTexto !== "" && valorTexto !== "-") {
+        // Si el docente borró la nota, mandamos cadena vacía para que el backend limpie la celda en BD
+        if (valorTexto === "" || valorTexto === "-") {
+            loteCalificaciones.push({
+                id_estudiante: $input.data("estudiante"),
+                id_rubrica: $input.data("rubrica"),
+                id_aporte: $input.data("aporte"),
+                id_periodo: $input.data("periodo"),
+                calificacion: ""
+            });
+        } else {
             var notaNum = parseFloat(valorTexto);
 
-            // Validar que la nota sea un número real y esté en el rango correcto
+            // Validar que esté dentro del rango legal escolar (0 a 10)
             if (!isNaN(notaNum) && notaNum >= 0 && notaNum <= 10) {
                 loteCalificaciones.push({
                     id_estudiante: $input.data("estudiante"),
                     id_rubrica: $input.data("rubrica"),
                     id_aporte: $input.data("aporte"),
                     id_periodo: $input.data("periodo"),
-                    calificacion: notaNum.toFixed(2) // Guardar con sus 2 decimales limpios
+                    calificacion: notaNum.toFixed(2) // 2 decimales estandarizados
                 });
             }
         }
     });
 
-    // 🔒 CONTROL DE SEGURIDAD: Validar si hay notas para procesar
+    // 🔒 CONTROL DE SEGURIDAD: Evitar peticiones inútiles al servidor si no hay cambios
     if (loteCalificaciones.length === 0) {
         Swal.fire({
             icon: 'info',
-            title: 'Sin datos',
-            text: 'No se encontraron calificaciones ingresadas para almacenar.',
+            title: 'Sin cambios',
+            text: 'No se detectaron nuevas modificaciones en las calificaciones para almacenar.',
             timer: 2000,
             showConfirmButton: false
         });
         return;
     }
 
-    // 3. Mostrar pantalla de bloqueo con SweetAlert2 mientras se procesa en el backend
+    // 2. Pantalla de bloqueo SweetAlert2 mientras se procesan los queries SQL
     Swal.fire({
         title: 'Guardando calificaciones...',
         text: 'Almacenando notas de forma masiva en el sistema. Espere un momento.',
@@ -946,22 +1032,21 @@ function guardarTabla() {
         }
     });
 
-    // Capturar variables del entorno para auditoría o amarre del servidor
     var id_paralelo = $("#cboParalelos").val();
     var id_asignatura = $("#id_asignatura").val();
 
-    // 4. Enviar el paquete de notas mediante una petición POST
+    // 3. Envío del paquete optimizado mediante AJAX POST
     $.ajax({
-        url: "calificaciones/guardar_notas_masivo.php", // Reemplaza por la ruta exacta de tu archivo PHP de guardado
+        url: "calificaciones/guardar_notas_masivo.php",
         type: "POST",
         dataType: "json",
         data: {
             id_paralelo: id_paralelo,
             id_asignatura: id_asignatura,
-            notas: JSON.stringify(loteCalificaciones) // Convertimos el arreglo a una cadena JSON fuerte
+            notas: JSON.stringify(loteCalificaciones)
         },
         success: function (respuesta) {
-            Swal.close(); // Cerrar el spinner de carga
+            Swal.close();
 
             if (respuesta && respuesta.status === "success") {
                 Swal.fire({
@@ -972,8 +1057,10 @@ function guardarTabla() {
                     showConfirmButton: false
                 });
 
-                // Opcional: Podrías refrescar la nómina para confirmar datos de base de datos
-                // obtenerNominaEstudiantes(id_asignatura);
+                $celdasModificadas.removeClass("dirty-cell");
+
+                // 🎯 Desactivamos la animación de pulso ya que los datos están a salvo
+                $("#save_all").removeClass("btn-save-pulse");
             } else {
                 Swal.fire({
                     icon: 'error',

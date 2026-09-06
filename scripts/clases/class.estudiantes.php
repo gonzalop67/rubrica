@@ -391,6 +391,7 @@ class estudiantes extends MySQL
 						$suma_aportes = 0;
 						$contador_aportes = 0;
 						$suma_promedios = 0;
+						$contador_rubricas = 0;
 						while ($aporte = parent::fetch_assoc($aporte_evaluacion)) {
 							$contador_aportes++;
 							$rubrica_evaluacion = parent::consulta("SELECT id_rubrica_evaluacion FROM sw_rubrica_evaluacion WHERE id_aporte_evaluacion = " . $aporte["id_aporte_evaluacion"]);

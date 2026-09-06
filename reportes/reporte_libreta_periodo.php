@@ -2,6 +2,13 @@
 require_once('../fpdf186/fpdf.php');
 require_once('../scripts/clases/class.mysql.php');
 
+/* Error reporting */
+error_reporting(E_ALL);
+ini_set('display_errors', TRUE);
+ini_set('display_startup_errors', TRUE);
+
+define('EOL', (PHP_SAPI == 'cli') ? PHP_EOL : '<br />');
+
 function truncarDosDecimales(float $valor)
 {
     $float = (float)$valor;
@@ -14,20 +21,40 @@ function truncarDosDecimales(float $valor)
     return floor($comprobacion * 100) / 100;
 }
 
+function equiv_rendimiento($id_periodo_lectivo, $calificacion)
+{
+    $db = new MySQL();
+
+    // Forzamos a flotante para mitigar riesgos de inyección y asegurar compatibilidad SQL
+    $calificacion_num = floatval($calificacion);
+
+    // 1. La base de datos busca directamente el rango correcto usando BETWEEN
+    $consulta = $db->consulta("SELECT ec_cualitativa 
+                                FROM sw_escala_calificaciones 
+                                WHERE id_periodo_lectivo = $id_periodo_lectivo 
+                                  AND $calificacion_num BETWEEN ec_nota_minima AND ec_nota_maxima 
+                                LIMIT 1");
+
+    // 2. Si encuentra el registro, lo retorna de inmediato
+    if ($escala = $db->fetch_object($consulta)) {
+        return $escala->ec_cualitativa;
+    }
+
+    return ""; // Retorno por defecto si la calificación no entra en ningún rango
+}
+
 class PDF extends FPDF
 {
-    var $nombreInstitucion = "";
-    var $direccionInstitucion = "";
-    var $telefonoInstitucion = "";
-    var $AMIEInstitucion = "";
-    var $logoInstitucion = "";
-    var $nombrePeriodoLectivo = "";
-    var $nombrePeriodoEvaluacion = "";
-    var $nombreCurso = "";
-    var $jornada = "";
-    var $paralelo = "";
-    var $es_intensivo = false;
-    var $periodo = "";
+    public $nombreInstitucion = "";
+    public $direccionInstitucion = "";
+    public $telefonoInstitucion = "";
+    public $AMIEInstitucion = "";
+    public $logoInstitucion = "";
+    public $es_intensivo = false;
+    public $periodo = "";
+
+    // CORRECCIÓN: Se declara la propiedad para que esté disponible en Header()
+    public $nombrePeriodoLectivo = "";
 
     //Cabecera de pagina
     function Header()
@@ -86,7 +113,7 @@ class PDF extends FPDF
         $this->Ln(2);
         //Titulo del Reporte
         $this->SetFont('Times', 'B', 12);
-        $title = mb_convert_encoding("RENDIMIENTO ACADÉMICO - ", 'ISO-8859-1', 'UTF-8') . $this->nombrePeriodoEvaluacion;
+        $title = mb_convert_encoding("RENDIMIENTO ACADÉMICO FINAL", 'ISO-8859-1', 'UTF-8');
         $w = $this->GetStringWidth($title);
         $this->SetX((210 - $w) / 2);
         $this->Cell($w, 10, $title, 0, 0, 'C');
@@ -114,20 +141,12 @@ class PDF extends FPDF
     }
 }
 
-/* Error reporting */
-error_reporting(E_ALL);
-ini_set('display_errors', TRUE);
-ini_set('display_startup_errors', TRUE);
-
-define('EOL', (PHP_SAPI == 'cli') ? PHP_EOL : '<br />');
-
 //Abreviaturas de los meses del año
 $meses_abrev = array(0, "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic");
 
 // Variables enviadas mediante POST
 $id_paralelo = $_POST["id_paralelo"];
 $id_estudiante = $_POST["id_estudiante"];
-$id_periodo_evaluacion = $_POST["id_periodo_evaluacion"];
 
 session_start();
 $id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
@@ -140,28 +159,22 @@ $institucion = $db->fetch_object($consulta);
 //Creacion del objeto de la clase heredada
 $pdf = new PDF('P');
 
-//mb_convert_encoding($string, 'ISO-8859-1', 'UTF-8')
 $pdf->nombreInstitucion = mb_convert_encoding($institucion->in_nombre, 'ISO-8859-1', 'UTF-8');
 $pdf->direccionInstitucion = mb_convert_encoding($institucion->in_direccion, 'ISO-8859-1', 'UTF-8');
 $pdf->telefonoInstitucion = $institucion->in_telefono;
-$pdf->AMIEInstitucion = $institucion->in_amie;
-$pdf->logoInstitucion = $institucion->in_logo;
 $nombreRector = $institucion->in_nom_rector;
 $nombreSecretario = $institucion->in_nom_secretario;
-
-// Obtener el nombre del periodo de evaluacion
-$qry = "SELECT * FROM sw_periodo_evaluacion WHERE id_periodo_evaluacion = $id_periodo_evaluacion";
-$consulta = $db->consulta($qry);
-$periodo_evaluacion = $db->fetch_object($consulta);
-$nombrePeriodoEvaluacion = $periodo_evaluacion->pe_nombre;
-
-$pdf->nombrePeriodoEvaluacion = $nombrePeriodoEvaluacion;
+$in_genero_rector = $institucion->in_genero_rector;
+$in_genero_secretario = $institucion->in_genero_secretario;
+$pdf->AMIEInstitucion = $institucion->in_amie;
+$pdf->logoInstitucion = $institucion->in_logo;
 
 // Obtener Periodo Lectivo
 $consulta = $db->consulta("SELECT * FROM sw_periodo_lectivo WHERE id_periodo_lectivo = $id_periodo_lectivo");
 $periodo_lectivo = $db->fetch_object($consulta);
 $nombrePeriodoLectivo = $periodo_lectivo->pe_anio_inicio . " - " . $periodo_lectivo->pe_anio_fin;
 
+// Se asigna la variable justo antes de AddPage() para que Header() pueda leerla
 $pdf->nombrePeriodoLectivo = $nombrePeriodoLectivo;
 
 // Determinar si se trata de oferta intensiva
@@ -172,7 +185,7 @@ $es_intensivo = $db->fetch_object($consulta)->es_intensivo;
 $pdf->es_intensivo = $es_intensivo == 1 ? true : false;
 
 // Para la cabecera de la pagina
-//Periodo educativo
+// Periodo educativo
 $qry = $db->consulta("SELECT * FROM sw_periodo_lectivo WHERE id_periodo_lectivo = $id_periodo_lectivo");
 $res = $db->fetch_object($qry);
 $fecha_inicial = explode("-", $res->pe_fecha_inicio);
@@ -238,7 +251,7 @@ $y = $pdf->GetY();
 //mb_convert_encoding($string, 'ISO-8859-1', 'UTF-8')
 $pdf->Cell(35, 12, mb_convert_encoding("ÁREAS", 'ISO-8859-1', 'UTF-8'), 1, 0, 'C');
 $pdf->Cell(65, 12, "ASIGNATURAS", 1, 0, 'C');
-$pdf->Cell(88, 4, "REPORTE " . $nombrePeriodoEvaluacion, 1, 0, 'C');
+$pdf->Cell(88, 4, "REPORTE DE FIN DE PERIODO LECTIVO", 1, 0, 'C');
 
 $pdf->Ln();
 
@@ -272,124 +285,70 @@ $contador = 0; // Contador de asignaturas cuantitativas
 while ($asignatura = $db->fetch_assoc($asignaturas)) {
     $id_asignatura = $asignatura["id_asignatura"];
     $id_tipo_asignatura = $asignatura["id_tipo_asignatura"];
+    $nombreAsignatura = $asignatura["as_nombre"];
 
-    // Convertimos textos a ISO-8859-1 desde el inicio
+    // Convertimos el texto a ISO-8859-1 antes de medirlo o dibujarlo
     $nombreArea = mb_convert_encoding($asignatura["ar_nombre"], 'ISO-8859-1', 'UTF-8');
-    $nombreAsignatura = mb_convert_encoding($asignatura["as_nombre"], 'ISO-8859-1', 'UTF-8');
 
     $pdf->SetFont('Arial', '', 7);
 
-    // Guardamos la posición inicial exacta de la fila
+    // 1. Guardamos la posición inicial de la fila
     $x_inicial = $pdf->GetX();
     $y_inicial = $pdf->GetY();
 
-    $ancho_area = 35;
-    $ancho_asig = 65;
-    $alto_linea = 4;
+    $ancho_columna = 35;
+    $alto_linea = 4; // El alto de cada línea de texto dentro de la celda
 
-    // ==========================================
-    // PASO 1: CALCULAR LÍNEAS REALES (CON FUNCIÓN EXACTA)
-    // ==========================================
+    // 2. Dibujamos el Nombre del Área usando MultiCell para que rompa automáticamente
+    $pdf->MultiCell($ancho_columna, $alto_linea, $nombreArea, 1, 'L');
 
-    // Contar líneas exactas para el Área
-    $lineas_area = 0;
-    $palabras_area = explode(' ', $nombreArea);
-    $linea_actual = '';
-    foreach ($palabras_area as $palabra) {
-        $test_linea = $linea_actual . ($linea_actual !== '' ? ' ' : '') . $palabra;
-        if ($pdf->GetStringWidth($test_linea) > $ancho_area) {
-            $lineas_area++;
-            $linea_actual = $palabra;
-        } else {
-            $linea_actual = $test_linea;
-        }
-    }
-    if ($linea_actual !== '') $lineas_area++;
-    $alto_celda_area = $lineas_area * $alto_linea;
+    // 3. Calculamos la posición final para saber qué tan alta quedó esta celda
+    $y_final = $pdf->GetY();
+    $alto_celda_real = $y_final - $y_inicial;
 
-    // Contar líneas exactas para la Asignatura
-    $lineas_asig = 0;
-    $palabras_asig = explode(' ', $nombreAsignatura);
-    $linea_actual = '';
-    foreach ($palabras_asig as $palabra) {
-        $test_linea = $linea_actual . ($linea_actual !== '' ? ' ' : '') . $palabra;
-        if ($pdf->GetStringWidth($test_linea) > $ancho_asig) {
-            $lineas_asig++;
-            $linea_actual = $palabra;
-        } else {
-            $linea_actual = $test_linea;
-        }
-    }
-    if ($linea_actual !== '') $lineas_asig++;
-    $alto_celda_asig = $lineas_asig * $alto_linea;
+    // 4. Movemos el cursor al lado derecho de la celda que acabamos de crear y restauramos el Y inicial
+    $pdf->SetXY($x_inicial + $ancho_columna, $y_inicial);
 
-    // Elegimos el alto de fila mayor
-    $alto_fila_real = max($alto_celda_area, $alto_celda_asig, $alto_linea);
+    // 5. AQUÍ CONTINÚAN TUS OTRAS CELDAS (Ejemplo: Nombre de Asignatura, Calificaciones)
+    // Nota: Para que la tabla se vea perfecta, estas celdas deben tener el alto real ($alto_celda_real)
+    $nombreAsignatura_iso = mb_convert_encoding($nombreAsignatura, 'ISO-8859-1', 'UTF-8');
+    $pdf->Cell(65, $alto_celda_real, $nombreAsignatura_iso, 1, 0, 'L');
 
-    // ==========================================
-    // PASO 2: DIBUJAR FILA REAL (UNA SOLA ESCRITURA Y CENTRADA)
-    // ==========================================
+    // CORRECCIÓN: Forzamos a entero o usamos comparación débil (==) para evitar fallos de tipo string
+    if ((int)$id_tipo_asignatura === 1) {
+        $query = $db->consulta("SELECT calcular_promedio_final($id_periodo_lectivo,$id_estudiante,$id_paralelo,$id_asignatura) AS promedio_final");
 
-    // --- COLUMNA 1: ÁREA ---
-    $pdf->Rect($x_inicial, $y_inicial, $ancho_area, $alto_fila_real);
-    $offset_vertical_area = ($alto_fila_real - $alto_celda_area) / 2;
-    $pdf->SetXY($x_inicial, $y_inicial + $offset_vertical_area);
-    $pdf->MultiCell($ancho_area, $alto_linea, $nombreArea, 0, 'L');
-
-    // --- COLUMNA 2: ASIGNATURA ---
-    $x_asignatura = $x_inicial + $ancho_area;
-    $pdf->Rect($x_asignatura, $y_inicial, $ancho_asig, $alto_fila_real);
-    $offset_vertical_asig = ($alto_fila_real - $alto_celda_asig) / 2;
-    $pdf->SetXY($x_asignatura, $y_inicial + $offset_vertical_asig);
-    $pdf->MultiCell($ancho_asig, $alto_linea, $nombreAsignatura, 0, 'L');
-
-    // Movemos el cursor al inicio de las columnas de calificaciones
-    $pdf->SetXY($x_inicial + $ancho_area + $ancho_asig, $y_inicial);
-
-    // ==========================================
-    // PASO 3: DIBUJAR COLUMNAS DE CALIFICACIONES
-    // ==========================================
-    if ($id_tipo_asignatura == 1) {
-        $query = $db->consulta("SELECT calcular_promedio_sub_periodo($id_periodo_evaluacion, $id_estudiante, $id_paralelo, $id_asignatura) AS promedio_asignatura");
         $registro = $db->fetch_object($query);
-        $promedio_asignatura = $registro->promedio_asignatura;
+        $promedio_final = $registro->promedio_final;
 
-        $suma_promedios += $promedio_asignatura;
-
-        $promedio_asignatura_truncado = number_format(truncarDosDecimales($promedio_asignatura), 2);
-        $promedio_asignatura_truncado = str_replace(".", ",", $promedio_asignatura_truncado);
-
-        $pdf->Cell(23, $alto_fila_real, $promedio_asignatura_truncado, 1, 0, 'C');
-
-        // Equivalencia Cualitativa
-        $parte_entera = intval($promedio_asignatura);
-        $parte_decimal = $promedio_asignatura - $parte_entera;
-        $promedio_redondeado = $parte_decimal >= 0.5 ? $parte_entera + 1 : $parte_entera;
-
-        $consulta = $db->consulta("SELECT ref_cualitativa FROM sw_escala_referencial WHERE nota_cuantitativa = $promedio_redondeado");
-        $registro = $db->fetch_object($consulta);
-        $ref_cualitativa = empty($registro) ? "" : $registro->ref_cualitativa;
-
-        $pdf->Cell(65, $alto_fila_real, $ref_cualitativa, 1, 0, 'C');
+        $suma_promedios += $promedio_final;
         $contador++;
+
+        $promedio_final_truncado = number_format(truncarDosDecimales(floatval($promedio_final)), 2);
+        $promedio_final_truncado = str_replace(".", ",", $promedio_final_truncado);
+
+        // Celda de nota cuantitativa
+        $pdf->Cell(23, $alto_celda_real, $promedio_final_truncado, 1, 0, 'C');
+
+        $cualitativa = equiv_rendimiento($id_periodo_lectivo, $promedio_final);
+        $pdf->Cell(65, $alto_celda_real, mb_convert_encoding($cualitativa, 'ISO-8859-1', 'UTF-8'), 1, 0, 'C');
     } else {
-        // Asignaturas cualitativas
-        $consulta = $db->consulta("SELECT calc_prom_subperiodo_cualitativa($id_periodo_evaluacion, $id_estudiante, $id_paralelo, $id_asignatura) AS promedio_sub_periodo");
-        $registro = $db->fetch_object($consulta);
-        $promedio_sub_periodo = $registro->promedio_sub_periodo;
+        // Se trata de una asignatura cualitativa
+        $query = $db->consulta("SELECT calc_prom_periodo_cualitativa($id_periodo_lectivo,$id_estudiante,$id_paralelo,$id_asignatura) AS promedio_final");
+        $registro = $db->fetch_object($query);
+        $promedio_final = $registro->promedio_final;
 
-        $consulta = $db->consulta("SELECT ref_cualitativa FROM sw_escala_referencial WHERE nota_cuantitativa = $promedio_sub_periodo");
-        $registro = $db->fetch_object($consulta);
-        $ref_cualitativa = empty($registro) ? "" : $registro->ref_cualitativa;
+        $query = $db->consulta("SELECT ref_cualitativa, equivalencia_subnivel FROM sw_escala_referencial WHERE nota_cuantitativa = $promedio_final");
+        $registro = $db->fetch_object($query);
 
-        $pdf->Cell(23, $alto_fila_real, " ", 1, 0, 'C');
-        $pdf->Cell(65, $alto_fila_real, $ref_cualitativa, 1, 0, 'C');
+        // Celda de nota cualitativa
+        $pdf->Cell(23, $alto_celda_real, $registro->ref_cualitativa, 1, 0, 'C');
+        // Celda de equivalencia
+        $pdf->Cell(65, $alto_celda_real, mb_convert_encoding($registro->equivalencia_subnivel, 'ISO-8859-1', 'UTF-8'), 1, 0, 'C');
     }
 
-    // ==========================================
-    // PASO 4: SALTO DEFINITIVO A LA SIGUIENTE FILA
-    // ==========================================
-    $pdf->SetY($y_inicial + $alto_fila_real);
+    // 6. Al finalizar todas las celdas de la fila, saltamos a la línea de abajo usando el Y final más alto
+    $pdf->SetY($y_final);
 }
 
 $pdf->SetFont('Arial', 'B', 8);
@@ -400,19 +359,10 @@ $promedio_general_truncado = number_format(truncarDosDecimales($promedio_general
 $promedio_general_truncado = str_replace(".", ",", $promedio_general_truncado);
 $pdf->Cell(23, 6, $promedio_general_truncado, 1, 0, 'C');
 
-$parte_entera = intval($promedio_general);
-$parte_decimal = $promedio_general - $parte_entera;
+$pdf->SetFont('Arial', 'B', 7);
 
-$consulta = $db->consulta("SELECT equivalencia_subnivel FROM sw_escala_referencial WHERE nota_cuantitativa = $parte_entera");
-$registro = $db->fetch_object($consulta);
-if (empty($registro)) {
-    $ref_cualitativa = "";
-} else {
-    $ref_cualitativa = $registro->equivalencia_subnivel;
-}
-
-//mb_convert_encoding($string, 'ISO-8859-1', 'UTF-8')
-$pdf->Cell(65, 6, mb_convert_encoding($ref_cualitativa, 'ISO-8859-1', 'UTF-8'), 1, 0, 'C');
+$cualitativa = equiv_rendimiento($id_periodo_lectivo, number_format(truncarDosDecimales($promedio_general), 2));
+$pdf->Cell(65, 6, mb_convert_encoding($cualitativa, 'ISO-8859-1', 'UTF-8'), 1, 0, 'C');
 
 $pdf->Ln();
 $pdf->Ln(8);
@@ -440,24 +390,11 @@ $pdf->Ln(5);
 $pdf->SetX(10);
 $pdf->SetFont('Arial', 'B', 8);
 
-// Obtener género de la autoridad
-$query = $db->consulta("SELECT in_genero_rector FROM sw_institucion WHERE id_institucion = 1");
-$registro = $db->fetch_object($query);
-$in_genero_rector = $registro->in_genero_rector;
-
 $terminacion = ($in_genero_rector == 'M') ? '' : 'A';
-
 $pdf->Cell($w, 10, 'RECTOR' . $terminacion, 0, 0, 'C');
 $pdf->SetX(190 - $w);
 
-// Obtener género del secretario
-$query = $db->consulta("SELECT in_genero_secretario FROM sw_institucion WHERE id_institucion = 1");
-$registro = $db->fetch_object($query);
-$in_genero_secretario = $registro->in_genero_secretario;
-
 $terminacion = ($in_genero_secretario == 'M') ? 'O' : 'A';
-
 $pdf->Cell($w, 8, 'SECRETARI' . $terminacion, 0, 0, 'C');
-
 
 $pdf->Output();

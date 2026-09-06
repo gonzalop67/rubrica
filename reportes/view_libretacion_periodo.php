@@ -38,10 +38,9 @@
                     </tbody>
                 </table>
             </div>
-            <form id="formulario_libreta" action="reportes/reporte_libreta_sub_periodo.php" target="_blank" method="post">
+            <form id="formulario_libreta" action="reportes/reporte_libreta_periodo.php" target="_blank" method="post">
                 <input id="id_paralelo" name="id_paralelo" type="hidden" />
                 <input id="id_estudiante" name="id_estudiante" type="hidden" />
-                <input id="id_periodo_evaluacion" name="id_periodo_evaluacion" type="hidden" />
             </form>
         </div>
     </section>
@@ -88,5 +87,12 @@
                 $("#tbl_estudiantes").html(resultado);
             }
         );
+    }
+
+    function seleccionarEstudiante(id_estudiante) {
+        var id_paralelo = document.getElementById("cboParalelos").value;
+        document.getElementById("id_paralelo").value = id_paralelo;
+        document.getElementById("id_estudiante").value = id_estudiante;
+        document.getElementById("formulario_libreta").submit();
     }
 </script>

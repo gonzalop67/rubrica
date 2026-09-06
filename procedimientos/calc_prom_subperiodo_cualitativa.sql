@@ -39,15 +39,15 @@ BEGIN
         SET Cualitativa = IFNULL(Cualitativa, 'S/N');
 
 		SET Calificacion = (
-		SELECT ec_correlativa
-		  FROM sw_escala_comportamiento
-		 WHERE ec_equivalencia = Cualitativa);
+		SELECT nota_cuantitativa
+		  FROM sw_escala_referencial
+		 WHERE ref_cualitativa = Cualitativa);
 
 		SET Suma = Suma + Calificacion;
 		SET Contador = Contador + 1;
 	END LOOP Lazo1;
 
-	SET Promedio = ROUND((Suma / Contador) * 2);
+	SET Promedio = ROUND(Suma / Contador);
 
 	RETURN Promedio;
 END$$

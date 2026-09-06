@@ -1,64 +1,89 @@
 <div class="content-wrapper">
-    <div id="asociarCursoSuperiorApp" class="col-sm-12">
-        <br>
-        <div class="panel panel-primary">
-            <div class="panel-heading">
-                <h4>Asociar Cursos Superiores</h4>
-            </div>
-            <div class="panel-body">
-                <form id="form_malla" action="" class="app-form">
-                    <div class="row">
-                        <div class="col-sm-2 text-right">
-                            <label class="control-label" style="position:relative; top:7px;">Curso Inferior:</label>
-                        </div>
-                        <div class="col-sm-10">
-                            <select class="form-control fuente9" id="cboCursos">
-                                <option value="0">Seleccione...</option>
-                            </select>
-                            <span class="help-desk error" id="mensaje1"></span>
-                        </div>
+    <!-- Header de la página (Opcional pero recomendado en AdminLTE) -->
+    <section class="content-header">
+        <h1>
+            Configuración
+            <small>Asociación de Cursos</small>
+        </h1>
+    </section>
+
+    <!-- Contenido Principal -->
+    <section class="content">
+        <div class="row">
+            <div id="asociarCursoSuperiorApp" class="col-xs-12">
+                
+                <!-- Box de AdminLTE (Reemplaza al panel) -->
+                <div class="box box-primary">
+                    <div class="box-header with-border">
+                        <h3 class="box-title">Asociar Cursos Superiores</h3>
                     </div>
-                    <div class="row">
-                        <div class="col-sm-2 text-right">
-                            <label class="control-label" style="position:relative; top:7px;">Curso Superior:</label>
+                    
+                    <div class="box-body">
+                        <!-- Formulario Horizontal nativo -->
+                        <form id="form_malla" action="" class="form-horizontal app-form">
+                            
+                            <!-- Campo: Curso Inferior -->
+                            <div class="form-group">
+                                <label for="cboCursos" class="col-sm-2 control-label">Curso Inferior:</label>
+                                <div class="col-sm-10">
+                                    <select class="form-control fuente9" id="cboCursos">
+                                        <option value="0">Seleccione...</option>
+                                    </select>
+                                    <span class="help-block text-danger" id="mensaje1"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Campo: Curso Superior -->
+                            <div class="form-group">
+                                <label for="cboCursoSuperior" class="col-sm-2 control-label">Curso Superior:</label>
+                                <div class="col-sm-10">
+                                    <select class="form-control fuente9" id="cboCursoSuperior">
+                                        <option value="0">Seleccione...</option>
+                                    </select>
+                                    <span class="help-block text-danger" id="mensaje2"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Botón de Acción -->
+                            <div class="form-group" id="botones_insercion">
+                                <div class="col-sm-offset-2 col-sm-10">
+                                    <button id="btn-add-item" type="button" class="btn btn-primary" onclick="insertarAsociacion()">
+                                        <i class="fa fa-plus"></i> Asociar
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <hr>
+                        
+                        <!-- Mensaje de estado -->
+                        <div id="text_message" class="fuente9 text-center"></div>
+                        
+                        <!-- Tabla con estilo AdminLTE -->
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped table-hover fuente9">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">Id</th>
+                                        <th>Curso Inferior</th>
+                                        <th>Curso Superior</th>
+                                        <th style="width: 120px;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lista_items">
+                                    <!-- Aquí se despliega el contenido de la base de datos -->
+                                </tbody>
+                            </table>
                         </div>
-                        <div class="col-sm-10" style="margin-top: 2px;">
-                            <select class="form-control fuente9" id="cboCursoSuperior">
-                                <option value="0">Seleccione...</option>
-                            </select>
-                            <span class="help-desk error" id="mensaje2"></span>
-                        </div>
+                        
                     </div>
-                    <div class="row" id="botones_insercion">
-                        <div class="col-sm-12" style="margin-top: 4px;">
-                            <button id="btn-add-item" type="button" class="btn btn-block btn-primary" onclick="insertarAsociacion()">
-                                Asociar
-                            </button>
-                        </div>
-                    </div>
-                </form>
-                <!-- Línea de división -->
-                <hr>
-                <!-- message -->
-                <div id="text_message" class="fuente9 text-center"></div>
-                <!-- table -->
-                <table class="table fuente9">
-                    <thead>
-                        <tr>
-                            <th>Id</th>
-                            <th>Curso Inferior</th>
-                            <th>Curso Superior</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="lista_items">
-                        <!-- Aqui desplegamos el contenido de la base de datos -->
-                    </tbody>
-                </table>
+                </div><!-- /.box -->
+                
             </div>
         </div>
-    </div>
+    </section>
 </div>
+
 <script>
     $(document).ready(function(){
 		cargar_cursos();

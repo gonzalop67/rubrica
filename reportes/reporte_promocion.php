@@ -30,18 +30,23 @@ function truncateFloat($number, $digitos)
 function equiv_rendimiento($id_periodo_lectivo, $calificacion)
 {
      $db = new MySQL();
-     // Determinacion de la letra de equivalencia que corresponde a la calificacion dada
-     $escala_calificacion = $db->consulta("SELECT * FROM sw_escala_calificaciones WHERE id_periodo_lectivo = $id_periodo_lectivo");
-     $equivalencia = "";
-     while ($escala = $db->fetch_object($escala_calificacion)) {
-          $nota_minima = $escala->ec_nota_minima;
-          $nota_maxima = $escala->ec_nota_maxima;
-          if ($calificacion >= $nota_minima && $calificacion <= $nota_maxima) {
-               $equivalencia = $escala->ec_cualitativa;
-               break;
-          }
+     
+     // Forzamos a flotante para mitigar riesgos de inyección y asegurar compatibilidad SQL
+     $calificacion_num = floatval($calificacion); 
+     
+     // 1. La base de datos busca directamente el rango correcto usando BETWEEN
+     $consulta = $db->consulta("SELECT ec_cualitativa 
+                                FROM sw_escala_calificaciones 
+                                WHERE id_periodo_lectivo = $id_periodo_lectivo 
+                                  AND $calificacion_num BETWEEN ec_nota_minima AND ec_nota_maxima 
+                                LIMIT 1");
+     
+     // 2. Si encuentra el registro, lo retorna de inmediato
+     if ($escala = $db->fetch_object($consulta)) {
+          return $escala->ec_cualitativa;
      }
-     return $equivalencia;
+     
+     return ""; // Retorno por defecto si la calificación no entra en ningún rango
 }
 
 /* Error reporting */
@@ -475,7 +480,7 @@ if ($es_intensivo == 1) {
           $id_tipo_asignatura = $asignatura["id_tipo_asignatura"];
           $nombreAsignatura = substr($asignatura["as_nombre"], 0, 41);
           // $nombreAsignatura = $asignatura["as_nombre"];
-          $nombreArea = substr($asignatura["ar_nombre"], 0, 21);
+          $nombreArea = substr($asignatura["ar_nombre"], 0, 19);
           // $nombreArea = $asignatura["ar_nombre"];
 
           $pdf->SetFont('Arial', '', 7);

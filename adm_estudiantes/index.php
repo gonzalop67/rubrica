@@ -244,10 +244,17 @@
         cargar_estudiantes();
     });
 
+    function setearIndice(nombreCombo, indice) {
+        for (var i = 0; i < document.getElementById(nombreCombo).options.length; i++)
+            if (document.getElementById(nombreCombo).options[i].value == indice) {
+                document.getElementById(nombreCombo).options[i].selected = indice;
+            }
+    }
+
     function cargar_estudiantes() {
         table = $('#t_estudiantes').DataTable({
-            "processing": true,  // Habilita el mensaje de carga
-            "serverSide": true,  // Procesamiento en el servidor
+            "processing": true, // Habilita el mensaje de carga
+            "serverSide": true, // Procesamiento en el servidor
             "language": {
                 "processing": "Consultando servidor, por favor espere...",
                 "lengthMenu": "Mostrar _MENU_ registros",
@@ -259,37 +266,54 @@
                     "previous": "Anterior"
                 }
             },
-            "ajax": function (data, callback, settings) {
+            "ajax": function(data, callback, settings) {
                 // Usamos Fetch para realizar la petición
                 fetch('adm_estudiantes/obtener_estudiantes.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data) 
-                })
-                .then(response => response.json())
-                .then(json => {
-                    callback(json); // Retornamos los datos a DataTables
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(json => {
+                        callback(json); // Retornamos los datos a DataTables
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
             },
-            "columns": [
-                {
+            "columns": [{
                     // Columna secuencial
                     data: null,
                     render: function(data, type, row, meta) {
                         return meta.row + 1; // Retorna el índice de la fila + 1
                     }
                 },
-                { "data": "id_estudiante" },
-                { "data": "es_apellidos" },
-                { "data": "es_nombres" },
-                { "data": "es_cedula" },
-                { "data": "es_fec_nacim" },
-                { "data": "edad" },
-                { "data": "dg_nombre" },
-                { "data": "dn_nombre" },
+                {
+                    "data": "id_estudiante"
+                },
+                {
+                    "data": "es_apellidos"
+                },
+                {
+                    "data": "es_nombres"
+                },
+                {
+                    "data": "es_cedula"
+                },
+                {
+                    "data": "es_fec_nacim"
+                },
+                {
+                    "data": "edad"
+                },
+                {
+                    "data": "dg_nombre"
+                },
+                {
+                    "data": "dn_nombre"
+                },
                 {
                     data: null,
                     render: function(data, type, row) {
