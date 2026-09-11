@@ -44,9 +44,13 @@ $(document).ready(function () {
         $("#ver_reporte").hide();
     });
 
-    // Función auxiliar para truncar a dos decimales de forma exacta (Mismo comportamiento de PHP)
-    function truncarDosDecimales(numero) {
-        return Math.floor(numero * 100) / 100;
+    // Función auxiliar para redondear a dos decimales de forma exacta (Mismo comportamiento de PHP)
+    function redondearDosDecimales(valor) {
+        let numero = parseFloat(valor);
+        if (isNaN(numero) || numero === 0) return 0;
+
+        // Redondeo matemático seguro que simula a la perfección el PHP_ROUND_HALF_UP
+        return Number(Math.round(numero + 'e2') + 'e-2');
     }
 
     /* 
@@ -187,13 +191,6 @@ $(document).ready(function () {
         }
     });
 
-    /**
-     * Helper para truncar a dos decimales de forma exacta tal como lo hace tu PHP.
-     */
-    function truncarDosDecimales(numero) {
-        return Math.floor(numero * 100) / 100;
-    }
-
     /* ===================================================================
     2. MOTOR DE RECALCULO Y GUARDADO AUTOMÁTICO EN TIEMPO REAL
     ===================================================================
@@ -202,6 +199,11 @@ $(document).ready(function () {
     */
     $(document).on('blur', 'input.excel-cell', function () {
         var $inputModificado = $(this);
+
+        // 🛡️ ESCUDO DE SEGURIDAD INTERNO: Si es un input de comportamiento, sal de aquí inmediatamente
+        if ($inputModificado.data('tipo-input') === 'comportamiento') {
+            return;
+        }
 
         // Control de seguridad por si la celda está bloqueada
         if ($inputModificado.is(':disabled')) {
@@ -280,7 +282,7 @@ $(document).ready(function () {
 
         var promedioAporte = 0;
         if (cantidadInsumosDefinidos > 0) {
-            promedioAporte = truncarDosDecimales(sumaInsumos / cantidadInsumosDefinidos);
+            promedioAporte = cantidadInsumosDefinidos > 0 ? redondearDosDecimales(sumaInsumos / cantidadInsumosDefinidos) : 0;
         }
 
         var $celdaPromAporte = $fila.find('.promedio-aporte-dinamico[data-aporte="' + idAporteActual + '"]');
@@ -317,7 +319,7 @@ $(document).ready(function () {
 
         var promedioPeriodo = 0;
         if (conteoAportesPeriodo > 0) {
-            promedioPeriodo = truncarDosDecimales(sumaAportesPeriodo / conteoAportesPeriodo);
+            promedioPeriodo = conteoAportesPeriodo > 0 ? redondearDosDecimales(sumaAportesPeriodo / conteoAportesPeriodo) : promedioAporte;
         } else {
             promedioPeriodo = promedioAporte;
         }
@@ -348,7 +350,7 @@ $(document).ready(function () {
 
         var promedioFinalGeneral = 0;
         if (conteoPeriodosGeneral > 0) {
-            promedioFinalGeneral = truncarDosDecimales(sumaPeriodosGeneral / conteoPeriodosGeneral);
+            promedioFinalGeneral = conteoPeriodosGeneral > 0 ? redondearDosDecimales(sumaPeriodosGeneral / conteoPeriodosGeneral) : promedioPeriodo;
         } else {
             promedioFinalGeneral = promedioPeriodo;
         }
@@ -551,6 +553,95 @@ $(document).ready(function () {
             timer: 3000,
             showConfirmButton: false
         });
+    });
+
+    // 🎯 VALIDACIÓN ESTRICTA PARA LA NOTA DE COMPORTAMIENTO (S, F, O, N)
+    $('#lista_estudiantes_paralelo').on('input keyup paste', 'input[data-tipo-input="comportamiento"]', function (e) {
+        var elemento = $(this);
+
+        // 1. Forzar conversión a mayúsculas en tiempo real
+        var valorOriginal = elemento.val().toUpperCase();
+
+        // 2. Aplicar Expresión Regular: Eliminar todo lo que NO sea S, F, O o N
+        // Si meten un número, un espacio o letras como 'A', 'X', se borrarán automáticamente
+        var valorValidado = valorOriginal.replace(/[^SFON]/g, '');
+
+        // 3. Limitar estrictamente a 1 solo carácter (por si el maxlength falla en algún navegador)
+        if (valorValidado.length > 1) {
+            valorValidado = valorValidado.charAt(0);
+        }
+
+        // 4. Inyectar el valor limpio de vuelta al input
+        elemento.val(valorValidado);
+
+        // 5. ⚡ BONUS VISUAL INTERACTIVO: Cambiar color dinámicamente según la nota
+        // Da una respuesta visual inmediata muy elegante al docente
+        switch (valorValidado) {
+            case 'S': elemento.css('color', '#3c763d'); break; // Verde (Excelente)
+            case 'F': elemento.css('color', '#31708f'); break; // Azul (Muy Bueno)
+            case 'O': elemento.css('color', '#8a6d3b'); break; // Amarillo/Café (Regular)
+            case 'N': elemento.css('color', '#a94442'); break; // Rojo (Insatisfactorio)
+            default: elemento.css('color', '#0d47a1');        // Color base azul premium por defecto
+        }
+    });
+
+    // =========================================================================
+    // 🎯 EVENTO AUTOMÁTICO PARA GUARDAR COMPORTAMIENTO (INPUTS TEXT)
+    // =========================================================================
+    $(document).on('blur', 'input[data-tipo-input="comportamiento"]', function () {
+        var $inputModificado = $(this);
+
+        // Control de seguridad por si la celda está bloqueada
+        if ($inputModificado.is(':disabled')) {
+            return false;
+        }
+
+        // Captura segura y conversión estricta a Mayúsculas
+        var valorCrudo = $inputModificado.val();
+        var valorTexto = (valorCrudo !== null && valorCrudo !== undefined) ? valorCrudo.toString().trim().toUpperCase() : "-";
+
+        var notaParaEnviar = "";
+
+        if (valorTexto === "" || valorTexto === "-") {
+            $inputModificado.val("-").css('color', '#333');
+            notaParaEnviar = ""; // Enviamos vacío para indicar eliminación en el PHP
+        } else {
+            // 🔒 CONTROL DE SEGURIDAD: Validar escala oficial de Ecuador (S, F, O, N)
+            var letrasValidas = ['S', 'F', 'O', 'N'];
+
+            if (!letrasValidas.includes(valorTexto)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Letra no válida',
+                    text: 'El comportamiento debe evaluarse con las letras: S, F, O, N.',
+                    timer: 2500,
+                    showConfirmButton: false
+                });
+                $inputModificado.val("-").css('color', '#333');
+                return; // Bloqueamos el flujo para que no mande basura al servidor
+            }
+
+            // Si es válida, actualizamos visualmente el input con la mayúscula limpia
+            $inputModificado.val(valorTexto);
+            notaParaEnviar = valorTexto;
+
+            // 🎨 Cambiar el color del texto según la letra (Opcional, estilo institucional)
+            var coloresComportamiento = {
+                'S': '#2b542c', 'F': '#3c763d', 'O': '#245269', 'N': '#dd4b39'
+            };
+            $inputModificado.css('color', coloresComportamiento[valorTexto] || '#0d47a1');
+        }
+
+        // 🔄 HOMOLOGACIÓN DE DATOS PARA TU FUNCIÓN AJAX:
+        // Tu función 'ejecutarGuardadoAjax' busca .data('estudiante') y .data('aporte').
+        // Como en tu PHP escribiste 'data-id-estudiante', los remapeamos en caliente aquí:
+        $inputModificado.data('estudiante', $inputModificado.data('id-estudiante'));
+        $inputModificado.data('aporte', $inputModificado.data('id-aporte'));
+        $inputModificado.data('rubrica', 0); // Comportamiento no tiene rúbrica, mandamos 0
+        $inputModificado.data('periodo', $inputModificado.closest('td').prev().find('input').data('periodo') || 0);
+
+        // 🚀 Lanzar el guardado automático reutilizando tu hermosa función AJAX
+        ejecutarGuardadoAjax($inputModificado, notaParaEnviar);
     });
 
 });
@@ -1082,38 +1173,48 @@ function guardarTabla() {
 }
 
 /**
- * 🚀 FUNCIÓN COMPACTA DE GUARDADO AUTOMÁTICO VÍA AJAX (AUTO-SAVE)
+ * 🚀 FUNCIÓN COMPACTA DE GUARDADO AUTOMÁTICO VÍA AJAX (AUTO-SAVE) - ADAPTADA
  * Envía la calificación (número o letra) de forma transparente al servidor.
- * 
- * @param {jQuery} $element - El elemento HTML (<input> o <select>) modificado.
- * @param {string} nota - El valor limpio a almacenar (un decimal o escala como 'A+').
  */
 function ejecutarGuardadoAjax($element, nota) {
-    // 1. Capturar los identificadores del mapeo asignados en el HTML/PHP
-    var idEstudiante = $element.data('estudiante');
-    var idRubrica = $element.data('rubrica');
-    var idAporte = $element.data('aporte');
-    var idPeriodo = $element.data('periodo');
+    // 🎯 CAPTURA ROBUSTA: Buscamos primero en .data() y si da undefined, buscamos en el atributo físico .attr()
+    var idEstudiante = $element.data('estudiante') || $element.attr('data-id-estudiante') || $element.data('id-estudiante');
+    var idRubrica = $element.data('rubrica') !== undefined ? $element.data('rubrica') : ($element.attr('data-rubrica') || 0);
+    var idAporte = $element.data('aporte') || $element.attr('data-id-aporte') || $element.data('id-aporte');
+    var idPeriodo = $element.data('periodo') || $element.attr('data-id-periodo') || $element.data('id-periodo');
+
+    // Detectar si el input actual es de comportamiento
+    var tipoNota = $element.attr('data-tipo-input') === 'comportamiento' || $element.data('tipo-input') === 'comportamiento' ? 'comportamiento' : 'academica';
+
+    // 🎯 ADAPTACIÓN LÓGICA PARA EL ERROR DE VALIDACIÓN:
+    // Si es comportamiento, tu backend rechaza el "0" o el "undefined" en la rúbrica académica.
+    // Forzamos un valor por defecto o un comodín que tu PHP entienda para saltarse la validación de rúbrica.
+    if (tipoNota === 'comportamiento') {
+        idRubrica = 0; // O cambia este 0 por el string o ID que requiera tu backend para ignorar la rúbrica
+    }
 
     // 2. Feedback Visual: Mostramos que el sistema está procesando (Borde inferior amarillo)
     $element.css('border-bottom', '2px solid #f39c12');
 
     // 3. Lanzar la petición asíncrona hacia el backend de producción
     $.ajax({
-        url: "calificaciones/guardar_nota_individual.php", // Tu archivo PHP adaptado
+        url: "calificaciones/guardar_nota_individual.php",
         type: "POST",
         dataType: "json",
         data: {
             id_estudiante: idEstudiante,
-            id_rubrica: idRubrica,
+            id_rubrica: idRubrica,   // 👈 Ahora viaja corregido según el tipo de nota
             id_aporte: idAporte,
             id_periodo: idPeriodo,
             id_asignatura: $("#id_asignatura").val(),
             id_paralelo: $("#cboParalelos").val(),
-            id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1", // 🎯 NUEVO: Enviamos el tipo activo del panel derecho
+            id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1",
+            tipo_nota: tipoNota, 
             calificacion: nota
         },
         success: function (respuesta) {
+            console.log("Respuesta Servidor:", respuesta); // Para rastreo en tu consola
+            
             if (respuesta && respuesta.status === "success") {
                 // Éxito: Borde verde rápido que desaparece tras un segundo para indicar éxito
                 $element.css('border-bottom', '2px solid #00a65a');
@@ -1130,14 +1231,12 @@ function ejecutarGuardadoAjax($element, nota) {
             }
         },
         error: function (jqXHR) {
-            // Error crítico de red, caída de internet o sesión expirada
             $element.css({
                 'background-color': '#f2dede',
                 'border-bottom': '2px solid #dd4b39'
             });
             console.error("Error crítico de comunicación con el servidor:", jqXHR.responseText);
 
-            // Notificación discreta flotante (Toast) en la esquina superior para no interrumpir al docente
             const Toast = Swal.mixin({
                 toast: true,
                 position: 'top-end',
@@ -1152,3 +1251,4 @@ function ejecutarGuardadoAjax($element, nota) {
         }
     });
 }
+

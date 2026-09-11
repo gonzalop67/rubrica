@@ -13,6 +13,8 @@
                     </div>
                     <div class="box-body">
                         <form id="form_insert" action="menus/insertar_menu.php" method="POST">
+                            <!-- Campo oculto para el ID de Perfil -->
+                            <input type="hidden" name="id_perfil" id="hidden_id_perfil" value="">
 
                             <!-- Texto del Menú -->
                             <div class="form-group" id="group-nombre">
@@ -152,6 +154,9 @@
             let perfilId = $(this).val();
             console.log("Perfil seleccionado:", perfilId);
 
+            // NUEVO: Sincroniza el valor con el input oculto del formulario izquierdo
+            $('#hidden_id_perfil').val(perfilId);
+
             if (!perfilId) {
                 $('#nestable').html(
                     '<div id="nestable-placeholder"><div class="text-muted text-center" style="padding: 20px 0;">Selecciona un perfil para cargar y organizar sus menús.</div></div>'
@@ -160,6 +165,27 @@
             }
 
             cargar_menus_asociados(perfilId);
+        });
+
+        // NUEVO: Validación manual al enviar el formulario para asegurar que 'id_perfil' exista
+        $(document).on('submit', '#form_insert', function(e) {
+            let perfilId = $('#hidden_id_perfil').val();
+            
+            if (!perfilId || perfilId.trim() === "") {
+                e.preventDefault(); // Detiene el envío del formulario a PHP
+                
+                // Si usas SweetAlert (Swal), puedes cambiar este alert común por uno más estético:
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Perfil requerido',
+                        text: 'Por favor, selecciona primero un Perfil / Rol en la sección de la derecha antes de crear un menú.'
+                    });
+                } else {
+                    alert("Por favor, selecciona primero un Perfil / Rol en la sección de la derecha.");
+                }
+                return false;
+            }
         });
 
         // 2. Previsualizador dinámico de íconos en tiempo real

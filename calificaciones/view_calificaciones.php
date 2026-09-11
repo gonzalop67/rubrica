@@ -228,7 +228,7 @@
     }
 
     /* 2. 🎯 EL CONTENEDOR HIJO (ÚNICO DUEÑO DEL SCROLL): 
-          Aquí se concentra el desplazamiento vertical y horizontal de los alumnos */
+        Aquí se concentra el desplazamiento vertical y horizontal de los alumnos */
     #tabla-sabana-scroll {
         position: relative !important;
         overflow: auto !important;

@@ -49,4 +49,9 @@ class MySQL
 	{
 		return mysqli_real_escape_string($this->conexion, trim($datos));
 	}
+
+	function ultimo_id()
+	{
+		return mysqli_insert_id($this->conexion);
+	}
 }

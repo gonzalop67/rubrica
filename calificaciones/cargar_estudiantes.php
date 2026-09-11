@@ -15,7 +15,9 @@ if ($id_periodo_lectivo === 0) {
     exit;
 }
 
-// 2. Cargar nómina de estudiantes y notas a la caché (Igual para ambos casos)
+// =========================================================================
+// 2. Cargar nómina de estudiantes y notas a la caché
+// =========================================================================
 $sql_estudiantes = "SELECT e.id_estudiante, CONCAT(e.es_apellidos, ' ', e.es_nombres) AS nombre_completo
                       FROM sw_estudiante e
                       INNER JOIN sw_estudiante_periodo_lectivo ep ON ep.id_estudiante = e.id_estudiante 
@@ -25,11 +27,11 @@ $sql_estudiantes = "SELECT e.id_estudiante, CONCAT(e.es_apellidos, ' ', e.es_nom
 $res_estudiantes = $db->consulta($sql_estudiantes);
 
 if ($db->num_rows($res_estudiantes) == 0) {
-    echo "false"; // JavaScript disparará el mensaje de "No hay alumnos matriculados"
+    echo "false";
     exit;
 }
 
-// Cargar la caché de notas en memoria
+// Inicializar la caché de notas en memoria
 $cache_notas = [];
 
 if ($id_tipo_asignatura === 1) {
@@ -48,8 +50,25 @@ if ($id_tipo_asignatura === 1) {
 
 $res_cache = $db->consulta($sql_cache);
 while ($r = $db->fetch_object($res_cache)) {
-    // Ambas tablas se unifican bajo la misma llave de caché en memoria
+    // Guardamos la nota tradicional de la rúbrica
     $cache_notas[$r->id_estudiante][$r->id_rubrica_personalizada] = $r->nota;
+}
+
+// 🎯 NUEVO: SI ES ASIGNATURA CUANTITATIVA, EXTRAEMOS TAMBIÉN EL COMPORTAMIENTO
+if ($id_tipo_asignatura === 1) {
+    // Ajusta 'sw_comportamiento_parcial' y sus campos si tu tabla real se llama diferente
+    $sql_comportamiento = "SELECT id_estudiante, id_aporte_evaluacion, co_cualitativa 
+                           FROM sw_calificacion_comportamiento 
+                           WHERE id_paralelo = $id_paralelo 
+                             AND id_asignatura = $id_asignatura";
+
+    $res_comp = $db->consulta($sql_comportamiento);
+    if ($res_comp) {
+        while ($c = $db->fetch_object($res_comp)) {
+            // Guardamos usando una subllave textual 'comportamiento' junto al ID del aporte (parcial)
+            $cache_notas[$c->id_estudiante]['comportamiento'][$c->id_aporte_evaluacion] = $c->co_cualitativa;
+        }
+    }
 }
 
 // 3. Enrutador Maestro: Decidir qué motor de funciones ejecutar
@@ -99,6 +118,7 @@ function armarEstructuraCualitativa($db, $id_periodo_lectivo, $id_paralelo, $id_
             // 🎯 REGLA DE OCULTAMIENTO: Solo sumamos la columna de Promedio si tiene MÁS de 1 insumo
             if ($a->id_tipo_aporte == 1 && count($aporte_item['insumos']) > 1) {
                 $periodo_item['total_columnas']++;
+                $periodo_item['total_columnas']++; // 🎯 NUEVO: Columna fija para Nota de Comportamiento
             }
             $periodo_item['aportes'][] = $aporte_item;
         }
@@ -218,7 +238,8 @@ function generarTablaCualitativa($db, $estructura, $res_estudiantes, $cache_nota
                                     'D+' => ['color' => '#a94442'],
                                     'D-' => ['color' => '#ce8483'],
                                     'E+' => ['color' => '#d9534f'],
-                                    'E-' => ['color' => '#dd4b39']
+                                    'E-' => ['color' => '#dd4b39'],
+                                    'S/N' => ['color' => '#cccccc']
                                 ];
                                 $color_letra_actual = isset($escala_ecuador[$nota_letra]) ? $escala_ecuador[$nota_letra]['color'] : '#333';
 
@@ -250,6 +271,7 @@ function generarTablaCualitativa($db, $estructura, $res_estudiantes, $cache_nota
                                         <option value="D-" <?php echo $nota_letra == 'D-' ? 'selected' : ''; ?> style="color:#ce8483; font-weight:bold;">D- (Iniciado Medio)</option>
                                         <option value="E+" <?php echo $nota_letra == 'E+' ? 'selected' : ''; ?> style="color:#d9534f; font-weight:bold;">E+ (Iniciado Básico)</option>
                                         <option value="E-" <?php echo $nota_letra == 'E-' ? 'selected' : ''; ?> style="color:#dd4b39; font-weight:bold;">E- (Intervención Urgente)</option>
+                                        <option value="S/N" <?php echo $nota_letra == 'S/N' ? 'selected' : ''; ?> style="color:grey; font-weight:bold;">S/N (Sin Nota)</option>
                                     </optgroup>
                                 </select>
                     <?php
@@ -353,7 +375,7 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                     <?php if (!empty($p['aportes'])):
                         foreach ($p['aportes'] as $a):
                             $colspan = count($a['insumos']);
-                            if ($a['tipo'] == 1) $colspan++;
+                            if ($a['tipo'] == 1) $colspan += 2; // 🎯 MODIFICADO: +1 para Promedio Parcial y +1 para Comportamiento
                     ?>
                             <th colspan="<?php echo $colspan; ?>" style="font-size: 11px; vertical-align: middle;"><?php echo strtoupper($a['nombre']); ?></th>
                         <?php endforeach;
@@ -383,6 +405,8 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                             <?php endforeach;
                             if ($a['tipo'] == 1): ?>
                                 <th style="background-color: #eaeaea; color: #333; vertical-align: middle;">P. PARCIAL</th>
+                                <!-- 🎯 NUEVO: Columna física para Comportamiento -->
+                                <th style="background-color: #e3f2fd; color: #0d47a1; vertical-align: middle; font-weight: bold;">COMP.</th>
                         <?php endif;
                         endforeach;
                     else: ?>
@@ -506,19 +530,44 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                                 echo "</td>";
                             endforeach;
 
-                            // Calcular Promedio del Aporte (Parcial)
+                            // =========================================================================
+                            // 🎯 CORRECCIÓN: Cambiamos 'truncarDosDecimales' por 'round' con redondeo hacia arriba
+                            // =========================================================================
                             $prom_aporte = $cant_insumos > 0 ? truncarDosDecimales($suma_insumos / $cant_insumos) : 0;
 
-                            // 🎯 CELDA DEL PROMEDIO PARCIAL (Dentro del bucle de aportes)
+                            // 🎯 CELDA DEL PROMEDIO PARCIAL Y COMPORTAMIENTO (Dentro del bucle de aportes)
                             if ($a['tipo'] == 1):
+                                // 1. Configuración visual del Promedio Parcial
                                 $clase_prom = ($prom_aporte < 7) ? 'color: #dd4b39; background-color: #f2dede;' : 'color: #3c763d; background-color: #dff0d8;';
                                 $texto_prom_aporte = ($prom_aporte == 0) ? "-" : number_format($prom_aporte, 2);
 
-                                // Añadimos pointer-events: none y user-select: none para blindarla al 100%
-                                echo "<td class='promedio-aporte-dinamico' data-estudiante='{$id_est}' data-aporte='{$a['id']}' 
-                                        data-periodo='{$p['id']}' style='vertical-align: middle; font-weight: bold; pointer-events: none; user-select: none; cursor: default; {$clase_prom}'>
+                                // --- CELDA A: PROMEDIO PARCIAL ---
+                                // Mantiene tus propiedades de protección (pointer-events: none, etc.)
+                                echo "<td class='promedio-aporte-dinamico' 
+                                    data-estudiante='{$id_est}' 
+                                    data-aporte='{$a['id']}' 
+                                    data-periodo='{$p['id']}' 
+                                    style='vertical-align: middle; font-weight: bold; pointer-events: none; user-select: none; cursor: default; {$clase_prom}'>
                                     <b>{$texto_prom_aporte}</b>
                                 </td>";
+
+                                // --- CELDA B: COMPORTAMIENTO (ESTILO EXCEL) ---
+                                // 🎯 CORRECCIÓN: Buscamos la subllave correcta en el caché en memoria
+                                $nota_comp = isset($cache_notas[$id_est]['comportamiento'][$a['id']]) ? $cache_notas[$id_est]['comportamiento'][$a['id']] : '';
+
+                                // 🎯 NUEVO: Renderizamos físicamente la columna que exige la cabecera
+                                echo "<td style='background-color: #f7faff; padding: 0; vertical-align: middle;'>";
+                                echo "<input type='text' 
+                                    class='excel-cell text-center' 
+                                    maxlength='2'
+                                    style='font-weight: bold; color: #0d47a1; text-transform: uppercase; background: transparent; width: 100%; height: 34px; border: none; outline: none;'
+                                    data-id-estudiante='{$id_est}' 
+                                    data-id-aporte='{$a['id']}' 
+                                    data-tipo-input='comportamiento' 
+                                    value='{$nota_comp}' 
+                                    placeholder='-' />";
+                                echo "</td>";
+
                             endif;
 
                             $factor = ($a['ponderacion'] > 1) ? ($a['ponderacion'] / 100) : $a['ponderacion'];
@@ -528,9 +577,9 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                         endforeach; // Cierre de Aportes
 
                         // =========================================================================
-                        // PROCESAMIENTO CONDICIONADO DEL PROMEDIO TRIMESTRAL
+                        // 🎯 CORRECCIÓN DEFINITIVA: Cambiamos 'truncarDosDecimales' por 'round'
                         // =========================================================================
-                        $prom_periodo = $suma_pond_efectiva > 0 ? truncarDosDecimales($prom_ponderado_bim / $suma_pond_efectiva) : 0;
+                        $prom_periodo = $suma_pond_efectiva > 0 ? round($prom_ponderado_bim / $suma_pond_efectiva, 2, PHP_ROUND_HALF_UP) : 0;
 
                         // 🎯 REGLA DE NEGOCIO SEGURO: Solo se muestra si TODOS los aportes del trimestre están cerrados
                         if ($todos_los_aportes_cerrados && $prom_periodo > 0) {
@@ -564,7 +613,11 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
 
                     // Solo calculamos promedios si tiene calificaciones, todo está cerrado y hay periodos reales
                     if ($tiene_calificaciones && $todos_los_trimestres_cerrados && $total_periodos_contados > 0 && !empty($estructura)) {
-                        $prom_final_calculado = truncarDosDecimales($suma_promedios_periodos / $total_periodos_contados);
+                        // =========================================================================
+                        // 🎯 CORRECCIÓN FINAL: Redondeo matemático correcto para el promedio anual
+                        // =========================================================================
+                        $prom_final_calculado = round($suma_promedios_periodos / $total_periodos_contados, 2, PHP_ROUND_HALF_UP);
+
                         $texto_prom_final = number_format($prom_final_calculado, 2);
 
                         // Aplicación de alertas semánticas pasteles según el promedio original
@@ -747,8 +800,15 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
  * Corta un número estrictamente a dos decimales sin redondear, 
  * tal como lo requiere tu sistema escolar.
  */
-function truncarDosDecimales($numero)
+function truncarDosDecimales($valor)
 {
-    $factor = pow(10, 2);
-    return (($numero * $factor) >= 0) ? (floor($numero * $factor) / $factor) : (ceil($numero * $factor) / $factor);
+    $float = (float)$valor;
+    if ($float == 0) return 0;
+
+    // Sumamos una millonésima (0.000001) para corregir el desfase binario de PHP (ej: 7.09999999 -> 7.100000)
+    $comprobacion = $float + 0.000001;
+
+    // Desplazamos la coma dos posiciones, truncamos el resto con floor y regresamos la coma
+    return floor($comprobacion * 100) / 100;
 }
+
