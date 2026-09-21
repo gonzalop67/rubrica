@@ -555,17 +555,20 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                                 // 🎯 CORRECCIÓN: Buscamos la subllave correcta en el caché en memoria
                                 $nota_comp = isset($cache_notas[$id_est]['comportamiento'][$a['id']]) ? $cache_notas[$id_est]['comportamiento'][$a['id']] : '';
 
+                                $disabled_comp = $esta_cerrado ? 'disabled' : '';
+                                $fondo_comp = $esta_cerrado ? 'background-color: #eeeeee; cursor: not-allowed;' : 'background: transparent;';
+
                                 // 🎯 NUEVO: Renderizamos físicamente la columna que exige la cabecera
                                 echo "<td style='background-color: #f7faff; padding: 0; vertical-align: middle;'>";
                                 echo "<input type='text' 
                                     class='excel-cell text-center' 
                                     maxlength='2'
-                                    style='font-weight: bold; color: #0d47a1; text-transform: uppercase; background: transparent; width: 100%; height: 34px; border: none; outline: none;'
+                                    style='font-weight: bold; color: #0d47a1; text-transform: uppercase; width: 100%; height: 34px; border: none; outline: none; {$fondo_comp}'
                                     data-id-estudiante='{$id_est}' 
                                     data-id-aporte='{$a['id']}' 
                                     data-tipo-input='comportamiento' 
                                     value='{$nota_comp}' 
-                                    placeholder='-' />";
+                                    placeholder='-' {$disabled_comp} />";
                                 echo "</td>";
 
                             endif;

@@ -1,7 +1,7 @@
 <?php
 require_once "../vendor/autoload.php";
 
-//call iofactory instead of xlsx writer
+use PhpOffice\PhpSpreadsheet\Spreadsheet; // Cambiado para inicializar hoja limpia y dinámica
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -15,7 +15,6 @@ ini_set('display_errors', TRUE);
 ini_set('display_startup_errors', TRUE);
 
 define('EOL', (PHP_SAPI == 'cli') ? PHP_EOL : '<br />');
-
 date_default_timezone_set('America/Guayaquil');
 
 function truncar($numero, $digitos)
@@ -23,8 +22,6 @@ function truncar($numero, $digitos)
 	$truncar = pow(10, $digitos);
 	return intval($numero * $truncar) / $truncar;
 }
-
-/* PHPExcel_IOFactory */
 
 require_once '../scripts/clases/class.mysql.php';
 require_once '../scripts/clases/class.institucion.php';
@@ -42,6 +39,8 @@ $id_aporte_evaluacion = $_POST["id_aporte_evaluacion"];
 session_start();
 $id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
 
+$db = new MySQL();
+
 $institucion = new institucion();
 $nombreInstitucion = $institucion->obtenerNombreInstitucion();
 $nombreRector = $institucion->obtenerNombreRector();
@@ -54,7 +53,27 @@ $nombrePeriodoLectivo = $periodo_lectivo->obtenerNombrePeriodoLectivo($id_period
 $paralelo = new paralelos();
 $id_curso = $paralelo->obtenerIdCurso($id_paralelo);
 $nombreParalelo = $paralelo->obtenerNombreParalelo($id_paralelo);
-$tipoEducacion = $paralelo->obtenerTipoEducacion($id_paralelo); // 0: Educacion Basica Superior  1: Bachillerato
+$tipoEducacion = $paralelo->obtenerTipoEducacion($id_paralelo);
+
+// Consultar asignaturas dinámicamente para saber cuántas son
+$sql = "SELECT as_nombre 
+		  FROM sw_asignatura_curso ac, 
+			   sw_paralelo p, 
+			   sw_asignatura a 
+		 WHERE ac.id_curso = p.id_curso 
+		   AND ac.id_asignatura = a.id_asignatura 
+		   AND id_paralelo = $id_paralelo 
+	     ORDER BY ac_orden";
+
+$resAsignaturas = $db->consulta($sql);
+$numAsignaturas = $db->num_rows($resAsignaturas);
+
+// --- ELIMINADOS LOS ARRAYS FIJOS ---
+// Ahora usamos índices numéricos: Columna A = 1, B = 2, C = 3...
+$colInicioAsignaturas = 3; // Columna C
+
+// Inicializar un array dinámico para contadores si necesitas procesar estadísticas por materia posterior
+$contNotasValidasArray = array_fill(0, $numAsignaturas, 0);
 
 $periodo_evaluacion = new periodos_evaluacion();
 $nombrePeriodoEvaluacion = $periodo_evaluacion->obtenerNombrePeriodoEvaluacion($id_periodo_evaluacion);
@@ -62,53 +81,46 @@ $nombrePeriodoEvaluacion = $periodo_evaluacion->obtenerNombrePeriodoEvaluacion($
 $aporte_evaluacion = new aportes_evaluacion();
 $nombreAporteEvaluacion = $aporte_evaluacion->obtenerNombreAporteEvaluacion($id_aporte_evaluacion);
 
-// Primero busco la plantilla adecuada de acuerdo al numero de asignaturas del paralelo
-$numAsignaturas = $paralelo->contarAsignaturas($id_paralelo, $id_curso, 2);
-$ultimaColumna = $numAsignaturas + 1;
+// Crear hoja desde cero en lugar de depender de un .xls fijo limitado
+$spreadsheet = new Spreadsheet();
+$sheet = $spreadsheet->getActiveSheet();
+$sheet->setTitle('Consolidado');
 
-// Vectores de configuracion para las columnas
-$colAsignaturas = array('C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T');
-$contNotasValidasArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+// Estilos base reutilizables
+$estiloCabeceraMatriz = [
+	'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => '000000']]],
+	'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+	'font' => ['bold' => true, 'size' => 9]
+];
 
-// Variable de instancia de la clase MySQL
-$db = new MySQL();
+// Colocación del Logo del Gobierno
+$logoPath = __DIR__ . '/logo-presidencia-noboa.jpg';
+if (file_exists($logoPath)) {
+	$drawing = new Drawing();
+	$drawing->setName('Logo del Gobierno');
+	$drawing->setPath($logoPath);
+	$drawing->setHeight(50);
+	$drawing->setCoordinates('A1');
+	$drawing->setWorksheet($sheet);
+}
 
-//load the template
-$objReader = IOFactory::createReader('Xls');
-
-$baseFilename = "CUADRO PARCIALES.xls";
-$objPHPExcel = $objReader->load("../plantillas/" . $baseFilename);
-
-$objPHPExcel->setActiveSheetIndex(0);
-
-$sheet = $objPHPExcel->getActiveSheet();
-
-$logoPath = __DIR__ . '/logo-presidencia-noboa.jpg'; // Ruta a tu logo
-
-// Logo del Gobierno
-$drawing = new Drawing();
-$drawing->setName('Logo del Gobierno');
-$drawing->setDescription('Logo Gobierno');
-$drawing->setPath($logoPath);
-$drawing->setHeight(50); // Altura en píxeles
-$drawing->setCoordinates('A1'); // Celda donde se coloca
-$drawing->setWorksheet($sheet);
-
+// Colocación del Logo de la Institución en la última columna de materias
 $queryString = "SELECT in_logo FROM sw_institucion WHERE id_institucion = 1";
 $consulta = $db->consulta($queryString);
 $registro = $db->fetch_object($consulta);
 $in_logo = $registro->in_logo;
-
 $logoInstitucionPath = dirname(__DIR__) . '/public/uploads/' . $in_logo;
 
-// Logo de la Institución
-$drawing2 = new Drawing();
-$drawing2->setName('Logo de la Institucion');
-$drawing2->setDescription('Logo Institucion');
-$drawing2->setPath($logoInstitucionPath);
-$drawing2->setHeight(80); // Altura en píxeles
-$drawing2->setCoordinates($colAsignaturas[$numAsignaturas - 1] . '1'); // Celda donde se coloca
-$drawing2->setWorksheet($sheet);
+if (file_exists($logoInstitucionPath)) {
+	$drawing2 = new Drawing();
+	$drawing2->setName('Logo de la Institucion');
+	$drawing2->setPath($logoInstitucionPath);
+	$drawing2->setHeight(50);
+	// Dinámico: se posiciona en la letra de la última asignatura cargada
+	$colUltimaAsignaturaLetra = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $numAsignaturas - 1);
+	$drawing2->setCoordinates($colUltimaAsignaturaLetra . '1');
+	$drawing2->setWorksheet($sheet);
+}
 
 // Ciclo Lectivo
 $meses_abrev = array(0, "ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC");
@@ -119,89 +131,87 @@ $fecha_inicial = explode("-", $periodo_lectivo["pe_fecha_inicio"]);
 $fecha_final = explode("-", $periodo_lectivo["pe_fecha_fin"]);
 $ciclo = $meses_abrev[(int)$fecha_inicial[1]] . " " . $fecha_inicial[0] . " - " . $meses_abrev[(int)$fecha_final[1]] . " " . $fecha_final[0];
 
-$objPHPExcel->setActiveSheetIndex(0);
-$objPHPExcel->getActiveSheet()->setCellValue('A1', $nombreInstitucion)
+// Textos principales
+$sheet->setCellValue('A1', $nombreInstitucion)
 	->setCellValue('A2', 'REPORTE CONSOLIDADO DEL ' . $nombreAporteEvaluacion)
 	->setCellValue('A3', 'CURSO: ' . $nombreParalelo . " (" . $nombrePeriodoLectivo . ")")
 	->setCellValue('C5', 'JORNADA ' . $jornada)
-	->setCellValue('G5', 'CICLO: ' . $ciclo)
-	->setCellValue('B59', $nombreRector)
-	->setCellValue('G59', $nombreSecretario);
+	->setCellValue('G5', 'CICLO: ' . $ciclo);
 
-$filaBase = 7; // fila base en la plantilla en Excel
-
-// Aqui va el codigo para calcular el promedio del aporte de cada estudiante
-
-// Imprimir los nombres de las asignaturas
-$sql = "SELECT as_nombre 
-		  FROM sw_asignatura_curso ac, 
-			   sw_paralelo p, 
-			   sw_asignatura a 
-		 WHERE ac.id_curso = p.id_curso 
-		   AND ac.id_asignatura = a.id_asignatura 
-		   AND id_paralelo = $id_paralelo 
-	     ORDER BY ac_orden";
-
-$asignaturas = $db->consulta($sql);
-
+// Cabeceras fijas de control izquierdo
 $rowAsignatura = 6;
-$contAsignaturas = 0;
+$sheet->setCellValue('A' . $rowAsignatura, 'Nro.');
+$sheet->setCellValue('B' . $rowAsignatura, 'Nómina');
 
-while ($asignatura = $db->fetch_assoc($asignaturas)) {
-	$asignatura = $asignatura["as_nombre"];
-	$sheet->getStyle($colAsignaturas[$contAsignaturas] . $rowAsignatura)->applyFromArray([
-		'borders' => [
-			'outline' => [
-				'borderStyle' => Border::BORDER_THIN,
-				'color' => ['argb' => '000000'],
-			],
-		],
-	]);
-	$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignaturas] . $rowAsignatura, $asignatura);
+// Aplicar el estilo de bordes y alineación a Nro. y Nómina
+$sheet->getStyle('A' . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
+$sheet->getStyle('B' . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
+
+// =========================================================================
+// MODIFICACIÓN: IMPRIMIR LAS ASIGNATURAS CON ROTACIÓN DE 90 GRADOS
+// =========================================================================
+$contAsignaturas = 0;
+while ($asignatura = $db->fetch_assoc($resAsignaturas)) {
+	$nombre_asig = $asignatura["as_nombre"];
+    $colLetraActual = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $contAsignaturas);
+    
+	$sheet->setCellValue($colLetraActual . $rowAsignatura, $nombre_asig);
+	
+	// Aplicar estilos base (bordes, alineación)
+	$sheet->getStyle($colLetraActual . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
+	
+	// NUEVO: Forzar rotación de texto a 90 grados hacia arriba
+	$sheet->getStyle($colLetraActual . $rowAsignatura)
+		->getAlignment()
+		->setTextRotation(90);
+
 	$contAsignaturas++;
 }
 
-$colPromedio = Coordinate::stringFromColumnIndex($contAsignaturas + 3);
-$colObservacion = Coordinate::stringFromColumnIndex($contAsignaturas + 4);
+// Configurar un alto de fila cómodo en la fila 6 para que los nombres rotados se lean completos
+$sheet->getRowDimension($rowAsignatura)->setRowHeight(90);
 
-$sheet->mergeCells('A1:' . $colObservacion . '1');
+// Definir columnas posteriores basándonos estrictamente en el conteo total final
+$colPromedioNum = $colInicioAsignaturas + $contAsignaturas;
+$colObservacionNum = $colPromedioNum + 1;
+
+$colPromedioLetra = Coordinate::stringFromColumnIndex($colPromedioNum);
+$colObservacionLetra = Coordinate::stringFromColumnIndex($colObservacionNum);
+
+// Encabezados dinámicos finales
+$sheet->getStyle($colPromedioLetra . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
+$sheet->setCellValue($colPromedioLetra . $rowAsignatura, 'PROMEDIO');
+
+// Combinación dinámica de celdas superiores según la anchura real conseguida
+$sheet->mergeCells('A1:' . $colPromedioLetra . '1');
 $sheet->getStyle('A1')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-$sheet->mergeCells('A2:' . $colObservacion . '2');
+$sheet->mergeCells('A2:' . $colPromedioLetra . '2');
 $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-$sheet->mergeCells('A3:' . $colObservacion . '3');
+$sheet->mergeCells('A3:' . $colPromedioLetra . '3');
 $sheet->getStyle('A3')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-// Cabecera de Promedio y Observación
-$sheet->getStyle($colAsignaturas[$contAsignaturas] . $rowAsignatura)->applyFromArray([
-	'borders' => [
-		'allBorders' => [
-			'borderStyle' => Border::BORDER_THIN,
-			'color' => ['argb' => '000000'],
-		],
-	],
-]);
-
-$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignaturas] . $rowAsignatura, 'PROMEDIO');
-
-// Obtener la nota mínima para aprobar el periodo lectivo
+// Parámetros de aprobación
 $qry = "SELECT pe_nota_aprobacion FROM sw_periodo_lectivo WHERE id_periodo_lectivo = $id_periodo_lectivo";
 $resultado = $db->consulta($qry);
 $registro = $db->fetch_object($resultado);
 $nota_aprobacion = $registro->pe_nota_aprobacion;
 
-// Obtener el rango de calificaciones para acceder al examen supletorio según el periodo lectivo
 $qry = "SELECT * FROM sw_equivalencia_supletorios WHERE id_periodo_lectivo = $id_periodo_lectivo";
 $resultado = $db->consulta($qry);
 $registro = $db->fetch_object($resultado);
 $rango_desde = $registro->rango_desde;
 $rango_hasta = $registro->rango_hasta;
 
+// Ejecución de la nómina
 $estudiantes = $db->consulta("SELECT e.id_estudiante, es_apellidos, es_nombres FROM sw_estudiante e, sw_estudiante_periodo_lectivo p WHERE e.id_estudiante = p.id_estudiante AND p.id_paralelo = $id_paralelo AND es_retirado = 'N' AND activo = 1 ORDER BY es_apellidos, es_nombres");
 $num_total_estudiantes = $db->num_rows($estudiantes);
+
+// --- CORRECCIÓN AQUÍ: Definir la fila base ANTES de validar la existencia de alumnos ---
+$filaBase = 7;
 if ($num_total_estudiantes > 0) {
-	$row = $filaBase; // fila base
+	$row = $filaBase; // Fila base (7)
 
 	while ($estudiante = $db->fetch_assoc($estudiantes)) {
 		$id_estudiante = $estudiante["id_estudiante"];
@@ -209,10 +219,24 @@ if ($num_total_estudiantes > 0) {
 		$nombres = $estudiante["es_nombres"];
 
 		$numero_problemas = 0;
-
 		$contadorNotasValidas = 0;
 
-		$objPHPExcel->getActiveSheet()->setCellValue('B' . $row, $apellidos . " " . $nombres);
+		$sheet->setCellValue('A' . $row, $row - $filaBase + 1);
+		$sheet->setCellValue('B' . $row, $apellidos . " " . $nombres);
+
+		// ==========================================
+		// NUEVO: APLICAR BORDES A Nro. Y NÓMINA
+		// ==========================================
+		$estiloBordeEstudiante = [
+			'borders' => [
+				'outline' => [
+					'borderStyle' => Border::BORDER_THIN,
+					'color' => ['argb' => '000000'],
+				],
+			],
+		];
+		$sheet->getStyle('A' . $row)->applyFromArray($estiloBordeEstudiante);
+		$sheet->getStyle('B' . $row)->applyFromArray($estiloBordeEstudiante);
 
 		$asignaturas = $db->consulta("SELECT a.id_asignatura, 
 											 a.id_tipo_asignatura  
@@ -224,22 +248,21 @@ if ($num_total_estudiantes > 0) {
 										 AND id_paralelo = $id_paralelo 
 									   ORDER BY ac_orden");
 		$total_asignaturas = $db->num_rows($asignaturas);
+
 		if ($total_asignaturas > 0) {
-			$rowAsignatura = 6;
 			$contAsignatura = 0;
 			$sumaPromedios = 0;
 			$cuantitativas = 0;
 
 			while ($asignatura = $db->fetch_assoc($asignaturas)) {
-				// Aqui proceso los promedios de cada asignatura
 				$id_asignatura = $asignatura["id_asignatura"];
 				$id_tipo_asignatura = $asignatura["id_tipo_asignatura"];
 
-				$contadorNotasValidas = 0;
+				// Cálculo dinámico de la letra de la columna actual
+				$colLetraActual = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $contAsignatura);
 
-				if ($id_tipo_asignatura == 1) // Se trata de una asignatura CUANTITATIVA
+				if ($id_tipo_asignatura == 1) // CUANTITATIVA
 				{
-					// Aca voy a llamar a una funcion almacenada que calcula el promedio parcial de la asignatura
 					$query = $db->consulta("SELECT calcular_promedio_aporte($id_aporte_evaluacion, $id_estudiante, $id_paralelo, $id_asignatura) AS promedio");
 					$calificacion = $db->fetch_assoc($query);
 					$promedio_parcial = $calificacion["promedio"];
@@ -252,8 +275,8 @@ if ($num_total_estudiantes > 0) {
 						$contNotasValidasArray[$contAsignatura]++;
 					}
 
-					// Aplicar borde outline delgado
-					$sheet->getStyle($colAsignaturas[$contAsignatura] . $row)->applyFromArray([
+					// Aplicar borde dinámico usando la letra calculada
+					$sheet->getStyle($colLetraActual . $row)->applyFromArray([
 						'borders' => [
 							'outline' => [
 								'borderStyle' => Border::BORDER_THIN,
@@ -262,10 +285,9 @@ if ($num_total_estudiantes > 0) {
 						],
 					]);
 
-					$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignatura] . $row, $promedio_parcial);
+					$sheet->setCellValue($colLetraActual . $row, $promedio_parcial);
 					$cuantitativas++;
-				} else {
-					// Aca obtengo la calificacion cualitativa de la asignatura
+				} else { // CUALITATIVA
 					$qryString = "SELECT rc_calificacion FROM sw_rubrica_cualitativa WHERE id_aporte_evaluacion = $id_aporte_evaluacion AND id_estudiante = $id_estudiante AND id_paralelo = $id_paralelo AND id_asignatura = $id_asignatura";
 					$query = $db->consulta($qryString);
 					$total_registros = $db->num_rows($query);
@@ -276,8 +298,7 @@ if ($num_total_estudiantes > 0) {
 						$calificacion = " ";
 					}
 
-					// Aplicar borde outline delgado
-					$sheet->getStyle($colAsignaturas[$contAsignatura] . $row)->applyFromArray([
+					$sheet->getStyle($colLetraActual . $row)->applyFromArray([
 						'borders' => [
 							'outline' => [
 								'borderStyle' => Border::BORDER_THIN,
@@ -286,14 +307,14 @@ if ($num_total_estudiantes > 0) {
 						],
 					]);
 
-					$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$contAsignatura] . $row, $calificacion);
+					$sheet->setCellValue($colLetraActual . $row, $calificacion);
 				}
 
 				$contAsignatura++;
 			} // fin while $asignatura
 
-			// Aplicar borde outline delgado
-			$sheet->getStyle($colPromedio . $row)->applyFromArray([
+			// Aplicar borde al Promedio final de la fila
+			$sheet->getStyle($colPromedioLetra . $row)->applyFromArray([
 				'borders' => [
 					'outline' => [
 						'borderStyle' => Border::BORDER_THIN,
@@ -302,27 +323,24 @@ if ($num_total_estudiantes > 0) {
 				],
 			]);
 
-			// Cálculo e impresión del promedio de asignaturas
-			$promedioAsignaturas = $sumaPromedios / $cuantitativas;
+			// Cálculo e impresión del promedio del estudiante
+			$promedioAsignaturas = ($cuantitativas > 0) ? ($sumaPromedios / $cuantitativas) : 0;
 			if ($promedioAsignaturas == 0) {
-				$objPHPExcel->getActiveSheet()->setCellValue($colPromedio . $row, "");
+				$sheet->setCellValue($colPromedioLetra . $row, "");
 			} else {
-				$objPHPExcel->getActiveSheet()->setCellValue($colPromedio . $row, truncar($promedioAsignaturas, 2));
+				$sheet->setCellValue($colPromedioLetra . $row, truncar($promedioAsignaturas, 2));
 			}
-		} // fin if $total_asignatura
+		} // fin if $total_asignaturas
 
 		$row++;
-	} // fin while($estudiante = $db->fetch_assoc($estudiantes))
+	} // fin while $estudiante
 
-	// Elimino las filas excedentes
-	if ($num_total_estudiantes < 50)
-		$objPHPExcel->getActiveSheet()->removeRow($row, $filaBase + 50 - $row);
+	// Seteo las fórmulas dinámicas para los promedios verticales de cada asignatura al final de la tabla
+	for ($col = 0; $col < $contAsignaturas; $col++) {
+		$colLetraActual = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $col);
 
-	// Seteo las fórmulas para calcular los promedios generales de cada asignatura
-	for ($col = 0; $col <= $contAsignatura; $col++) {
 		if ($contNotasValidasArray[$col] > 0) {
-			// Aplicar borde outline delgado
-			$sheet->getStyle($colAsignaturas[$col] . $row)->applyFromArray([
+			$sheet->getStyle($colLetraActual . $row)->applyFromArray([
 				'borders' => [
 					'outline' => [
 						'borderStyle' => Border::BORDER_THIN,
@@ -330,16 +348,19 @@ if ($num_total_estudiantes > 0) {
 					],
 				],
 			]);
-			$objPHPExcel->getActiveSheet()->setCellValue($colAsignaturas[$col] . $row, "=SUM(" . $colAsignaturas[$col] . $filaBase . ":" . $colAsignaturas[$col] . ($row - 1) . ")/" . $contNotasValidasArray[$col]);
+			// Escribe la fórmula nativa de Excel basada en coordenadas dinámicas reales
+			$sheet->setCellValue($colLetraActual . $row, "=SUM(" . $colLetraActual . $filaBase . ":" . $colLetraActual . ($row - 1) . ")/" . $contNotasValidasArray[$col]);
 		}
 	}
 } // $num_total_estudiantes > 0
 
-// Aqui va el codigo para desplegar la lista de docentes del paralelo
-
-$objPHPExcel->setActiveSheetIndex(1);
-
-$sheet = $objPHPExcel->getActiveSheet();
+// =========================================================
+// DESPLIEGUE DE LA LISTA DE DOCENTES (HOJA INDEX 1)
+// =========================================================
+$spreadsheet->createSheet(); // Asegurar la existencia física de la pestaña de docentes de forma dinámica
+$spreadsheet->setActiveSheetIndex(1);
+$sheetDocentes = $spreadsheet->getActiveSheet();
+$sheetDocentes->setTitle('Docentes');
 
 $docentes = $db->consulta("SELECT us_titulo, 
 								  us_apellidos, 
@@ -356,96 +377,52 @@ $docentes = $db->consulta("SELECT us_titulo,
 							  AND id_paralelo = $id_paralelo
 							ORDER BY ac_orden");
 $num_total_docentes = $db->num_rows($docentes);
+
 if ($num_total_docentes > 0) {
-	$filaBase = 4;
-	$row = 4;
+	$filaBaseDocentes = 4;
+	$rowDoc = 4;
 	while ($docente = $db->fetch_object($docentes)) {
 		$asignatura = $docente->as_nombre;
 		$profesor = $docente->us_titulo . " " . $docente->us_apellidos . " " . $docente->us_nombres;
-		$objPHPExcel->getActiveSheet()->setCellValue('B' . $row, $asignatura);
-		$sheet->mergeCells('B' . $row . ':C' . $row);
-		$sheet->getStyle('B' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-		// Aplicar borde outline delgado
-		$sheet->getStyle('B' . $row . ':C' . $row)->applyFromArray([
-			'borders' => [
-				'outline' => [
-					'borderStyle' => Border::BORDER_THIN,
-					'color' => ['argb' => '000000'],
-				],
-			],
+
+		$sheetDocentes->setCellValue('B' . $rowDoc, $asignatura);
+		$sheetDocentes->mergeCells('B' . $rowDoc . ':C' . $rowDoc);
+		$sheetDocentes->getStyle('B' . $rowDoc)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+		$sheetDocentes->getStyle('B' . $rowDoc . ':C' . $rowDoc)->applyFromArray([
+			'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => '000000']]],
 		]);
-		$objPHPExcel->getActiveSheet()->setCellValue('D' . $row, $profesor);
-		$sheet->mergeCells('D' . $row . ':E' . $row);
-		$sheet->getStyle('D' . $row)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-		// Aplicar borde outline delgado
-		$sheet->getStyle('D' . $row . ':E' . $row)->applyFromArray([
-			'borders' => [
-				'outline' => [
-					'borderStyle' => Border::BORDER_THIN,
-					'color' => ['argb' => '000000'],
-				],
-			],
+
+		$sheetDocentes->setCellValue('D' . $rowDoc, $profesor);
+		$sheetDocentes->mergeCells('D' . $rowDoc . ':E' . $rowDoc);
+		$sheetDocentes->getStyle('D' . $rowDoc)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+		$sheetDocentes->getStyle('D' . $rowDoc . ':E' . $rowDoc)->applyFromArray([
+			'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => '000000']]],
 		]);
-		$row++;
+		$rowDoc++;
 	}
 
-	// Aplicar borde outline grueso
-	$sheet->getStyle('B2:E2')->applyFromArray([
-		'borders' => [
-			'outline' => [
-				'borderStyle' => Border::BORDER_THICK,
-				'color' => ['argb' => '000000'],
-			],
-		],
-	]);
-
-	$sheet->getStyle('B3:C3')->applyFromArray([
-		'borders' => [
-			'outline' => [
-				'borderStyle' => Border::BORDER_THICK,
-				'color' => ['argb' => '000000'],
-			],
-		],
-	]);
-
-	$sheet->getStyle('D3:E3')->applyFromArray([
-		'borders' => [
-			'outline' => [
-				'borderStyle' => Border::BORDER_THICK,
-				'color' => ['argb' => '000000'],
-			],
-		],
-	]);
-
-	$sheet->getStyle('B' . $filaBase . ':C' . $row - 1)->applyFromArray([
-		'borders' => [
-			'outline' => [
-				'borderStyle' => Border::BORDER_THICK,
-				'color' => ['argb' => '000000'],
-			],
-		],
-	]);
-
-	$sheet->getStyle('D' . $filaBase . ':E' . $row - 1)->applyFromArray([
-		'borders' => [
-			'outline' => [
-				'borderStyle' => Border::BORDER_THICK,
-				'color' => ['argb' => '000000'],
-			],
-		],
-	]);
+	// Estilos estructurales de contorno para la tabla de docentes
+	$sheetDocentes->getStyle('B2:E2')->applyFromArray(['borders' => ['outline' => ['borderStyle' => Border::BORDER_THICK, 'color' => ['argb' => '000000']]]]);
+	$sheetDocentes->getStyle('B3:C3')->applyFromArray(['borders' => ['outline' => ['borderStyle' => Border::BORDER_THICK, 'color' => ['argb' => '000000']]]]);
+	$sheetDocentes->getStyle('D3:E3')->applyFromArray(['borders' => ['outline' => ['borderStyle' => Border::BORDER_THICK, 'color' => ['argb' => '000000']]]]);
+	$sheetDocentes->getStyle('B' . $filaBaseDocentes . ':C' . ($rowDoc - 1))->applyFromArray(['borders' => ['outline' => ['borderStyle' => Border::BORDER_THICK, 'color' => ['argb' => '000000']]]]);
+	$sheetDocentes->getStyle('D' . $filaBaseDocentes . ':E' . ($rowDoc - 1))->applyFromArray(['borders' => ['outline' => ['borderStyle' => Border::BORDER_THICK, 'color' => ['argb' => '000000']]]]);
 }
 
-$objPHPExcel->setActiveSheetIndex(0);
+$spreadsheet->setActiveSheetIndex(0);
 
-$filename = "CUADRO PARCIALES " . str_replace('"', '', $nombreParalelo) . " " . $nombreAporteEvaluacion . "(" . $nombrePeriodoLectivo . ").xls";
+// ==========================================
+// NUEVO: AUTOAJUSTAR EL ANCHO DE LA NÓMINA
+// ==========================================
+$sheet->getColumnDimension('B')->setAutoSize(true);
 
-header("Content-type: application/x-msexcel");
+$filename = "CUADRO PARCIALES " . str_replace('"', '', $nombreParalelo) . " " . $nombreAporteEvaluacion . "(" . $nombrePeriodoLectivo . ").xlsx";
 
-//make it an attachment so we can define filename
+// Preparación de headers HTTP para salida de descarga directa nativa en Excel (.xlsx)
+header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment;filename="' . $filename . '"');
+header('Cache-Control: max-age=0');
 
-//create IOFactory object
-$writer = IOFactory::createWriter($objPHPExcel, 'Xls');
-//save into php output
+$writer = IOFactory::createWriter($spreadsheet, 'Xlsx');
 $writer->save('php://output');
+exit;

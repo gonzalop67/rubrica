@@ -654,3 +654,37 @@ label.requerido_despues::after {
     border: 2px solid #bb2929;
 }
 
+/* Ajustes específicos para dropdown en AdminLTE2 */
+.navbar-nav > .dropdown-menu {
+    background-color: #fff !important;   /* fondo claro */
+    border: 1px solid #ddd;              /* borde sutil */
+}
+
+.navbar-nav > .dropdown-menu > li > a {
+    color: #333 !important;              /* texto oscuro */
+    padding: 10px 15px;
+}
+
+.navbar-nav > .dropdown-menu > li > a:hover {
+    background-color: #f5f5f5 !important; /* hover claro */
+    color: #000 !important;
+}
+
+/* Opcional: solo aplicar en móviles/tablets */
+@media (max-width: 767px) {
+    .navbar-nav > .dropdown-menu {
+        background-color: #fff !important;
+    }
+    .navbar-nav > .dropdown-menu > li > a {
+        color: #333 !important;
+    }
+}
+
+.btn-logout {
+    color: #d9534f !important; /* rojo Bootstrap */
+    font-weight: bold;
+}
+.btn-logout:hover {
+    background-color: #f2dede !important;
+    color: #a94442 !important;
+}

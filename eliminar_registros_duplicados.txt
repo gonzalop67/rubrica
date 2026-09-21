@@ -1,0 +1,20 @@
+* Debe tener un id como clave primaria
+
+DELETE t1
+FROM sw_rubrica_estudiante t1
+JOIN sw_rubrica_estudiante t2
+  ON t1.id_estudiante = t2.id_estudiante
+ AND t1.id_paralelo   = t2.id_paralelo
+ AND t1.id_asignatura = t2.id_asignatura
+ AND t1.id_rubrica_personalizada = t2.id_rubrica_personalizada
+ AND t1.id > t2.id;
+
+* Se conserva el registro más reciente
+DELETE t1
+FROM sw_rubrica_estudiante t1
+JOIN sw_rubrica_estudiante t2
+  ON t1.id_estudiante = t2.id_estudiante
+ AND t1.id_paralelo   = t2.id_paralelo
+ AND t1.id_asignatura = t2.id_asignatura
+ AND t1.id_rubrica_personalizada = t2.id_rubrica_personalizada
+ AND t1.fecha_registro < t2.fecha_registro;

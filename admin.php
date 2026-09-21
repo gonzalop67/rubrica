@@ -133,13 +133,15 @@ $nombreOfertaEducativa = $oferta_educativa->nombre;
     <link rel="stylesheet" href="bower_components/Ionicons/css/ionicons.min.css">
     <link rel="stylesheet" href="dist/css/AdminLTE.min.css">
     <link rel="stylesheet" href="dist/css/skins/skin-blue.min.css">
-    <link rel="stylesheet" href="estilos.css" type="text/css" />
     
     <!-- 3. Componentes Adicionales (CSS) -->
     <link rel="stylesheet" href="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.min.css">
     <link rel="stylesheet" href="assets/template/select2/select2.min.css">
     <link rel="stylesheet" href="assets/template/toastr/toastr.min.css">
     <link rel="stylesheet" href="assets/datatables/datatables.css">
+
+    <!-- Estilos personalizados, deben de ir de último en los css -->
+    <link rel="stylesheet" href="estilos.css" type="text/css" />
 
     <!-- 4. Plugins e Inicializadores Core (JS) -->
     <script src="assets/template/jquery-ui/jquery-ui.js"></script>

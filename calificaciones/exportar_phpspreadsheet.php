@@ -123,8 +123,11 @@ $estiloNotaReprobada = [
 // ==============================================
 // 3. CONSTRUCCIÓN DE CABECERAS TRIPLES DINÁMICAS
 // ==============================================
-$sheet->setCellValue('A1', 'Nro.')->mergeCells('A1:A3');
-$sheet->setCellValue('B1', 'Nómina')->mergeCells('B1:B3');
+$filaInicioCabecera = 7; // Las 6 primeras filas (1 a 6) quedan libres para tu encabezado institucional.
+
+// Ajustar "Nro." y "Nómina" para que abarquen las 4 filas de la cabecera (7, 8, 9 y 10)
+$sheet->setCellValue('A' . $filaInicioCabecera, 'Nro.')->mergeCells('A' . $filaInicioCabecera . ':A' . ($filaInicioCabecera + 3));
+$sheet->setCellValue('B' . $filaInicioCabecera, 'Nómina')->mergeCells('B' . $filaInicioCabecera . ':B' . ($filaInicioCabecera + 3));
 
 $columnaActualNum = 3; // Empezamos en la columna C (Índice 3)
 
@@ -132,11 +135,11 @@ foreach ($estructura as $p) {
     $colInicioBimestre = $columnaActualNum;
     $colFinBimestre = $colInicioBimestre + $p['total_columnas'] - 1;
 
-    // FILA 1: Bimestre/Quimestre
-    $sheet->setCellValue(Coordinate::stringFromColumnIndex($colInicioBimestre) . '1', strtoupper($p['nombre']));
+    // FILA 1 de Cabecera (Fila 7)
+    $sheet->setCellValue(Coordinate::stringFromColumnIndex($colInicioBimestre) . $filaInicioCabecera, strtoupper($p['nombre']));
     $sheet->mergeCells(
-        Coordinate::stringFromColumnIndex($colInicioBimestre) . '1:' .
-            Coordinate::stringFromColumnIndex($colFinBimestre) . '1'
+        Coordinate::stringFromColumnIndex($colInicioBimestre) . $filaInicioCabecera . ':' .
+        Coordinate::stringFromColumnIndex($colFinBimestre) . $filaInicioCabecera
     );
 
     foreach ($p['aportes'] as $a) {
@@ -145,55 +148,54 @@ foreach ($estructura as $p) {
         if ($a['tipo'] == 1) $colspan_aporte++;
         $colFinAporte = $colInicioAporte + $colspan_aporte - 1;
 
-        // FILA 2: Bloque del Aporte
-        $sheet->setCellValue(Coordinate::stringFromColumnIndex($colInicioAporte) . '2', strtoupper($a['nombre']));
+        // FILA 2 de Cabecera (Fila 8)
+        $sheet->setCellValue(Coordinate::stringFromColumnIndex($colInicioAporte) . ($filaInicioCabecera + 1), strtoupper($a['nombre']));
         $sheet->mergeCells(
-            Coordinate::stringFromColumnIndex($colInicioAporte) . '2:' .
-                Coordinate::stringFromColumnIndex($colFinAporte) . '2'
+            Coordinate::stringFromColumnIndex($colInicioAporte) . ($filaInicioCabecera + 1) . ':' .
+            Coordinate::stringFromColumnIndex($colFinAporte) . ($filaInicioCabecera + 1)
         );
 
-        // FILA 3: Insumos individuales
+        // FILA 3 de Cabecera (Fila 9)
         foreach ($a['insumos'] as $insumo) {
-            $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnaActualNum) . '3', strtoupper($insumo['nombre']));
+            $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnaActualNum) . ($filaInicioCabecera + 2), strtoupper($insumo['nombre']));
             $columnaActualNum++;
         }
 
         if ($a['tipo'] == 1) {
-            $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnaActualNum) . '3', 'PROM.');
+            $sheet->setCellValue(Coordinate::stringFromColumnIndex($columnaActualNum) . ($filaInicioCabecera + 2), 'PROM.');
             $columnaActualNum++;
         }
     }
 
-    // Columna final del Periodo: PROMEDIO BIMESTRAL
+    // Columna final del Periodo: PROMEDIO BIMESTRAL (Abarca Fila 8 y 9)
     $columnaPromedio = Coordinate::stringFromColumnIndex($columnaActualNum);
-    $sheet->setCellValue($columnaPromedio . '2', 'PROMEDIO');
-    $sheet->mergeCells($columnaPromedio . '2:' . $columnaPromedio . '3');
+    $sheet->setCellValue($columnaPromedio . ($filaInicioCabecera + 1), 'PROMEDIO');
+    $sheet->mergeCells($columnaPromedio . ($filaInicioCabecera + 1) . ':' . $columnaPromedio . ($filaInicioCabecera + 2));
     $columnaActualNum++;
 }
 
-// Columnas de Cierre Finales (Merge con las 3 filas)
+// Columnas de Cierre Finales (Merge vertical completo desde Fila 7 a la 9)
 $colPromedioFinal = $columnaActualNum;
-// Usar setCellValue con coordenadas en vez de setCellValueByColumnAndRow
 $colPromedioFinalLetter = Coordinate::stringFromColumnIndex($colPromedioFinal);
-$sheet->setCellValue($colPromedioFinalLetter . '1', 'PROMEDIO FINAL');
-$sheet->mergeCells($colPromedioFinalLetter . '1:' . $colPromedioFinalLetter . '3');
+$sheet->setCellValue($colPromedioFinalLetter . $filaInicioCabecera, 'PROMEDIO FINAL');
+$sheet->mergeCells($colPromedioFinalLetter . $filaInicioCabecera . ':' . $colPromedioFinalLetter . ($filaInicioCabecera + 2));
 
 $colSupletorio = $columnaActualNum + 1;
 $colSupletorioLetter = Coordinate::stringFromColumnIndex($colSupletorio);
-$sheet->setCellValue($colSupletorioLetter . '1', 'SUPLETORIO');
-$sheet->mergeCells($colSupletorioLetter . '1:' . $colSupletorioLetter . '3');
+$sheet->setCellValue($colSupletorioLetter . $filaInicioCabecera, 'SUPLETORIO');
+$sheet->mergeCells($colSupletorioLetter . $filaInicioCabecera . ':' . $colSupletorioLetter . ($filaInicioCabecera + 2));
 
-// Aplicar estilos a toda la cabecera calculada (Filas 1 a 3)
-$ultimaColumnaLetra = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colSupletorio);
-$sheet->getStyle('A1:' . $ultimaColumnaLetra . '3')->applyFromArray($estiloGlobalCabecera);
+// Aplicar estilos a toda la cabecera calculada (Filas 7 a 10)
+$ultimaColumnaLetra = Coordinate::stringFromColumnIndex($colSupletorio);
+$sheet->getStyle('A' . $filaInicioCabecera . ':' . $ultimaColumnaLetra . ($filaInicioCabecera + 3))->applyFromArray($estiloGlobalCabecera);
 
 // ==========================================
 // 4. PROCESAMIENTO MATRICIAL DE LAS CALIFICACIONES
 // ==========================================
-$filaExcelActual = 4; // Los datos del bucle arrancan estrictamente en la fila 4
+$filaExcelActual = $filaInicioCabecera + 4; // Los datos arrancan exactamente en la fila 11 (7 + 4)
 $contador_nro = 1;
 
-// Estilos de alerta para el promedio final (Mapeo de tus colores Bootstrap/CSS)
+// Estilos de alerta para el promedio final...
 $estiloAprobado = [
     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '4CAF50']] // Verde
@@ -210,7 +212,7 @@ $estiloReprobadoFinal = [
 while ($estudiante = $db->fetch_object($res_estudiantes)) {
     $id_est_actual = $estudiante->id_estudiante;
     $columnaDataNum = 3; // El cursor de celdas numéricas vuelve a la columna C por estudiante
-    
+
     $sheet->setCellValue('A' . $filaExcelActual, $contador_nro++);
     $sheet->setCellValue('B' . $filaExcelActual, $estudiante->nombre_completo);
 

@@ -121,7 +121,9 @@ if ($tipo_nota === 'comportamiento') {
         if ($calificacion_raw === '' || $calificacion_raw === '-') {
             $sql_accion = "DELETE FROM sw_rubrica_estudiante 
                            WHERE id_estudiante = {$id_estudiante} 
-                           AND id_rubrica_personalizada = {$id_rubrica}";
+                           AND id_rubrica_personalizada = {$id_rubrica} 
+                           AND id_paralelo = {$id_paralelo} 
+                           AND id_asignatura = {$id_asignatura}";
             $msg_exito = "Calificación numérica removida.";
         } else {
             $nota_num = (float)$calificacion_raw;
@@ -135,11 +137,13 @@ if ($tipo_nota === 'comportamiento') {
         if ($calificacion_raw === '' || $calificacion_raw === '-') {
             $sql_accion = "DELETE FROM sw_rubrica_cualitativa 
                            WHERE id_estudiante = {$id_estudiante} 
-                           AND id_rubrica_personalizada = {$id_rubrica}";
+                           AND id_rubrica_personalizada = {$id_rubrica} 
+                           AND id_asignatura = {$id_asignatura} 
+                           AND id_aporte_evaluacion = {$id_aporte}";
             $msg_exito = "Calificación cualitativa removida del sistema.";
         } else {
-            $sql_accion = "INSERT INTO sw_rubrica_cualitativa (id_estudiante, id_paralelo, id_asignatura, id_rubrica_personalizada, rc_calificacion, fecha_registro) 
-                           VALUES ({$id_estudiante}, {$id_paralelo}, {$id_asignatura}, {$id_rubrica}, '{$calificacion_raw}', NOW())
+            $sql_accion = "INSERT INTO sw_rubrica_cualitativa (id_estudiante, id_paralelo, id_aporte_evaluacion, id_asignatura, id_rubrica_personalizada, rc_calificacion, fecha_registro) 
+                           VALUES ({$id_estudiante}, {$id_paralelo}, {$id_aporte} , {$id_asignatura}, {$id_rubrica}, '{$calificacion_raw}', NOW())
                            ON DUPLICATE KEY UPDATE rc_calificacion = '{$calificacion_raw}', fecha_registro = NOW()";
             $msg_exito = "Calificación cualitativa guardada con éxito.";
         }

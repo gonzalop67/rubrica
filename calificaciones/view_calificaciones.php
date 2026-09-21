@@ -101,7 +101,7 @@
                             <!-- 🎯 INPUTS FÍSICOS COMPARTIDOS PARA EL REPORTE EXCEL -->
                             <input type="hidden" id="id_paralelo_excel" name="id_paralelo_excel" value="" />
                             <input type="hidden" id="id_asignatura_excel" name="id_asignatura_excel" value="" />
-                            
+
                             <div id="img_loader_estudiantes" class="text-center"></div>
 
                             <!-- Contenedor interno de la tabla pura con scroll independiente -->
@@ -435,6 +435,74 @@
 
         100% {
             box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+        }
+    }
+
+    @media (max-width: 1024px) and (min-width: 768px) {
+        .contenedor-flex-paneles {
+            flex-direction: column;
+            /* apila las columnas */
+        }
+
+        .columna-flex-materias {
+            width: 100% !important;
+            /* asignaturas arriba */
+            flex: 0 0 auto;
+        }
+
+        .columna-flex-estudiantes {
+            width: 100% !important;
+            /* sábana ocupa todo el ancho */
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #tabla-sabana-scroll {
+            width: 100% !important;
+            overflow-x: auto;
+            /* scroll horizontal si hay muchas columnas */
+        }
+
+        #tabla-sabana-scroll table {
+            width: 100% !important;
+            table-layout: auto;
+        }
+    }
+
+    @media (max-width: 767px) {
+        .contenedor-flex-paneles {
+            flex-direction: column;
+            /* apila las columnas */
+            gap: 15px;
+        }
+
+        .columna-flex-materias {
+            width: 100% !important;
+            /* asignaturas arriba */
+            flex: 0 0 auto;
+        }
+
+        .columna-flex-estudiantes {
+            width: 100% !important;
+            /* sábana ocupa todo el ancho */
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #tabla-sabana-scroll {
+            width: 100% !important;
+            overflow-x: auto;
+            /* scroll horizontal si hay muchas columnas */
+        }
+
+        #tabla-sabana-scroll table {
+            width: 100% !important;
+            table-layout: auto;
+            /* columnas se ajustan automáticamente */
+            font-size: 11px;
+            /* opcional: reducir tipografía en móviles */
         }
     }
 </style>

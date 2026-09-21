@@ -59,6 +59,7 @@ $(document).ready(function () {
        ===================================================================
        Se ancla a 'document' para que no se rompa cuando AJAX recargue las tablas.
     */
+    // Navegación con flechas estilo Excel
     $(document).on('keydown', '.excel-cell', function (e) {
         var $inputActual = $(this);
         var $celdaActual = $inputActual.closest('td');
@@ -69,18 +70,15 @@ $(document).ready(function () {
         switch (e.key) {
             case "ArrowRight":
             case "Enter":
-                // Buscar hacia la derecha en la misma fila (saltando celdas de promedio de texto simple)
                 var $siguienteCelda = $celdaActual.next('td');
                 while ($siguienteCelda.length) {
                     var $inputCandidato = $siguienteCelda.find('.excel-cell');
-                    if ($inputCandidato.length) {
+                    if ($inputCandidato.length && !$inputCandidato.is(':disabled')) {
                         $proximoInput = $inputCandidato;
                         break;
                     }
                     $siguienteCelda = $siguienteCelda.next('td');
                 }
-
-                // Salto inteligente de fila si llegó al final del alumno actual
                 if (!$proximoInput.length) {
                     var $proximaFila = $filaActual.next('tr.row-alumno-sabana');
                     if ($proximaFila.length) {
@@ -91,18 +89,15 @@ $(document).ready(function () {
                 break;
 
             case "ArrowLeft":
-                // Buscar hacia la izquierda en la misma fila
                 var $celdaAnterior = $celdaActual.prev('td');
                 while ($celdaAnterior.length) {
                     var $inputCandidatoIzq = $celdaAnterior.find('.excel-cell');
-                    if ($inputCandidatoIzq.length) {
+                    if ($inputCandidatoIzq.length && !$inputCandidatoIzq.is(':disabled')) {
                         $proximoInput = $inputCandidatoIzq;
                         break;
                     }
                     $celdaAnterior = $celdaAnterior.prev('td');
                 }
-
-                // Salto inteligente hacia la fila de arriba
                 if (!$proximoInput.length) {
                     var $filaAnterior = $filaActual.prev('tr.row-alumno-sabana');
                     if ($filaAnterior.length) {
@@ -112,26 +107,23 @@ $(document).ready(function () {
                 break;
 
             case "ArrowDown":
-                // Mover verticalmente abajo buscando el mismo índice de columna
                 var $proximaFilaAbajo = $filaActual.next('tr.row-alumno-sabana');
                 if ($proximaFilaAbajo.length) {
                     var $celdaObjetivoAbajo = $proximaFilaAbajo.children('td').eq(colIndex);
-                    $proximoInput = $celdaObjetivoAbajo.find('.excel-cell');
-                    // Si cayó en un promedio estático, busca el input editable anterior más cercano
+                    $proximoInput = $celdaObjetivoAbajo.find('.excel-cell:not(:disabled)');
                     if (!$proximoInput.length) {
-                        $proximoInput = $celdaObjetivoAbajo.prevAll('td').find('.excel-cell').first();
+                        $proximoInput = $celdaObjetivoAbajo.prevAll('td').find('.excel-cell:not(:disabled)').first();
                     }
                 }
                 break;
 
             case "ArrowUp":
-                // Mover verticalmente arriba
                 var $filaAnteriorArriba = $filaActual.prev('tr.row-alumno-sabana');
                 if ($filaAnteriorArriba.length) {
                     var $celdaObjetivoArriba = $filaAnteriorArriba.children('td').eq(colIndex);
-                    $proximoInput = $celdaObjetivoArriba.find('.excel-cell');
+                    $proximoInput = $celdaObjetivoArriba.find('.excel-cell:not(:disabled)');
                     if (!$proximoInput.length) {
-                        $proximoInput = $celdaObjetivoArriba.prevAll('td').find('.excel-cell').first();
+                        $proximoInput = $celdaObjetivoArriba.prevAll('td').find('.excel-cell:not(:disabled)').first();
                     }
                 }
                 break;
@@ -145,49 +137,44 @@ $(document).ready(function () {
         }
     });
 
-    // =========================================================================
-    // 🎯 CONTROL DE ENFOQUE AUTOMÁTICO EN SCROLL (FLEXBOX EXCEL)
-    // =========================================================================
-    // Escucha cuando el docente navega o escribe dentro de las celdas estilo Excel
+    // Scroll automático vertical + horizontal
     $(document).on('keyup focusin', '.excel-cell', function () {
         var $celdaActual = $(this);
         var $contenedorScroll = $("#tabla-sabana-scroll");
-
-        // Si por alguna razón el contenedor hijo no existe, no hacemos nada
         if ($contenedorScroll.length === 0) return;
 
-        // Calcular las posiciones físicas en la pantalla
+        var colIndex = $celdaActual.closest('td').index();
+
+        // --- Control vertical ---
         var posicionCeldaTop = $celdaActual.offset().top;
         var posicionContenedorTop = $contenedorScroll.offset().top;
-
-        /* 
-         * 1. 🛑 CONTROL DE SUBIDA (EVITAR QUE LA CABECERA TAPE AL ALUMNO 1 Y 2)
-         * Sumamos 120 píxeles que es el espacio aproximado que ocupan tus 3 filas fijas.
-         */
         var limiteSuperiorCabecera = posicionContenedorTop + 120;
-
         if (posicionCeldaTop < limiteSuperiorCabecera) {
-            // Calculamos cuántos píxeles debemos devolver hacia arriba
             var scrollActual = $contenedorScroll.scrollTop();
             var diferenciaHaciaArriba = limiteSuperiorCabecera - posicionCeldaTop;
-
-            // Movemos el scroll del contenedor para revelar al estudiante escondido
             $contenedorScroll.scrollTop(scrollActual - diferenciaHaciaArriba - 10);
         }
-
-        /* 
-         * 2. 🔽 CONTROL DE BAJADA (EVITAR QUE EL ALUMNO SE SALGA POR ABAJO DEL PANEL)
-         */
         var alturaContenedor = $contenedorScroll.innerHeight();
         var limiteInferiorPanel = posicionContenedorTop + alturaContenedor;
-        var altoCelda = $celdaActual.outerHeight();
-
-        if ((posicionCeldaTop + altoCelda) > limiteInferiorPanel) {
+        if ((posicionCeldaTop + $celdaActual.outerHeight()) > limiteInferiorPanel) {
             var scrollActual = $contenedorScroll.scrollTop();
-            var diferenciaHaciaAbajo = (posicionCeldaTop + altoCelda) - limiteInferiorPanel;
-
-            // Movemos el scroll hacia abajo para seguir la escritura del docente
+            var diferenciaHaciaAbajo = (posicionCeldaTop + $celdaActual.outerHeight()) - limiteInferiorPanel;
             $contenedorScroll.scrollTop(scrollActual + diferenciaHaciaAbajo + 15);
+        }
+
+        // --- Control horizontal (ignora las dos primeras columnas fijas) ---
+        if (colIndex > 1) {
+            var posicionCeldaLeft = $celdaActual.position().left; // relativo al contenedor
+            var anchoContenedor = $contenedorScroll.innerWidth();
+            var scrollActualX = $contenedorScroll.scrollLeft();
+
+            if (posicionCeldaLeft < scrollActualX) {
+                $contenedorScroll.scrollLeft(posicionCeldaLeft - 10);
+            }
+            if ((posicionCeldaLeft + $celdaActual.outerWidth()) > (scrollActualX + anchoContenedor)) {
+                var diferenciaDerecha = (posicionCeldaLeft + $celdaActual.outerWidth()) - (scrollActualX + anchoContenedor);
+                $contenedorScroll.scrollLeft(scrollActualX + diferenciaDerecha + 15);
+            }
         }
     });
 
@@ -376,51 +363,6 @@ $(document).ready(function () {
 
         // ... al final absoluto de la lógica numérica ...
         ejecutarGuardadoAjax($inputModificado, notaParaEnviar); // 🎯 LLAMADA 2
-
-
-        /*$.ajax({
-            url: "calificaciones/guardar_nota_individual.php",
-            type: "POST",
-            dataType: "json",
-            data: {
-                id_estudiante: idEstudiante,
-                id_rubrica: idRubricaActual,
-                id_asignatura: $("#id_asignatura").val(),
-                id_paralelo: $("#cboParalelos").val(),
-                calificacion: notaParaEnviar
-            },
-            success: function (respuesta) {
-                if (respuesta && respuesta.status === "success") {
-                    // Éxito: Borde verde rápido que desaparece para indicar guardado transparente
-                    $inputModificado.css('border-bottom', '2px solid #00a65a');
-                    setTimeout(function () {
-                        $inputModificado.css('border-bottom', 'none');
-                    }, 1000);
-                } else {
-                    // Si el servidor reporta un error
-                    $inputModificado.css('background-color', '#f2dede');
-                    console.error("Error devuelto por el servidor:", respuesta.message);
-                }
-            },
-            error: function (jqXHR) {
-                // Error de conexión o caída de sesión
-                $inputModificado.css('background-color', '#f2dede');
-                console.error("Error crítico al guardar la nota:", jqXHR.responseText);
-
-                // Notificación flotante discreta (Toast) para no interrumpir con un modal gigante
-                const Toast = Swal.mixin({
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 3000,
-                    timerProgressBar: true
-                });
-                Toast.fire({
-                    icon: 'error',
-                    title: 'Error de conexión: Nota no guardada.'
-                });
-            }
-        });*/
     });
 
     /* ===================================================================
@@ -1209,12 +1151,12 @@ function ejecutarGuardadoAjax($element, nota) {
             id_asignatura: $("#id_asignatura").val(),
             id_paralelo: $("#cboParalelos").val(),
             id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1",
-            tipo_nota: tipoNota, 
+            tipo_nota: tipoNota,
             calificacion: nota
         },
         success: function (respuesta) {
             console.log("Respuesta Servidor:", respuesta); // Para rastreo en tu consola
-            
+
             if (respuesta && respuesta.status === "success") {
                 // Éxito: Borde verde rápido que desaparece tras un segundo para indicar éxito
                 $element.css('border-bottom', '2px solid #00a65a');

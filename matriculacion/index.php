@@ -50,6 +50,8 @@
 
 			$("#img-loader-busqueda").hide();
 
+			
+
 			$("#id_paralelo").change(function() {
 				if ($(this).val() != "") {
 					contarEstudiantesParalelo($(this).val()); //Esta funcion desencadena las demas funciones de paginacion

@@ -22,7 +22,7 @@ BEGIN
 		UPDATE sw_aporte_evaluacion
 		   SET ap_estado = 'A'
 		 WHERE id_aporte_evaluacion = IdAporteEvaluacion
-		   AND ap_fecha_apertura = (SELECT curdate());
+		   AND ap_fecha_apertura <= (SELECT curdate());
 	UNTIL done END REPEAT;
 
 	CLOSE cAportesEvaluacion;
