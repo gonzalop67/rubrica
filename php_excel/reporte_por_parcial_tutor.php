@@ -65,8 +65,8 @@ $numAsignaturas = $paralelo->contarAsignaturas($id_paralelo, $id_curso, 2);
 $ultimaColumna = $numAsignaturas + 1;
 
 // Vectores de configuracion para las columnas
-$colAsignaturas = array('C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V');
-$contNotasValidasArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+$colAsignaturas = array('C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W');
+$contNotasValidasArray = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 // Variable de instancia de la clase MySQL
 $db = new MySQL();
@@ -188,6 +188,10 @@ switch ($numAsignaturas) {
 	case 18:
 		$colPromedio = 'U';
 		$colObservacion = 'V';
+		break;
+	case 19:
+		$colPromedio = 'V';
+		$colObservacion = 'W';
 		break;
 }
 

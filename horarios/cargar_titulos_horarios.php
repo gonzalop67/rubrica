@@ -4,7 +4,7 @@ $db = new MySQL();
 
 session_start();
 
-$id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
+$id_periodo_lectivo = $_POST["id_periodo_lectivo"];
 
 $sql = "SELECT * FROM sw_horario_def WHERE id_periodo_lectivo = " . $id_periodo_lectivo . " ORDER BY fecha_inicial DESC";
 

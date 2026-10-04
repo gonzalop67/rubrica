@@ -15,6 +15,7 @@ function truncarDosDecimales(string $valor)
 
 require_once "../vendor/autoload.php";
 require_once "../scripts/clases/class.mysql.php";
+require_once '../scripts/clases/class.institucion.php';
 
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;

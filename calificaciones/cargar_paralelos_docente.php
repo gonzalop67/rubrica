@@ -4,7 +4,7 @@ require_once("../scripts/clases/class.mysql.php");
 $db = new MySQL();
 
 // Forzar a Edge a aceptar la cookie de sesión en entornos locales o HTTP convencionales
-ini_set('session.cookie_samesite', 'Lax'); 
+ini_set('session.cookie_samesite', 'Lax');
 session_start();
 
 // Validar si las variables existen; si no, les asignamos un valor por defecto (0) para evitar que rompan el SQL
@@ -51,12 +51,14 @@ if ($num_total_registros > 0) {
              ORDER BY pa_orden";
     $consulta2 = $db->consulta($qry);
     while ($paralelo = $db->fetch_assoc($consulta2)) {
-        $id_paralelo = $paralelo["id_paralelo"];
-        $name = $paralelo["cu_nombre"] . " " . $paralelo["pa_nombre"] . " - " . $paralelo["es_figura"];
-        $cadena .= "<option value=\"$id_paralelo\">$name</option>";
+      $id_paralelo = $paralelo["id_paralelo"];
+      $name = $paralelo["cu_nombre"] . " " . $paralelo["pa_nombre"] . " - " . $paralelo["es_figura"];
+      $cadena .= "<option value=\"$id_paralelo\">$name</option>";
     }
   }
+  // Imprime todo el bloque de options limpio si encontró registros
+  echo $cadena;
+} else {
+  // NUEVO: Si no hay registros, limpiamos el buffer previo y enviamos una bandera exacta
+  echo "SIN_REGISTROS";
 }
-
-// Imprime todo el bloque limpio de una sola vez
-echo $cadena;

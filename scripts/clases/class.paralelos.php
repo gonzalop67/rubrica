@@ -556,8 +556,6 @@ class paralelos extends MySQL
 		return $mensaje;
 	}
 
-
-
 	function listarCalificacionesProyectoIntegrador($id_paralelo, $id_periodo_lectivo, $id_asignatura)
 	{
 		$cadena = "<table class=\"table table-striped table-hover fuente8\">\n";

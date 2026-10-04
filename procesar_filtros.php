@@ -1,16 +1,18 @@
 <?php
 if (isset($_POST['accion']) && $_POST['accion'] == 'cargar_asignaturas') {
     require_once("scripts/clases/class.mysql.php");
-    // Suponiendo que tu objeto hereda o instancia la función creada en el paso 2
     $db = new MySQL; 
     
     $id_paralelo = (int)$_POST['id_paralelo'];
-    //
-    $sql = "SELECT a.id_asignatura, a.as_nombre 
+
+    // Consulta adaptada con us_shortname según la estructura de tu base de datos
+    $sql = "SELECT a.id_asignatura, a.as_nombre, u.us_shortname
               FROM sw_paralelo p
               INNER JOIN sw_asignatura_curso ac ON p.id_curso = ac.id_curso
               INNER JOIN sw_asignatura a ON ac.id_asignatura = a.id_asignatura
-             WHERE p.id_paralelo = " . (int)$id_paralelo . "
+              LEFT JOIN sw_distributivo d ON (d.id_paralelo = p.id_paralelo AND d.id_asignatura = a.id_asignatura)
+              LEFT JOIN sw_usuario u ON d.id_usuario = u.id_usuario
+             WHERE p.id_paralelo = " . $id_paralelo . "
                AND a.id_tipo_asignatura = 1 
              ORDER BY ac.ac_orden ASC";
 
@@ -23,7 +25,14 @@ if (isset($_POST['accion']) && $_POST['accion'] == 'cargar_asignaturas') {
         while ($asignatura = $db->fetch_assoc($consulta)) {
             $code = $asignatura["id_asignatura"];
             $name = $asignatura["as_nombre"];
-            $cadena .= "<option value='{$code}'>{$name}</option>";
+            
+            // Validamos si la consulta trajo el shortname del docente o si está vacío
+            $docente = (!empty($asignatura["us_shortname"])) 
+                ? $asignatura["us_shortname"] 
+                : "Por asignar";
+
+            // Guardamos el shortname en la propiedad data-docente para el JS
+            $cadena .= "<option value='{$code}' data-docente='{$docente}'>{$name}</option>";
         }
     }
     echo $cadena;

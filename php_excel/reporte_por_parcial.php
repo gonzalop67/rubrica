@@ -115,7 +115,7 @@ if (file_exists($logoInstitucionPath)) {
 	$drawing2 = new Drawing();
 	$drawing2->setName('Logo de la Institucion');
 	$drawing2->setPath($logoInstitucionPath);
-	$drawing2->setHeight(50);
+	$drawing2->setHeight(100);
 	// Dinámico: se posiciona en la letra de la última asignatura cargada
 	$colUltimaAsignaturaLetra = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $numAsignaturas - 1);
 	$drawing2->setCoordinates($colUltimaAsignaturaLetra . '1');
@@ -138,6 +138,24 @@ $sheet->setCellValue('A1', $nombreInstitucion)
 	->setCellValue('C5', 'JORNADA ' . $jornada)
 	->setCellValue('G5', 'CICLO: ' . $ciclo);
 
+$sheet->getStyle('A1')->getFont()
+	->setBold(true)
+	->setSize(18);
+
+$sheet->getStyle('A2')->getFont()
+	->setBold(true)
+	->setSize(16);
+
+$sheet->getStyle('A3')->getFont()
+	->setBold(true)
+	->setSize(14);
+
+$sheet->getStyle('C5')->getFont()
+	->setBold(true);
+
+$sheet->getStyle('G5')->getFont()
+	->setBold(true);
+
 // Cabeceras fijas de control izquierdo
 $rowAsignatura = 6;
 $sheet->setCellValue('A' . $rowAsignatura, 'Nro.');
@@ -153,13 +171,13 @@ $sheet->getStyle('B' . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
 $contAsignaturas = 0;
 while ($asignatura = $db->fetch_assoc($resAsignaturas)) {
 	$nombre_asig = $asignatura["as_nombre"];
-    $colLetraActual = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $contAsignaturas);
-    
+	$colLetraActual = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $contAsignaturas);
+
 	$sheet->setCellValue($colLetraActual . $rowAsignatura, $nombre_asig);
-	
+
 	// Aplicar estilos base (bordes, alineación)
 	$sheet->getStyle($colLetraActual . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
-	
+
 	// NUEVO: Forzar rotación de texto a 90 grados hacia arriba
 	$sheet->getStyle($colLetraActual . $rowAsignatura)
 		->getAlignment()
@@ -181,6 +199,11 @@ $colObservacionLetra = Coordinate::stringFromColumnIndex($colObservacionNum);
 // Encabezados dinámicos finales
 $sheet->getStyle($colPromedioLetra . $rowAsignatura)->applyFromArray($estiloCabeceraMatriz);
 $sheet->setCellValue($colPromedioLetra . $rowAsignatura, 'PROMEDIO');
+
+// NUEVO: Rotar la palabra PROMEDIO 90 grados hacia arriba
+$sheet->getStyle($colPromedioLetra . $rowAsignatura)
+	->getAlignment()
+	->setTextRotation(90);
 
 // Combinación dinámica de celdas superiores según la anchura real conseguida
 $sheet->mergeCells('A1:' . $colPromedioLetra . '1');
@@ -335,11 +358,43 @@ if ($num_total_estudiantes > 0) {
 		$row++;
 	} // fin while $estudiante
 
-	// Seteo las fórmulas dinámicas para los promedios verticales de cada asignatura al final de la tabla
+	// =========================================================================
+	// OPTIMIZADO: PALABRA "PROMEDIOS" CENTRADA Y EN TAMAÑO 11
+	// =========================================================================
+	$sheet->setCellValue('B' . $row, 'PROMEDIOS');
+
+	// Estilo actualizado para la celda de la palabra PROMEDIOS
+	$estiloCeldaPromediosEtiqueta = [
+		'font' => [
+			'bold' => true,
+			'size' => 11 // <-- Cambiado a tamaño 11
+		],
+		'alignment' => [
+			'horizontal' => Alignment::HORIZONTAL_CENTER, // <-- Cambiado a Centrado
+			'vertical' => Alignment::VERTICAL_CENTER
+		],
+		'borders' => [
+			'outline' => [
+				'borderStyle' => Border::BORDER_THIN,
+				'color' => ['argb' => '000000'],
+			],
+		],
+	];
+
+	// Aplicar el borde a la celda "A" (Nro.) para mantener simetría en la fila
+	$sheet->getStyle('A' . $row)->applyFromArray([
+		'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => '000000']]]
+	]);
+
+	// Aplicar el nuevo estilo estilizado a la celda B
+	$sheet->getStyle('B' . $row)->applyFromArray($estiloCeldaPromediosEtiqueta);
+
+	// Seteo las fórmulas dinámicas para los promedios generales de cada asignatura
 	for ($col = 0; $col < $contAsignaturas; $col++) {
 		$colLetraActual = Coordinate::stringFromColumnIndex($colInicioAsignaturas + $col);
 
 		if ($contNotasValidasArray[$col] > 0) {
+			// Aplicar el estilo de borde outline delgado
 			$sheet->getStyle($colLetraActual . $row)->applyFromArray([
 				'borders' => [
 					'outline' => [
@@ -348,11 +403,69 @@ if ($num_total_estudiantes > 0) {
 					],
 				],
 			]);
-			// Escribe la fórmula nativa de Excel basada en coordenadas dinámicas reales
-			$sheet->setCellValue($colLetraActual . $row, "=SUM(" . $colLetraActual . $filaBase . ":" . $colLetraActual . ($row - 1) . ")/" . $contNotasValidasArray[$col]);
+
+			// 1. NUEVO: Envolver la fórmula matemática en la función TRUNC de Excel a 4 decimales
+			$formulaBase = "SUM(" . $colLetraActual . $filaBase . ":" . $colLetraActual . ($row - 1) . ")/" . $contNotasValidasArray[$col];
+			$sheet->setCellValue($colLetraActual . $row, "=TRUNC(" . $formulaBase . ", 4)");
+
+			// 2. NUEVO: Forzar la máscara visual en Excel para que renderice obligatoriamente los 4 decimales (ej: 8.1200)
+			$sheet->getStyle($colLetraActual . $row)
+				->getNumberFormat()
+				->setFormatCode('0.0000');
 		}
 	}
 } // $num_total_estudiantes > 0
+
+// =========================================================================
+// OPTIMIZADO: SECCIÓN DE FIRMAS INICIANDO ESTRICTAMENTE EN LA COLUMNA C
+// =========================================================================
+$filaFirmasNombres = $row + 6; // 5 filas vacías de separación para el espacio de la firma
+$filaFirmasCargos = $filaFirmasNombres + 1;
+
+// --- CAMBIO: El Rector ahora inicia en la columna C (Índice 3) y abarca 3 columnas (C, D, E) ---
+$colRectorInicio = 'C';
+$colRectorFin = 'E';
+
+// La Secretaria se desplaza proporcionalmente iniciando 4 columnas después del fin del Rector (Columna I)
+$colSecretariaInicioNum = 9; // 9 corresponde a la columna I
+$colSecretariaFinNum = $colSecretariaInicioNum + 2; // Avanza 2 columnas más (I, J, K)
+
+$colSecretariaInicio = Coordinate::stringFromColumnIndex($colSecretariaInicioNum);
+$colSecretariaFin = Coordinate::stringFromColumnIndex($colSecretariaFinNum);
+
+// 1. Asignar valores a la celda inicial de cada bloque combinado
+$sheet->setCellValue($colRectorInicio . $filaFirmasNombres, $nombreRector);
+$sheet->setCellValue($colRectorInicio . $filaFirmasCargos, 'RECTOR(A)');
+
+$sheet->setCellValue($colSecretariaInicio . $filaFirmasNombres, $nombreSecretario);
+$sheet->setCellValue($colSecretariaInicio . $filaFirmasCargos, 'SECRETARIO(A)');
+
+// 2. Combinar las 3 columnas correspondientes para los nombres y los cargos
+$sheet->mergeCells($colRectorInicio . $filaFirmasNombres . ':' . $colRectorFin . $filaFirmasNombres);
+$sheet->mergeCells($colRectorInicio . $filaFirmasCargos . ':' . $colRectorFin . $filaFirmasCargos);
+
+$sheet->mergeCells($colSecretariaInicio . $filaFirmasNombres . ':' . $colSecretariaFin . $filaFirmasNombres);
+$sheet->mergeCells($colSecretariaInicio . $filaFirmasCargos . ':' . $colSecretariaFin . $filaFirmasCargos);
+
+// 3. Estilo de texto (Negrita y Centrado dentro de la combinación)
+$estiloTextosFirmas = [
+	'font' => ['bold' => true, 'size' => 10],
+	'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER]
+];
+$sheet->getStyle($colRectorInicio . $filaFirmasNombres . ':' . $colRectorFin . $filaFirmasCargos)->applyFromArray($estiloTextosFirmas);
+$sheet->getStyle($colSecretariaInicio . $filaFirmasNombres . ':' . $colSecretariaFin . $filaFirmasCargos)->applyFromArray($estiloTextosFirmas);
+
+// 4. Aplicar la línea superior delgada a todo el ancho combinado de las 3 celdas
+$estiloLineaFirma = [
+	'borders' => [
+		'top' => [
+			'borderStyle' => Border::BORDER_THIN,
+			'color' => ['argb' => '000000'],
+		],
+	],
+];
+$sheet->getStyle($colRectorInicio . $filaFirmasNombres . ':' . $colRectorFin . $filaFirmasNombres)->applyFromArray($estiloLineaFirma);
+$sheet->getStyle($colSecretariaInicio . $filaFirmasNombres . ':' . $colSecretariaFin . $filaFirmasNombres)->applyFromArray($estiloLineaFirma);
 
 // =========================================================
 // DESPLIEGUE DE LA LISTA DE DOCENTES (HOJA INDEX 1)

@@ -17,67 +17,76 @@ class horarios extends MySQL
 		$dias_semana = "";
 		$horas_clase = "";
 
-		$qryString1 = "SELECT * FROM sw_dia_semana WHERE id_horario_def = $id_horario_def";
-		$consulta = parent::consulta($qryString1);
+		// 1. Mapeo estático de los días de la semana (1 = Lunes, 5 = Viernes)
+		$nombres_dias = [
+			1 => "LUNES",
+			2 => "MARTES",
+			3 => "MIÉRCOLES",
+			4 => "JUEVES",
+			5 => "VIERNES"
+		];
 
-		if (parent::num_rows($consulta) > 0) {
-			$dias_semana .= "<tr>";
-			$dias_semana .= "<th>HORA</th>";
-			while ($dia = parent::fetch_object($consulta)) {
-				$dias_semana .= "<th>$dia->ds_nombre</th>";
-			}
-			$dias_semana .= "</tr>";
-			$qryString2 = "SELECT DISTINCT(id_hora_clase) 
-                             FROM sw_hora_dia hd, 
-                                  sw_dia_semana ds 
-                            WHERE ds.id_dia_semana = hd.id_dia_semana 
-                              AND ds.id_horario_def = $id_horario_def";
-			$rs2 = parent::consulta($qryString2);
-			while ($hora = parent::fetch_object($rs2)) {
+		// 2. Generar la cabecera HTML de la tabla
+		$dias_semana .= "<tr>";
+		$dias_semana .= "<th>HORA</th>";
+		foreach ($nombres_dias as $num_dia => $nombre_dia) {
+			$dias_semana .= "<th>$nombre_dia</th>";
+		}
+		$dias_semana .= "</tr>";
+
+		// 3. CORRECCIÓN: Obtener las horas directamente de sw_horario_detalles sin hacer JOIN con tablas extintas
+		$qryStringHoras = "SELECT id_horario_detalle, nombre, hora_inicio, hora_fin 
+                         FROM sw_horario_detalles 
+                        WHERE id_horario_def = $id_horario_def
+                        ORDER BY hora_inicio ASC";
+
+		$rsHoras = parent::consulta($qryStringHoras);
+
+		if (parent::num_rows($rsHoras) > 0) {
+
+			while ($hora = parent::fetch_object($rsHoras)) {
 				$horas_clase .= "<tr>";
-				$id_hora_clase = $hora->id_hora_clase;
-				// Consulto el nombre de la hora clase
-				$consulta = parent::consulta("SELECT hc_nombre FROM sw_hora_clase WHERE id_hora_clase = $id_hora_clase");
-				$hora_clase = parent::fetch_object($consulta);
-				$horas_clase .= "<td class='text-center'><span style='font-size: 12pt'><strong>$hora_clase->hc_nombre</strong></span></td>\n";
+				$id_horario_detalle = $hora->id_horario_detalle;
 
-				// Acá obtengo los dias de la semana asociados al periodo lectivo
-				$dias = parent::consulta("SELECT id_dia_semana 
-				                            FROM sw_dia_semana 
-			                               WHERE id_horario_def = $id_horario_def
-										   ORDER BY ds_orden");
+				// Formateamos las horas para que se vean limpias (ej: 07:15 - 08:00)
+				$formato_tiempo = date("H:i", strtotime($hora->hora_inicio)) . " - " . date("H:i", strtotime($hora->hora_fin));
 
-				while ($dia = parent::fetch_object($dias)) {
-					$id_dia_semana = $dia->id_dia_semana;
-					// Consulto la asignatura del dia y hora correspondientes
-					$qryString3 = "SELECT a.id_asignatura,
-										  as_nombre, 
-										  pa_nombre, 
-										  cu_nombre, 
-										  es_figura 
-								     FROM sw_horario ho, 
-										  sw_hora_clase hc, 
-										  sw_asignatura a, 
-										  sw_paralelo pa, 
-										  sw_curso cu, 
-										  sw_especialidad es  
-								    WHERE ho.id_hora_clase = hc.id_hora_clase 
-									  AND ho.id_asignatura = a.id_asignatura 
-									  AND pa.id_paralelo = ho.id_paralelo 
-									  AND cu.id_curso = pa.id_curso 
-									  AND es.id_especialidad = cu.id_especialidad  
-									  AND ho.id_dia_semana = $id_dia_semana 
-									  AND ho.id_hora_clase = $id_hora_clase 
-									  AND id_usuario = $id_usuario";
-					$consulta = parent::consulta($qryString3);
-					$asignatura = parent::fetch_object($consulta);
+				// Columna con el nombre del bloque horario y sus horas reales
+				$horas_clase .= "<td class='text-center'>";
+				$horas_clase .= "<strong>$hora->nombre</strong><br>";
+				$horas_clase .= "<small class='text-muted'>$formato_tiempo</small>";
+				$horas_clase .= "</td>\n";
+
+				// 4. Iterar secuencialmente por cada columna de día (1 al 5)
+				foreach ($nombres_dias as $num_dia => $nombre_dia) {
+
+					// Consulta para extraer la asignatura del docente en este bloque y día
+					$qryStringAsignatura = "SELECT a.id_asignatura,
+                                               as_nombre, 
+                                               pa_nombre, 
+                                               cu_nombre, 
+                                               es_figura 
+                                          FROM sw_horario_clases hc
+                                          JOIN sw_asignatura a ON hc.id_asignatura = a.id_asignatura
+                                          JOIN sw_paralelo pa ON pa.id_paralelo = hc.id_paralelo
+                                          JOIN sw_curso cu ON cu.id_curso = pa.id_curso
+                                          JOIN sw_especialidad es ON es.id_especialidad = cu.id_especialidad
+                                         WHERE hc.id_horario_detalle = $id_horario_detalle 
+                                           AND hc.dia_semana = $num_dia 
+                                           AND hc.id_horario_def = $id_horario_def
+                                           AND hc.id_usuario = $id_usuario";
+
+					$consultaAsignatura = parent::consulta($qryStringAsignatura);
+					$asignatura = parent::fetch_object($consultaAsignatura);
+
 					if ($asignatura) {
 						$horas_clase .= "<td>\n";
-						$horas_clase .= "<p>$asignatura->as_nombre</p>\n";
-						$paralelo = $asignatura->cu_nombre . " " . $asignatura->pa_nombre . " - " . $asignatura->es_figura;
-						$horas_clase .= "<p><em>$paralelo</em></p>\n";
+						$horas_clase .= "<p style='margin-bottom:2px;'><strong>$asignatura->as_nombre</strong></p>\n";
+						$paralelo = $asignatura->cu_nombre . " " . $asignatura->pa_nombre . "<br><small>" . $asignatura->es_figura . "</small>";
+						$horas_clase .= "<p class='text-muted' style='font-size:8.5pt; margin:0;'><em>$paralelo</em></p>\n";
 						$horas_clase .= "</td>\n";
 					} else {
+						// Celda vacía (por ejemplo horas libres o recesos sin materia asignada)
 						$horas_clase .= "<td>&nbsp;</td>\n";
 					}
 				}
@@ -85,7 +94,7 @@ class horarios extends MySQL
 				$horas_clase .= "</tr>";
 			}
 		} else {
-			$dias_semana .= "<div align='center'>No se han definido los días de la semana para este periodo lectivo...</div>";
+			$horas_clase .= "<tr><td colspan='6' class='text-center'>No se han definido los bloques de tiempo (horas) para este horario...</td></tr>";
 		}
 
 		$datos = [

@@ -74,7 +74,13 @@ if ($id_tipo_asignatura === 1) {
 // 3. Enrutador Maestro: Decidir qué motor de funciones ejecutar
 if ($id_tipo_asignatura === 1) {
     // 🔢 MOTOR CUANTITATIVO NUMÉRICO
-    $estructura = armarEstructuraCuantitativa($db, $id_periodo_lectivo, $id_paralelo, $id_asignatura);
+    // CORRECCIÓN: Desenvolvemos el arreglo devuelto por el empaque de armarEstructuraCuantitativa
+    $resultado_estructura = armarEstructuraCuantitativa($db, $id_periodo_lectivo, $id_paralelo, $id_asignatura);
+    
+    $estructura = $resultado_estructura['periodos']; // El arreglo limpio con la bandera 'mostrar_promedio' por periodo
+    
+    // Al pasarle $estructura a generarTablaCuantitativa, las cabeceras triples HTML seguirán renderizándose sin problemas,
+    // y dentro de la función podrás usar la variable global para ocultar los Promedios Finales si no está todo cerrado.
     generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_notas, $id_periodo_lectivo, $id_paralelo, $id_asignatura);
 } else {
     // 🔤 MOTOR CUALITATIVO DE LETRAS (Cívica, Comportamiento, etc.)
@@ -305,8 +311,21 @@ function armarEstructuraCuantitativa($db, $id_periodo_lectivo, $id_paralelo, $id
     $sql_periodo = "SELECT id_periodo_evaluacion, pe_nombre FROM sw_periodo_evaluacion WHERE id_periodo_lectivo = {$id_periodo_lectivo} AND id_tipo_periodo = 1";
     $res_periodo = $db->consulta($sql_periodo);
 
+    // Bandera global para el promedio anual final
+    $todosLosAportesCerradosAnual = true;
+
     while ($p = $db->fetch_object($res_periodo)) {
-        $periodo_item = ['id' => $p->id_periodo_evaluacion, 'nombre' => $p->pe_nombre, 'aportes' => [], 'total_columnas' => 0];
+        // Cada periodo empieza asumiendo que está cerrado hasta que se demuestre lo contrario
+        $periodoCerrado = true;
+        $hasAportes = false;
+
+        $periodo_item = [
+            'id' => $p->id_periodo_evaluacion,
+            'nombre' => $p->pe_nombre,
+            'aportes' => [],
+            'total_columnas' => 0,
+            'mostrar_promedio' => true // Se controlará dinámicamente
+        ];
 
         $sql_aporte = "SELECT a.id_aporte_evaluacion, a.ap_nombre, a.id_tipo_aporte, a.ap_ponderacion 
                        FROM sw_aporte_evaluacion a
@@ -315,10 +334,17 @@ function armarEstructuraCuantitativa($db, $id_periodo_lectivo, $id_paralelo, $id
         $res_aporte = $db->consulta($sql_aporte);
 
         while ($a = $db->fetch_object($res_aporte)) {
+            $hasAportes = true;
             $sql_cierre = "SELECT ap_estado FROM sw_aporte_paralelo_cierre WHERE id_aporte_evaluacion = {$a->id_aporte_evaluacion} AND id_paralelo = {$id_paralelo}";
             $res_cierre = $db->consulta($sql_cierre);
             $dat_cierre = $db->fetch_object($res_cierre);
             $estado_final = isset($dat_cierre->ap_estado) ? $dat_cierre->ap_estado : 'A';
+
+            // Si AL MENOS UN aporte está Abierto ('A'), el periodo y el año NO se pueden promediar visualmente
+            if ($estado_final !== 'C') {
+                $periodoCerrado = false;
+                $todosLosAportesCerradosAnual = false;
+            }
 
             $aporte_item = ['id' => $a->id_aporte_evaluacion, 'nombre' => $a->ap_nombre, 'tipo' => $a->id_tipo_aporte, 'ponderacion' => (float)$a->ap_ponderacion, 'estado' => $estado_final, 'insumos' => []];
 
@@ -341,9 +367,17 @@ function armarEstructuraCuantitativa($db, $id_periodo_lectivo, $id_paralelo, $id
         } else {
             $periodo_item['total_columnas']++; // Promedio Trimestral Fijo
         }
+
+        // Si no tiene aportes configurados, por seguridad no mostramos promedio
+        $periodo_item['mostrar_promedio'] = ($hasAportes && $periodoCerrado);
         $estructura[] = $periodo_item;
     }
-    return $estructura;
+
+    // Retornamos la estructura junto con la condición global anual usando un contenedor de empaque
+    return [
+        'periodos' => $estructura,
+        'mostrar_final' => $todosLosAportesCerradosAnual
+    ];
 }
 
 function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_notas, $id_periodo_lectivo, $id_paralelo, $id_asignatura)
@@ -353,71 +387,71 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
         <thead>
             <!-- Cabecera 1: Períodos (Fila 1) -->
             <tr style="background-color: #3c8dbc; color: #fff;">
-                <!-- 🎯 MODIFICADO: Quitamos rowspan="3" y le damos una clase de control -->
-                <th class="th-fijo-columna" style="vertical-align: middle; width: 5%;">Nro.</th>
-                <th class="th-fijo-columna" style="vertical-align: middle; width: 25%; text-align: left;">Nómina de Estudiantes</th>
-                <?php foreach ($estructura as $p): ?>
-                    <th colspan="<?php echo $p['total_columnas']; ?>" style="vertical-align: middle;"><b><?php echo strtoupper($p['nombre']); ?></b></th>
+                <th rowspan="3" class="th-fijo-columna" style="vertical-align: middle; width: 5%; border-bottom: 2px solid #ddd;">Nro.</th>
+                <th rowspan="3" class="th-fijo-columna" style="vertical-align: middle; width: 25%; text-align: left; border-bottom: 2px solid #ddd;">Nómina de Estudiantes</th>
+
+                <?php foreach ($estructura as $p):
+                    $colspan_real_periodo = 0;
+                    if (!empty($p['aportes'])) {
+                        foreach ($p['aportes'] as $a) {
+                            $colspan_real_periodo += count($a['insumos']);
+                            if ($a['tipo'] == 1) {
+                                $colspan_real_periodo += 2; // +1 P. Parcial y +1 Comportamiento
+                            }
+                        }
+                    } else {
+                        $colspan_real_periodo = 1;
+                    }
+                    $colspan_real_periodo += 1; // +1 para la columna "PROM." del periodo
+                ?>
+                    <th colspan="<?php echo $colspan_real_periodo; ?>" style="vertical-align: middle;"><b><?php echo strtoupper($p['nombre']); ?></b></th>
                 <?php endforeach; ?>
-                <!-- 🎯 MODIFICADO: Quitamos rowspan="3" a las columnas finales -->
-                <th class="th-fijo-columna" style="vertical-align: middle; background-color: #337ab7; width: 8%;">PROMEDIO FINAL</th>
-                <th class="th-fijo-columna" style="vertical-align: middle; background-color: #605ca8; width: 7%;">SUPLETORIO</th>
-                <th class="th-fijo-columna" style="vertical-align: middle; background-color: #337ab7; width: 8%;">ESTADO</th>
+
+                <th rowspan="3" class="th-fijo-columna" style="vertical-align: middle; background-color: #337ab7; color: #fff; width: 8%; border-bottom: 2px solid #ddd;">PROMEDIO FINAL</th>
+                <th rowspan="3" class="th-fijo-columna" style="vertical-align: middle; background-color: #605ca8; color: #fff; width: 7%; border-bottom: 2px solid #ddd;">SUPLETORIO</th>
+                <th rowspan="3" class="th-fijo-columna" style="vertical-align: middle; background-color: #337ab7; color: #fff; width: 8%; border-bottom: 2px solid #ddd;">ESTADO</th>
             </tr>
 
-            <!-- Cabecera 2: Parciales (Fila 2) -->
+            <!-- Cabecera 2: Parciales / Bloques (Fila 2) -->
             <tr style="background-color: #f4f4f4; color: #333;">
-                <!-- 🎯 NUEVO: Celdas vacías de relleno para compensar la falta de rowspan -->
-                <th style="background-color: #f4f4f4;"></th>
-                <th style="background-color: #f4f4f4;"></th>
-
                 <?php foreach ($estructura as $p): ?>
-                    <?php if (!empty($p['aportes'])):
-                        foreach ($p['aportes'] as $a):
-                            $colspan = count($a['insumos']);
-                            if ($a['tipo'] == 1) $colspan += 2; // 🎯 MODIFICADO: +1 para Promedio Parcial y +1 para Comportamiento
-                    ?>
-                            <th colspan="<?php echo $colspan; ?>" style="font-size: 11px; vertical-align: middle;"><?php echo strtoupper($a['nombre']); ?></th>
-                        <?php endforeach;
-                    else: ?>
+                    <?php if (!empty($p['aportes'])): ?>
+                        <?php foreach ($p['aportes'] as $a):
+                            $colspan_aporte = count($a['insumos']);
+                            if ($a['tipo'] == 1) $colspan_aporte += 2;
+                        ?>
+                            <th colspan="<?php echo $colspan_aporte; ?>" style="font-size: 11px; vertical-align: middle;"><?php echo strtoupper($a['nombre']); ?></th>
+                        <?php endforeach; ?>
+                    <?php else: ?>
                         <th style="font-size: 11px; vertical-align: middle; color:#999;">Sin configurar</th>
                     <?php endif; ?>
+
+                    <!-- 🎯 CORREGIDO: Quitamos rowspan="2" para evitar conflictos de bordes con el tbody -->
                     <th style="background-color: #e7e7e7; vertical-align: middle; width: 6%;"><b>PROM.</b></th>
                 <?php endforeach; ?>
-
-                <!-- 🎯 NUEVO: Relleno para las 3 columnas finales en la fila 2 -->
-                <th style="background-color: #e7e7e7;"></th>
-                <th style="background-color: #e7e7e7;"></th>
-                <th style="background-color: #e7e7e7;"></th>
             </tr>
 
-            <!-- Cabecera 3: Insumos (Fila 3) -->
+            <!-- Cabecera 3: Insumos específicos (Fila 3) -->
             <tr style="background-color: #fafafa; color: #666; font-size: 10px;">
-                <!-- 🎯 NUEVO: Celdas vacías de relleno para la fila 3 -->
-                <th style="background-color: #fafafa;"></th>
-                <th style="background-color: #fafafa;"></th>
-
                 <?php foreach ($estructura as $p): ?>
-                    <?php if (!empty($p['aportes'])):
-                        foreach ($p['aportes'] as $a):
-                            foreach ($a['insumos'] as $insumo): ?>
-                                <th style="vertical-align: middle;"><?php echo strtoupper(mb_substr($insumo['nombre'], 0, 5, 'UTF-8')); ?>.</th>
-                            <?php endforeach;
-                            if ($a['tipo'] == 1): ?>
-                                <th style="background-color: #eaeaea; color: #333; vertical-align: middle;">P. PARCIAL</th>
-                                <!-- 🎯 NUEVO: Columna física para Comportamiento -->
-                                <th style="background-color: #e3f2fd; color: #0d47a1; vertical-align: middle; font-weight: bold;">COMP.</th>
-                        <?php endif;
-                        endforeach;
-                    else: ?>
-                        <th style="vertical-align: middle; color:#999;">-</th>
-                    <?php endif; ?>
-                <?php endforeach; ?>
+                    <?php if (!empty($p['aportes'])): ?>
+                        <?php foreach ($p['aportes'] as $a): ?>
+                            <?php foreach ($a['insumos'] as $insumo): ?>
+                                <!-- 🎯 REFORZADO: Añadimos border-bottom explícito con !important para que el fondo gris no tape la línea -->
+                                <th style="vertical-align: middle; border-bottom: 1px solid #ddd !important;"><?php echo strtoupper(mb_substr($insumo['nombre'], 0, 5, 'UTF-8')); ?>.</th>
+                            <?php endforeach; ?>
 
-                <!-- 🎯 NUEVO: Relleno para las 3 columnas finales en la fila 3 -->
-                <th style="background-color: #fafafa;"></th>
-                <th style="background-color: #fafafa;"></th>
-                <th style="background-color: #fafafa;"></th>
+                            <?php if ($a['tipo'] == 1): ?>
+                                <th style="background-color: #eaeaea; color: #333; vertical-align: middle; border-bottom: 1px solid #ddd !important;">P. PARCIAL</th>
+                                <th style="background-color: #e3f2fd; color: #0d47a1; vertical-align: middle; font-weight: bold; border-bottom: 1px solid #ddd !important;">COMP.</th>
+                            <?php endif; ?>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <th style="vertical-align: middle; color:#999; border-bottom: 1px solid #ddd !important;">-</th>
+                    <?php endif; ?>
+                    <!-- Celda base para el promedio de periodo -->
+                    <th style="background-color: #e7e7e7; border-bottom: 1px solid #ddd !important;"></th>
+                <?php endforeach; ?>
             </tr>
         </thead>
         <tbody>
@@ -584,8 +618,8 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                         // =========================================================================
                         $prom_periodo = $suma_pond_efectiva > 0 ? round($prom_ponderado_bim / $suma_pond_efectiva, 2, PHP_ROUND_HALF_UP) : 0;
 
-                        // 🎯 REGLA DE NEGOCIO SEGURO: Solo se muestra si TODOS los aportes del trimestre están cerrados
-                        if ($todos_los_aportes_cerrados && $prom_periodo > 0) {
+                        // 🎯 REGLA DE NEGOCIO SEGURO: Sincronizado con armarEstructuraCuantitativa
+                        if ($p['mostrar_promedio'] && $prom_periodo > 0) {
                             $clase_per = ($prom_periodo < 7) ? 'color: #dd4b39; font-weight: bold; background-color: #f2dede;' : 'color: #3c763d; font-weight: bold; background-color: #dff0d8;';
                             $texto_prom_periodo = number_format($prom_periodo, 2);
 
@@ -598,8 +632,7 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                             $texto_prom_periodo = "-";
                         }
 
-                        // 2. 🎯 CELDA DEL PROMEDIO TRIMESTRAL (Al final del bucle de aportes)
-                        $texto_prom_periodo = ($prom_periodo == 0) ? "-" : number_format($prom_periodo, 2);
+                        // 2. 🎯 CELDA DEL PROMEDIO TRIMESTRAL
                         echo "<td class='promedio-periodo-dinamico' data-estudiante='{$id_est}' data-periodo='{$p['id']}' 
                                 style='vertical-align: middle; font-weight: bold; pointer-events: none; user-select: none; cursor: default; {$clase_per}'>
                                 <b>{$texto_prom_periodo}</b>
@@ -814,4 +847,3 @@ function truncarDosDecimales($valor)
     // Desplazamos la coma dos posiciones, truncamos el resto con floor y regresamos la coma
     return floor($comprobacion * 100) / 100;
 }
-

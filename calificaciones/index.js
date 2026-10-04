@@ -625,14 +625,32 @@ function cargarParalelosDocente() {
         .done(function (resultado) {
             var datosLimpios = resultado.trim();
 
-            if (datosLimpios === "" || datosLimpios === "false") {
+            // 1. Validar errores de sesión o de base de datos
+            if (datosLimpios === "false") {
                 alert("Error al cargar los datos de los paralelos.");
-            } else {
-                $cboParalelos.html(datosLimpios);
+            } 
+            // 2. NUEVO: Si datosLimpios termina o contiene la palabra clave que definimos en PHP
+            else if (datosLimpios.endsWith("SIN_REGISTROS")) {
+                // Deshabilitar el select y avisarle al usuario
+                $cboParalelos.html('<option value="">Sin paralelos asignados</option>').prop('disabled', true);
 
-                // Aplicar estado inicial de aviso al usuario usando clases de Bootstrap
+                // Inyectar el contenedor de advertencia visual en el div de los estudiantes
                 $listaEstudiantes
                     .removeClass("text-success")
+                    .addClass("text-warning")
+                    .html(
+                        '<div class="alert alert-warning" style="margin: 10px 0; font-weight: normal;">' +
+                        '<i class="fa fa-exclamation-triangle"></i> Usted no tiene paralelos ni asignaturas asignadas en este periodo lectivo.' +
+                        '</div>'
+                    );
+            } 
+            // 3. Proceso normal si existen asignaturas cargadas
+            else {
+                $cboParalelos.html(datosLimpios).prop('disabled', false);
+
+                // Aplicar estado inicial tradicional de aviso al usuario
+                $listaEstudiantes
+                    .removeClass("text-success text-warning")
                     .addClass("text-danger fw-bold")
                     .html('<div style="padding: 3px"><i class="fa fa-info-circle"></i> Debe elegir un paralelo...</div>');
             }

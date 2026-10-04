@@ -290,6 +290,16 @@ desired effect
                 </ul>
               </li>
             <?php } ?>
+
+            <!-- ================================================================= -->
+            <!-- NUEVO: ACCESO DIRECTO PARA CAMBIAR PERIODO LECTIVO -->
+            <!-- ================================================================= -->
+            <li class="dropdown tasks-menu" data-toggle="tooltip" data-placement="bottom">
+              <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=calificaciones/view_cambiar_periodo_lectivo.php&nivel=0" title="Cambiar Periodo Lectivo">
+                <i class="fa fa-calendar"></i>
+              </a>
+            </li>
+
             <!-- User Account Menu -->
             <li class="dropdown user user-menu">
               <!-- Menu Toggle Button -->
