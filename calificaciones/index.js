@@ -55,17 +55,23 @@ $(document).ready(function () {
 
     /* 
        ===================================================================
-       1. MOTOR DE NAVEGACIÓN ESTILO EXCEL (FLECHAS, ENTER Y SALTO INTELIGENTE)
+       1. MOTOR DE NAVEGACIÓN Y SCROLL FLUIDO ESTILO EXCEL (REPARADO Y SUAVE)
        ===================================================================
-       Se ancla a 'document' para que no se rompa cuando AJAX recargue las tablas.
     */
-    // Navegación con flechas estilo Excel
     $(document).on('keydown', '.excel-cell', function (e) {
         var $inputActual = $(this);
         var $celdaActual = $inputActual.closest('td');
         var $filaActual = $celdaActual.closest('tr');
         var colIndex = $celdaActual.index();
         var $proximoInput = $();
+
+        // Si la tecla presionada no es de dirección o Enter, ignorar
+        if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Enter"].indexOf(e.key) === -1) {
+            return;
+        }
+
+        // Prevenir el scroll tosco y salto por defecto que hace el navegador
+        e.preventDefault();
 
         switch (e.key) {
             case "ArrowRight":
@@ -85,7 +91,6 @@ $(document).ready(function () {
                         $proximoInput = $proximaFila.find('.excel-cell').first();
                     }
                 }
-                if (e.key === "Enter") e.preventDefault();
                 break;
 
             case "ArrowLeft":
@@ -127,62 +132,75 @@ $(document).ready(function () {
                     }
                 }
                 break;
-
-            default:
-                return;
         }
 
+        // ===================================================================
+        // 🎯 CONTROL DE ENFOQUE Y SCROLL SIN EFECTO ELÁSTICO (REPARADO)
+        // ===================================================================
         if ($proximoInput.length) {
-            $proximoInput.focus().select();
-        }
-    });
+            // 1. Activar el candado de movimiento para el guardado automático AJAX
+            $inputActual.addClass('moving-focus');
 
-    // Scroll automático vertical + horizontal
-    $(document).on('keyup focusin', '.excel-cell', function () {
-        var $celdaActual = $(this);
-        var $contenedorScroll = $("#tabla-sabana-scroll");
-        if ($contenedorScroll.length === 0) return;
-
-        var colIndex = $celdaActual.closest('td').index();
-
-        // --- Control vertical ---
-        var posicionCeldaTop = $celdaActual.offset().top;
-        var posicionContenedorTop = $contenedorScroll.offset().top;
-        var limiteSuperiorCabecera = posicionContenedorTop + 120;
-        if (posicionCeldaTop < limiteSuperiorCabecera) {
-            var scrollActual = $contenedorScroll.scrollTop();
-            var diferenciaHaciaArriba = limiteSuperiorCabecera - posicionCeldaTop;
-            $contenedorScroll.scrollTop(scrollActual - diferenciaHaciaArriba - 10);
-        }
-        var alturaContenedor = $contenedorScroll.innerHeight();
-        var limiteInferiorPanel = posicionContenedorTop + alturaContenedor;
-        if ((posicionCeldaTop + $celdaActual.outerHeight()) > limiteInferiorPanel) {
-            var scrollActual = $contenedorScroll.scrollTop();
-            var diferenciaHaciaAbajo = (posicionCeldaTop + $celdaActual.outerHeight()) - limiteInferiorPanel;
-            $contenedorScroll.scrollTop(scrollActual + diferenciaHaciaAbajo + 15);
-        }
-
-        // --- Control horizontal (ignora las dos primeras columnas fijas) ---
-        if (colIndex > 1) {
-            var posicionCeldaLeft = $celdaActual.position().left; // relativo al contenedor
-            var anchoContenedor = $contenedorScroll.innerWidth();
-            var scrollActualX = $contenedorScroll.scrollLeft();
-
-            if (posicionCeldaLeft < scrollActualX) {
-                $contenedorScroll.scrollLeft(posicionCeldaLeft - 10);
+            // 2. Enfocar la celda destino
+            if ($proximoInput) {
+                $proximoInput.focus();
+                $proximoInput.select();
             }
-            if ((posicionCeldaLeft + $celdaActual.outerWidth()) > (scrollActualX + anchoContenedor)) {
-                var diferenciaDerecha = (posicionCeldaLeft + $celdaActual.outerWidth()) - (scrollActualX + anchoContenedor);
-                $contenedorScroll.scrollLeft(scrollActualX + diferenciaDerecha + 15);
+
+            // Retirar el candado una vez que el foco cambió de forma segura
+            $inputActual.removeClass('moving-focus');
+
+            var $contenedorScroll = $("#tabla-sabana-scroll");
+            if ($contenedorScroll.length === 0) return;
+
+            // Extraemos los elementos nativos puros usando el índice de arreglo [0]
+            var contenedorNativo = $contenedorScroll[0];
+            var filaNativa = $proximoInput.closest('tr')[0];
+            var celdaNativa = $proximoInput.closest('td')[0];
+
+            // 3. 🔒 CONTROL VERTICAL MAESTRO NATIVO BLINDADO
+            if (filaNativa && typeof filaNativa.scrollIntoView === "function") {
+                filaNativa.scrollIntoView({
+                    behavior: 'auto',
+                    block: 'nearest',
+                    inline: 'nearest'
+                });
+            } else if (filaNativa && $contenedorScroll.length) {
+                // Failsafe por si el navegador bloquea la función nativa: scroll manual con jQuery
+                var altoCabecerasFijas = 114;
+                var topFila = $proximoInput.closest('tr').position().top + $contenedorScroll.scrollTop();
+                if (topFila < ($contenedorScroll.scrollTop() + altoCabecerasFijas)) {
+                    $contenedorScroll.scrollTop(topFila - altoCabecerasFijas - 5);
+                }
+            }
+
+            // Compensación milimétrica por si la cabecera triple (114px) tapa al alumno de arriba al subir
+            var altoCabecerasFijas = 114;
+            if (contenedorNativo && filaNativa && filaNativa.offsetTop < (contenedorNativo.scrollTop + altoCabecerasFijas)) {
+                contenedorNativo.scrollTop = filaNativa.offsetTop - altoCabecerasFijas - 5;
+            }
+
+            // 4. CONTROL HORIZONTAL FLUIDO (MANTIENE LA ESTABILIDAD DE LADOS)
+            if (colIndex > 1) {
+                var celdaIzquierdaAbsoluta = celdaNativa.offsetLeft;
+                var celdaDerechaAbsoluta = celdaIzquierdaAbsoluta + celdaNativa.offsetWidth;
+                var scrollIzquierdoActual = contenedorNativo.scrollLeft;
+                var anchoVisibleContenedor = contenedorNativo.clientWidth;
+                var anchoColumnasFijas = 250; // Margen para el bloque fijo de nombres
+
+                if (celdaIzquierdaAbsoluta < (scrollIzquierdoActual + anchoColumnasFijas)) {
+                    contenedorNativo.scrollLeft = celdaIzquierdaAbsoluta - anchoColumnasFijas - 15;
+                } else if (celdaDerechaAbsoluta > (scrollIzquierdoActual + anchoVisibleContenedor)) {
+                    contenedorNativo.scrollLeft = celdaDerechaAbsoluta - anchoVisibleContenedor + 15;
+                }
             }
         }
+
     });
 
     /* ===================================================================
     2. MOTOR DE RECALCULO Y GUARDADO AUTOMÁTICO EN TIEMPO REAL
     ===================================================================
-    Las notas ahora se calculan Y SE GUARDAN automáticamente en la 
-    base de datos en el instante en que el docente sale de la celda.
     */
     $(document).on('blur', 'input.excel-cell', function () {
         var $inputModificado = $(this);
@@ -205,26 +223,21 @@ $(document).ready(function () {
         var notaParaEnviar = null;
 
         if (esCualitativo) {
-            // 🔤 CAMINO CUALITATIVO (Cívica): Actualiza el color del texto de la letra en vivo
             var coloresEscala = {
                 'A+': '#2b542c', 'A-': '#3c763d', 'B+': '#245269', 'B-': '#31708f',
                 'C+': '#66512c', 'C-': '#8a6d3b', 'D+': '#a94442', 'D-': '#ce8483',
                 'E+': '#d9534f', 'E-': '#dd4b39', '-': '#333333'
             };
             $inputModificado.css('color', coloresEscala[valorTexto] || '#333');
-
-            // Si eligen el guion, mandamos texto vacío para que el PHP ejecute el DELETE
             notaParaEnviar = (valorTexto === "-") ? "" : valorTexto;
-
-            // 🚀 Disparamos directamente el envío AJAX a la base de datos (Ejecuta tu $.ajax de guardado)
             ejecutarGuardadoAjax($inputModificado, notaParaEnviar);
-            return; // Detiene el flujo aquí para que no intente hacer matemáticas de números
+            return; 
         }
 
         // Si la celda está vacía o tiene un guion, se estandariza a "-" 
         if (valorTexto === "" || valorTexto === "-") {
             $inputModificado.val("-").css({ 'color': '', 'font-weight': '' });
-            notaParaEnviar = ""; // En lugar de '0', mandamos vacío para indicarle al PHP que debe borrar
+            notaParaEnviar = ""; 
         } else {
             var valorFormatear = parseFloat(valorTexto) || 0;
 
@@ -238,7 +251,7 @@ $(document).ready(function () {
                     showConfirmButton: false
                 });
                 $inputModificado.val("-").css({ 'color': '', 'font-weight': '' });
-                return; // Bloqueamos el flujo para que no guarde un dato erróneo
+                return; 
             } else {
                 $inputModificado.val(valorFormatear.toFixed(2));
                 notaParaEnviar = valorFormatear.toFixed(2);
@@ -252,39 +265,44 @@ $(document).ready(function () {
         var idRubricaActual = $inputModificado.data('rubrica');
 
         // =========================================================================
-        // TRIPLE CASCADA DE CÁLCULO (Se ejecuta primero para actualizar la pantalla)
+        // TRIPLE CASCADA DE CÁLCULO TRADUCIDA AL MODELO POLINÓMICO PONDERADO
         // =========================================================================
 
-        // --- SUB-PROCESO 1: PROMEDIO DEL APORTE (PARCIAL) ---
+        // --- SUB-PROCESO 1: PROMEDIO DEL APORTE (PARCIAL O EXAMEN INDIVIDUAL) ---
         var sumaInsumos = 0;
-        var $insumosDelParcial = $fila.find('.excel-cell[data-aporte="' + idAporteActual + '"]');
-        var cantidadInsumosDefinidos = $insumosDelParcial.length;
+        var $insumosDelAporte = $fila.find('.excel-cell[data-aporte="' + idAporteActual + '"]');
+        var cantidadInsumosDefinidos = $insumosDelAporte.length; 
 
-        $insumosDelParcial.each(function () {
-            var valor = parseFloat($(this).val());
-            if (!isNaN(valor) && valor >= 0) {
-                sumaInsumos += valor;
+        $insumosDelAporte.each(function () {
+            var textoInsumo = $(this).val().trim();
+            if (textoInsumo !== "" && textoInsumo !== "-") {
+                var valor = parseFloat(textoInsumo);
+                if (!isNaN(valor) && valor >= 0) {
+                    sumaInsumos += valor;
+                }
             }
         });
 
         var promedioAporte = 0;
         if (cantidadInsumosDefinidos > 0) {
-            promedioAporte = cantidadInsumosDefinidos > 0 ? redondearDosDecimales(sumaInsumos / cantidadInsumosDefinidos) : 0;
+            var promedioCrudo = sumaInsumos / cantidadInsumosDefinidos;
+            promedioAporte = Number(Math.floor((promedioCrudo + 0.000001) * 100) / 100);
         }
 
+        // Actualizar la celda visual del parcial en pantalla
         var $celdaPromAporte = $fila.find('.promedio-aporte-dinamico[data-aporte="' + idAporteActual + '"]');
         if ($celdaPromAporte.length) {
-            $celdaPromAporte.html('<b>' + (promedioAporte === 0 ? '-' : promedioAporte.toFixed(2)) + '</b>');
-            if (promedioAporte > 0 && promedioAporte < 7) {
+            $celdaPromAporte.html('<b>' + (sumaInsumos === 0 ? '-' : promedioAporte.toFixed(2)) + '</b>');
+            if (sumaInsumos > 0 && promedioAporte < 7) {
                 $celdaPromAporte.css({ 'color': '#dd4b39', 'background-color': '#f2dede' });
-            } else if (promedioAporte >= 7) {
-                $celdaPromAporte.css({ 'color': '#3c763d', 'background-color': '#dff0d8' }); // Verde pastel
+            } else if (sumaInsumos > 0 && promedioAporte >= 7) {
+                $celdaPromAporte.css({ 'color': '#3c763d', 'background-color': '#dff0d8' });
             } else {
                 $celdaPromAporte.css({ 'color': '#333333', 'background-color': '#f5f5f5' });
             }
         }
 
-        // Estilo estático de la nota individual
+        // Estilo estático en vivo de la celda que se está digitando
         var valorInputActual = parseFloat($inputModificado.val());
         if (!isNaN(valorInputActual) && valorInputActual > 0 && valorInputActual < 7) {
             $inputModificado.css({ 'color': '#dd4b39', 'font-weight': 'bold' });
@@ -292,43 +310,75 @@ $(document).ready(function () {
             $inputModificado.css({ 'color': '#3c763d', 'font-weight': 'normal' });
         }
 
-        // --- SUB-PROCESO 2: PROMEDIO DEL PERIODO ---
-        var sumaAportesPeriodo = 0;
-        var conteoAportesPeriodo = 0;
+        // --- SUB-PROCESO 2: PROMEDIO DEL PERIODO (BIMESTRAL/TRIMESTRAL CON DIVISOR FIJO AL 100%) ---
+        var promedioPonderadoBimestral = 0;
+        
+        // 🔒 FIX: Forzamos el divisor a 1.00 (100% de la nota) para que no sea un promedio móvil
+        var sumaPonderacionesEfectivas = 1.00; 
 
         $fila.find('.promedio-aporte-dinamico[data-periodo="' + idPeriodoActual + '"]').each(function () {
-            var valAporte = parseFloat($(this).text());
-            if (!isNaN(valAporte) && valAporte > 0) {
-                sumaAportesPeriodo += valAporte;
-                conteoAportesPeriodo++;
+            var $celdaParcial = $(this);
+            var idAporte = $celdaParcial.data('aporte');
+            
+            var $inputPatron = $fila.find('.excel-cell[data-aporte="' + idAporte + '"]').first();
+            var ponderacion = parseFloat($inputPatron.data('ponderacion')) || 0;
+
+            var textoPromAporte = $celdaParcial.text().trim();
+
+            if (textoPromAporte !== "" && textoPromAporte !== "-") {
+                var valPromAporte = parseFloat(textoPromAporte) || 0;
+                promedioPonderadoBimestral += (valPromAporte * ponderacion);
+            }
+        });
+
+        // 🎯 FIX: También debemos escanear si el Examen Individual u otros insumos directos sumaron puntos
+        // buscando inputs directos del periodo que no formen parte de los parciales tradicionales agrupados
+        $fila.find('.excel-cell[data-periodo="' + idPeriodoActual + '"]').each(function () {
+            var $inputDirecto = $(this);
+            // Si el input tiene tipo de aporte diferente al parcial acumulado (ej. Examen) y no ha sido procesado arriba
+            if ($inputDirecto.data('tipo-aporte') != '1') { 
+                var textoDirecto = $inputDirecto.val().trim();
+                var ponderacionDirecta = parseFloat($inputDirecto.data('ponderacion')) || 0;
+                
+                if (textoDirecto !== "" && textoDirecto !== "-") {
+                    var valDirecto = parseFloat(textoDirecto) || 0;
+                    // Evitamos duplicar sumando solo si el elemento padre no pertenece a un promedio dinámico ya calculado
+                    if (!$inputDirecto.closest('td').hasClass('promedio-aporte-dinamico')) {
+                        promedioPonderadoBimestral += (valDirecto * ponderacionDirecta);
+                    }
+                }
             }
         });
 
         var promedioPeriodo = 0;
-        if (conteoAportesPeriodo > 0) {
-            promedioPeriodo = conteoAportesPeriodo > 0 ? redondearDosDecimales(sumaAportesPeriodo / conteoAportesPeriodo) : promedioAporte;
-        } else {
-            promedioPeriodo = promedioAporte;
+        if (sumaPonderacionesEfectivas > 0) {
+            // El resultado se divide directamente para 1.00, manteniendo la penalización por notas faltantes
+            promedioPeriodo = Number(Math.round(promedioPonderadoBimestral + 'e2') + 'e-2');
         }
 
+        // ACTUALIZACIÓN DINÁMICA DE LA COLUMNA DE PROMEDIO TRIMESTRAL
         var $celdaPromPeriodo = $fila.find('.promedio-periodo-dinamico[data-periodo="' + idPeriodoActual + '"]');
+
         if ($celdaPromPeriodo.length) {
-            $celdaPromPeriodo.html('<b>' + (promedioPeriodo === 0 ? '-' : promedioPeriodo.toFixed(2)) + '</b>');
-            if (promedioPeriodo > 0 && promedioPeriodo < 7) {
-                $celdaPromPeriodo.css({ 'color': '#dd4b39', 'background-color': '#f2dede' });
-            } else if (promedioPeriodo >= 7) {
-                $celdaPromPeriodo.css({ 'color': '#3c763d', 'background-color': '#dff0d8' }); // Verde pastel
+            if (promedioPeriodo === 0) {
+                $celdaPromPeriodo.html('<b>-</b>').css({ 'color': '#999', 'background-color': '#f5f5f5' });
             } else {
-                $celdaPromPeriodo.css({ 'color': '', 'background-color': '#f5f5f5' });
+                $celdaPromPeriodo.html('<b>' + promedioPeriodo.toFixed(2) + '</b>');
+                if (promedioPeriodo < 7) {
+                    $celdaPromPeriodo.css({ 'color': '#dd4b39', 'background-color': '#f2dede' });
+                } else {
+                    $celdaPromPeriodo.css({ 'color': '#3c763d', 'background-color': '#dff0d8' });
+                }
             }
         }
 
-        // --- SUB-PROCESO 3: PROMEDIO FINAL GENERAL ---
+        // --- SUB-PROCESO 3: PROMEDIO FINAL GENERAL ANUAL ---
         var sumaPeriodosGeneral = 0;
         var conteoPeriodosGeneral = 0;
 
         $fila.find('.promedio-periodo-dinamico').each(function () {
-            var valPeriodo = parseFloat($(this).text());
+            var textoPeriodoLimpio = $(this).text().replace(/[^0-9.]/g, '').trim();
+            var valPeriodo = parseFloat(textoPeriodoLimpio);
             if (!isNaN(valPeriodo) && valPeriodo > 0) {
                 sumaPeriodosGeneral += valPeriodo;
                 conteoPeriodosGeneral++;
@@ -337,55 +387,47 @@ $(document).ready(function () {
 
         var promedioFinalGeneral = 0;
         if (conteoPeriodosGeneral > 0) {
-            promedioFinalGeneral = conteoPeriodosGeneral > 0 ? redondearDosDecimales(sumaPeriodosGeneral / conteoPeriodosGeneral) : promedioPeriodo;
-        } else {
-            promedioFinalGeneral = promedioPeriodo;
+            var divisionAnual = sumaPeriodosGeneral / conteoPeriodosGeneral;
+            promedioFinalGeneral = Number(Math.round(divisionAnual + 'e2') + 'e-2');
         }
 
         var $celdaFinal = $fila.find('.promedio-final-dinamico');
         if ($celdaFinal.length) {
-            $celdaFinal.html('<b>' + (promedioFinalGeneral === 0 ? '-' : promedioFinalGeneral.toFixed(2)) + '</b>');
-            if (promedioFinalGeneral >= 0 && promedioFinalGeneral <= 4) {
-                $celdaFinal.css({ 'color': '#dd4b39', 'background-color': '#f2dede' });
-            } else if (promedioFinalGeneral > 4 && promedioFinalGeneral < 7) {
-                $celdaFinal.css({ 'color': '#8a6d3b', 'background-color': '#fcf8e3' });
-            } else if (promedioFinalGeneral >= 7) {
-                $celdaFinal.css({ 'color': '#3c763d', 'background-color': '#dff0d8' }); // Verde pastel
+            if (promedioFinalGeneral === 0) {
+                $celdaFinal.html('<b>-</b>').css({ 'color': '#999', 'background-color': '#f5f5f5' });
+            } else {
+                $celdaFinal.html('<b>' + promedioFinalGeneral.toFixed(2) + '</b>');
+                if (promedioFinalGeneral > 0 && promedioFinalGeneral <= 4) {
+                    $celdaFinal.css({ 'color': '#dd4b39', 'background-color': '#f2dede' });
+                } else if (promedioFinalGeneral > 4 && promedioFinalGeneral < 7) {
+                    $celdaFinal.css({ 'color': '#8a6d3b', 'background-color': '#fcf8e3' });
+                } else if (promedioFinalGeneral >= 7) {
+                    $celdaFinal.css({ 'color': '#3c763d', 'background-color': '#dff0d8' });
+                }
             }
         }
 
         // =========================================================================
         // 🚀 ENVÍO Y GUARDADO AUTOMÁTICO VÍA AJAX (EFECTO AUTO-SAVE)
         // =========================================================================
-
-        // Mostramos un sutil cambio visual de que está "guardando" (borde amarillo temporal)
         $inputModificado.css('border-bottom', '2px solid #f39c12');
-
-        // ... al final absoluto de la lógica numérica ...
-        ejecutarGuardadoAjax($inputModificado, notaParaEnviar); // 🎯 LLAMADA 2
+        ejecutarGuardadoAjax($inputModificado, notaParaEnviar);
     });
 
     /* ===================================================================
     3. DISPARADOR EXCLUSIVO PARA ASIGNATURAS CUALITATIVAS (SELECTS)
     ===================================================================
-    Se ejecuta de forma INMEDIATA en el instante en que el docente cambia 
-    la opción en el desplegable, sin esperar a que pierda el foco.
     */
     $(document).on('change', 'select.excel-cell', function () {
         var $selectModificado = $(this);
 
-        // 🔒 Control de seguridad: Si está deshabilitado por candado de cierre, ignorar
         if ($selectModificado.is(':disabled')) {
             return false;
         }
 
-        // Capturar el valor que el profesor acaba de elegir
         var valorSeleccionado = $selectModificado.val();
-
-        // Convertir de forma segura a texto limpio
         var valorTexto = (valorSeleccionado !== null && valorSeleccionado !== undefined) ? valorSeleccionado.toString().trim() : "-";
 
-        // 🎨 Cambiar el color de la letra en tiempo real según la escala oficial de Ecuador
         var coloresEscala = {
             'A+': '#2b542c', 'A-': '#3c763d',
             'B+': '#245269', 'B-': '#31708f',
@@ -396,24 +438,16 @@ $(document).ready(function () {
         };
         $selectModificado.css('color', coloresEscala[valorTexto] || '#333');
 
-        // 🎯 REGLA DE BORRADO: Si eligen el guion "-", mandamos texto vacío "" para que el PHP ejecute el DELETE
         var notaParaEnviar = (valorTexto === "-") ? "" : valorTexto;
-
-        // 🚀 Lanzar el guardado automático de fondo hacia tu tabla 'sw_rubrica_cualitativa'
         ejecutarGuardadoAjax($selectModificado, notaParaEnviar);
     });
 
     /* ===================================================================
     4. DISPARADOR DEL EVENTO CLICK PARA GUARDAR CALIFICACIONES
     ===================================================================
-    Escucha el clic en el botón "Guardar Todo" (#save_all) de forma 
-    delegada para asegurar su funcionamiento tras cargas dinámicas.
     */
     $(document).on('click', '#save_all', function (e) {
-        // 1. Detener cualquier comportamiento por defecto del botón
         e.preventDefault();
-
-        // 2. Ejecutar la función principal que recolecta y envía las notas
         guardarTabla();
     });
 
@@ -422,37 +456,29 @@ $(document).ready(function () {
    =================================================================== */
     $(document).on("input change", "#tabla-sabana-scroll .excel-cell", function () {
         $(this).addClass("dirty-cell");
-
-        // 🎯 Activamos la animación de pulso en el botón de guardar
         $("#save_all").addClass("btn-save-pulse");
     });
 
     /* ===================================================================
     EFECTO FOCUS: Comportamiento Inteligente al Entrar a la Celda
     ===================================================================
-    Distingue automáticamente si el docente entra a un cuadro numérico 
-    o a un selector de letras para darle la guía visual correcta.
     */
     $(document).on('focus', '.excel-cell', function () {
         var $celda = $(this);
 
-        // 🔒 Control de Seguridad: Si la celda está bloqueada por cierre, ignorar
         if ($celda.is(':disabled')) {
             return false;
         }
 
-        // 🎯 ESCENARIO 1: Si es un INPUT de texto (Materias Numéricas)
         if ($celda.is('input')) {
             var valorActual = $celda.val();
 
             if (valorActual !== null && valorActual !== undefined) {
                 var valorLimpio = valorActual.trim();
 
-                // Si tiene un guion, lo borramos momentáneamente para dejar la celda limpia
                 if (valorLimpio === "-") {
                     $celda.val("");
                 } else {
-                    // Si ya tiene una nota (ej: 8.50), la sombreamos toda para sobreescribir rápido
                     setTimeout(function () {
                         $celda.select();
                     }, 50);
@@ -460,14 +486,6 @@ $(document).ready(function () {
             }
         }
 
-        // 🎯 ESCENARIO 2: Si es un SELECT desplegable (Materias Cualitativas como Cívica)
-        if ($celda.is('select')) {
-            // En Excel, al entrar a una celda con lista, el menú no se abre solo, 
-            // pero resalta el borde para avisarte dónde estás parado.
-            // No borramos nada porque el docente necesita ver la letra actual (ej: A+).
-        }
-
-        // 🎨 GUÍA VISUAL EXCEL: Le pintamos a ambos un borde inferior azul fuerte de AdminLTE
         $celda.css('border-bottom', '2px solid #3c8dbc');
     });
 
@@ -476,7 +494,6 @@ $(document).ready(function () {
         var idParalelo = $("#id_paralelo_excel").val();
         var idAsignatura = $("#id_asignatura_excel").val();
 
-        // Validar que los campos físicos no estén vacíos
         if (!idAsignatura || idAsignatura === "" || !idParalelo || idParalelo === "") {
             e.preventDefault();
             Swal.fire({
@@ -487,7 +504,6 @@ $(document).ready(function () {
             return false;
         }
 
-        // Notificación sutil (El navegador procesará la descarga nativa por POST)
         Swal.fire({
             icon: 'success',
             title: 'Generando Excel',
@@ -500,30 +516,21 @@ $(document).ready(function () {
     // 🎯 VALIDACIÓN ESTRICTA PARA LA NOTA DE COMPORTAMIENTO (S, F, O, N)
     $('#lista_estudiantes_paralelo').on('input keyup paste', 'input[data-tipo-input="comportamiento"]', function (e) {
         var elemento = $(this);
-
-        // 1. Forzar conversión a mayúsculas en tiempo real
         var valorOriginal = elemento.val().toUpperCase();
-
-        // 2. Aplicar Expresión Regular: Eliminar todo lo que NO sea S, F, O o N
-        // Si meten un número, un espacio o letras como 'A', 'X', se borrarán automáticamente
         var valorValidado = valorOriginal.replace(/[^SFON]/g, '');
 
-        // 3. Limitar estrictamente a 1 solo carácter (por si el maxlength falla en algún navegador)
         if (valorValidado.length > 1) {
             valorValidado = valorValidado.charAt(0);
         }
 
-        // 4. Inyectar el valor limpio de vuelta al input
         elemento.val(valorValidado);
 
-        // 5. ⚡ BONUS VISUAL INTERACTIVO: Cambiar color dinámicamente según la nota
-        // Da una respuesta visual inmediata muy elegante al docente
         switch (valorValidado) {
-            case 'S': elemento.css('color', '#3c763d'); break; // Verde (Excelente)
-            case 'F': elemento.css('color', '#31708f'); break; // Azul (Muy Bueno)
-            case 'O': elemento.css('color', '#8a6d3b'); break; // Amarillo/Café (Regular)
-            case 'N': elemento.css('color', '#a94442'); break; // Rojo (Insatisfactorio)
-            default: elemento.css('color', '#0d47a1');        // Color base azul premium por defecto
+            case 'S': elemento.css('color', '#3c763d'); break; 
+            case 'F': elemento.css('color', '#31708f'); break; 
+            case 'O': elemento.css('color', '#8a6d3b'); break; 
+            case 'N': elemento.css('color', '#a94442'); break; 
+            default: elemento.css('color', '#0d47a1');        
         }
     });
 
@@ -533,22 +540,18 @@ $(document).ready(function () {
     $(document).on('blur', 'input[data-tipo-input="comportamiento"]', function () {
         var $inputModificado = $(this);
 
-        // Control de seguridad por si la celda está bloqueada
         if ($inputModificado.is(':disabled')) {
             return false;
         }
 
-        // Captura segura y conversión estricta a Mayúsculas
         var valorCrudo = $inputModificado.val();
         var valorTexto = (valorCrudo !== null && valorCrudo !== undefined) ? valorCrudo.toString().trim().toUpperCase() : "-";
-
         var notaParaEnviar = "";
 
         if (valorTexto === "" || valorTexto === "-") {
             $inputModificado.val("-").css('color', '#333');
-            notaParaEnviar = ""; // Enviamos vacío para indicar eliminación en el PHP
+            notaParaEnviar = ""; 
         } else {
-            // 🔒 CONTROL DE SEGURIDAD: Validar escala oficial de Ecuador (S, F, O, N)
             var letrasValidas = ['S', 'F', 'O', 'N'];
 
             if (!letrasValidas.includes(valorTexto)) {
@@ -560,37 +563,30 @@ $(document).ready(function () {
                     showConfirmButton: false
                 });
                 $inputModificado.val("-").css('color', '#333');
-                return; // Bloqueamos el flujo para que no mande basura al servidor
+                return; 
             }
 
-            // Si es válida, actualizamos visualmente el input con la mayúscula limpia
             $inputModificado.val(valorTexto);
             notaParaEnviar = valorTexto;
 
-            // 🎨 Cambiar el color del texto según la letra (Opcional, estilo institucional)
             var coloresComportamiento = {
                 'S': '#2b542c', 'F': '#3c763d', 'O': '#245269', 'N': '#dd4b39'
             };
             $inputModificado.css('color', coloresComportamiento[valorTexto] || '#0d47a1');
         }
 
-        // 🔄 HOMOLOGACIÓN DE DATOS PARA TU FUNCIÓN AJAX:
-        // Tu función 'ejecutarGuardadoAjax' busca .data('estudiante') y .data('aporte').
-        // Como en tu PHP escribiste 'data-id-estudiante', los remapeamos en caliente aquí:
         $inputModificado.data('estudiante', $inputModificado.data('id-estudiante'));
         $inputModificado.data('aporte', $inputModificado.data('id-aporte'));
-        $inputModificado.data('rubrica', 0); // Comportamiento no tiene rúbrica, mandamos 0
+        $inputModificado.data('rubrica', 0); 
         $inputModificado.data('periodo', $inputModificado.closest('td').prev().find('input').data('periodo') || 0);
 
-        // 🚀 Lanzar el guardado automático reutilizando tu hermosa función AJAX
         ejecutarGuardadoAjax($inputModificado, notaParaEnviar);
     });
 
 });
 
 /**
- * Verifica si la institución permite copiar y pegar,
- * mostrando u ocultando los botones correspondientes de manera limpia.
+ * Verifica si la institución permite copiar y pegar
  */
 function verificarConfiguracionCopiarPegar() {
     $.ajax({
@@ -599,11 +595,7 @@ function verificarConfiguracionCopiarPegar() {
         dataType: "json"
     })
         .done(function (resp) {
-            // Guardamos el estado en el input oculto (ej: "1" o "0")
             $("#in_copiar_y_pegar").val(resp.in_copiar_y_pegar);
-
-            // NOTA: No controlamos el botón aquí al cargar la página porque la sábana 
-            // aún no existe ni se ha seleccionado ninguna asignatura.
         })
         .fail(function (jqXHR) {
             console.error("Error al obtener estado copiar/pegar:", jqXHR.responseText);
@@ -625,16 +617,11 @@ function cargarParalelosDocente() {
         .done(function (resultado) {
             var datosLimpios = resultado.trim();
 
-            // 1. Validar errores de sesión o de base de datos
             if (datosLimpios === "false") {
                 alert("Error al cargar los datos de los paralelos.");
-            } 
-            // 2. NUEVO: Si datosLimpios termina o contiene la palabra clave que definimos en PHP
+            }
             else if (datosLimpios.endsWith("SIN_REGISTROS")) {
-                // Deshabilitar el select y avisarle al usuario
                 $cboParalelos.html('<option value="">Sin paralelos asignados</option>').prop('disabled', true);
-
-                // Inyectar el contenedor de advertencia visual en el div de los estudiantes
                 $listaEstudiantes
                     .removeClass("text-success")
                     .addClass("text-warning")
@@ -643,12 +630,9 @@ function cargarParalelosDocente() {
                         '<i class="fa fa-exclamation-triangle"></i> Usted no tiene paralelos ni asignaturas asignadas en este periodo lectivo.' +
                         '</div>'
                     );
-            } 
-            // 3. Proceso normal si existen asignaturas cargadas
+            }
             else {
                 $cboParalelos.html(datosLimpios).prop('disabled', false);
-
-                // Aplicar estado inicial tradicional de aviso al usuario
                 $listaEstudiantes
                     .removeClass("text-success text-warning")
                     .addClass("text-danger fw-bold")
@@ -664,17 +648,16 @@ function cargarParalelosDocente() {
  * Carga los aportes de evaluación según el paralelo seleccionado.
  */
 function cargarAportesEvaluacion() {
-    var id_paralelo = $("#cboParalelos").val(); // Optimizado usando jQuery
+    var id_paralelo = $("#cboParalelos").val(); 
     var $cboAportes = $('#cboAportesEvaluacion');
     var $listaEstudiantes = $("#lista_estudiantes_paralelo");
 
-    $cboAportes.empty(); // Limpia options y optgroups de manera eficiente
+    $cboAportes.empty(); 
 
     $.post("calificaciones/cargar_aportes_evaluacion_paralelo.php", {
         id_paralelo: id_paralelo
     })
         .done(function (resultado) {
-            // Aseguramos consistencia si el backend devuelve un boolealno o un string "false"
             if (resultado === false || resultado === "false") {
                 $listaEstudiantes
                     .removeClass("text-success")
@@ -693,20 +676,13 @@ function cargarAportesEvaluacion() {
         });
 }
 
-/**
- * Orquestador para refrescar el bloque de asignaturas del profesor.
- */
 function cargarAsignaturasDocente() {
     contarAsignaturasDocente();
 }
 
-/**
- * Paso 1: Cuenta cuántas asignaturas hay en el paralelo.
- */
 function contarAsignaturasDocente() {
     var id_paralelo = $("#cboParalelos").val();
 
-    // Mostrar ventana de carga de SweetAlert2
     Swal.fire({
         title: 'Cargando asignaturas...',
         text: 'Por favor, espere un momento.',
@@ -717,7 +693,6 @@ function contarAsignaturasDocente() {
         }
     });
 
-    // Petición original para contar registros
     $.post("calificaciones/contar_asignaturas_paralelo.php", {
         id_paralelo: id_paralelo
     })
@@ -732,11 +707,9 @@ function contarAsignaturasDocente() {
                     var respuestaServer = JSON.parse(datosLimpios);
                     var total_registros = parseInt(respuestaServer.num_registros) || 0;
 
-                    // Actualizar el número de registros en la interfaz gráfica
                     $("#num_asignaturas").html("Número de Asignaturas: " + total_registros);
 
                     if (total_registros > 0) {
-                        // ¡Paso Clave! Como hay registros, llamamos a la función que descarga los nombres
                         obtenerDetalleAsignaturas(id_paralelo);
                     } else {
                         Swal.close();
@@ -755,19 +728,14 @@ function contarAsignaturasDocente() {
         });
 }
 
-/**
- * Paso 2: Hace la segunda petición para traer el ID y Nombre de las materias.
- */
 function obtenerDetalleAsignaturas(id_paralelo) {
     $.post("calificaciones/listar_asignaturas_docente.php", {
         id_paralelo: id_paralelo
     })
         .done(function (resultadoDetalle) {
-            Swal.close(); // Cerramos definitivamente el SweetAlert de carga
+            Swal.close(); 
 
-            // Si jQuery ya parseó la respuesta como un objeto/array automáticamente
             if (typeof resultadoDetalle === "object" && resultadoDetalle !== null) {
-                // Verificar si el servidor devolvió un nodo con mensaje de error
                 if (resultadoDetalle.error) {
                     limpiarPanelesPorError(resultadoDetalle.error);
                     Swal.fire({
@@ -776,11 +744,9 @@ function obtenerDetalleAsignaturas(id_paralelo) {
                         text: resultadoDetalle.error
                     });
                 } else {
-                    // Pasar la lista directo a renderizar
                     listarAsignaturasDocente(resultadoDetalle);
                 }
             } else {
-                // Caso alternativo si por alguna razón llegó como String plano
                 try {
                     var datosLimpios = resultadoDetalle ? resultadoDetalle.trim() : "";
                     if (datosLimpios === "" || datosLimpios === "false") {
@@ -802,11 +768,7 @@ function obtenerDetalleAsignaturas(id_paralelo) {
         });
 }
 
-/**
- * Paso 3: Renderiza las asignaturas en el panel derecho y maneja el evento de selección.
- */
 function listarAsignaturasDocente(listaAsignaturasJSON) {
-    // 🎯 CORRECCIÓN CLAVE: Apuntar al ID correcto de tu HTML para la lista de materias
     var $contenedor = $("#contenedor_asignaturas_docente");
 
     if (!Array.isArray(listaAsignaturasJSON) || listaAsignaturasJSON.length === 0) {
@@ -814,14 +776,13 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
         return;
     }
 
-    $contenedor.empty(); // Limpiar el contenedor antes de rellenar
+    $contenedor.empty(); 
 
     listaAsignaturasJSON.forEach(function (item) {
         var id = item.id_asignatura || item.id || "0";
         var nombre = item.nombre_asignatura || item.nombre || item.asignatura || "Sin nombre";
         var tipoAsignatura = item.tipo_asignatura || item.id_tipo_asignatura || "1";
 
-        // Estructura limpia usando componentes de AdminLTE
         var htmlItem =
             '<a href="#" class="list-group-item data-asignatura-btn" data-id="' + id + '" data-tipo="' + tipoAsignatura + '" style="padding: 12px 15px; border-left: 3px solid transparent; transition: all 0.2s; display: block; text-decoration: none;">' +
             '<span class="label label-primary pull-right" style="font-size: 10px; padding: 3px 6px;">ID: ' + id + '</span>' +
@@ -834,19 +795,14 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
     });
 }
 
-// =========================================================================
-// 🎯 MOTOR INTERACTIVO: LOGICA DE CLIC EN LA ASIGNATURA (PANEL DE DOCENTES)
-// =========================================================================
 $(document).on("click", ".data-asignatura-btn", function (e) {
     e.preventDefault();
 
-    // Ocultamos ambos botones temporalmente mientras se realiza la nueva carga en segundo plano
     $("#ver_reporte").hide();
-    $("#save_all").hide(); // Evita que se quede el botón viejo si la nueva materia tarda en cargar
+    $("#save_all").hide(); 
 
     var $botonSeleccionado = $(this);
 
-    // 1. Efecto visual: Quitar estado activo a todas y ponérselo a la seleccionada (Estilo AdminLTE)
     $(".data-asignatura-btn")
         .removeClass("active")
         .css({
@@ -861,17 +817,12 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
             "background-color": "#f4f4f4"
         });
 
-    // 2. Capturar el ID y el Tipo de Asignatura guardados en los atributos "data-" del botón
     var idAsignaturaSeleccionada = $botonSeleccionado.data("id");
     var tipoAsignaturaSeleccionada = $botonSeleccionado.data("tipo");
 
-    // 3. Asignar el ID al campo oculto que procesa tu formulario de reportes
     $("#id_asignatura").val(idAsignaturaSeleccionada);
-
-    // Ocultamos el botón temporalmente mientras se realiza la nueva carga en segundo plano
     $("#ver_reporte").hide();
 
-    // 4. Mostrar un spinner de carga en el contenedor de estudiantes (Panel Derecho)
     $("#lista_estudiantes_paralelo").html(
         '<div class="text-center text-muted" style="padding: 100px 20px;">' +
         '<i class="fa fa-refresh fa-spin fa-2x" style="color: #3c8dbc; margin-bottom: 10px;"></i>' +
@@ -879,13 +830,9 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
         '</div>'
     );
 
-    // 5. 🚀 ¡LLAMADA ENLAZADA A TU FUNCIÓN DE NÓMINA!
     obtenerNominaEstudiantes(idAsignaturaSeleccionada, tipoAsignaturaSeleccionada);
 });
 
-/**
- * Función auxiliar para limpiar la pantalla de manera correcta según tu nuevo diseño
- */
 function limpiarPanelesPorError(mensaje) {
     $("#contenedor_asignaturas_docente").html(
         '<div class="text-center text-muted" style="padding: 20px;">' +
@@ -901,16 +848,9 @@ function limpiarPanelesPorError(mensaje) {
     $("#ver_reporte").hide();
 }
 
-/**
- * Obtiene la nómina de estudiantes basada en el paralelo y la asignatura seleccionada.
- * Removidas todas las referencias antiguas al "Aporte de Evaluación".
- * @param {string|number} idAsignatura - ID de la asignatura seleccionada en el panel derecho.
- * @param {string|number} tipoAsignatura - Tipo de la asignatura seleccionada.
- */
 function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
     var id_paralelo = $("#cboParalelos").val();
 
-    // 1. Mostrar SweetAlert2 de carga (Bloquea la pantalla para evitar interrupciones)
     Swal.fire({
         title: 'Cargando estudiantes...',
         text: 'Buscando registros en la base de datos.',
@@ -921,15 +861,13 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
         }
     });
 
-    // Sincronizar el campo oculto de la asignatura en el formulario de reportes
     $("#id_paralelo").val(id_paralelo);
     $("#id_asignatura").val(idAsignatura);
 
-    // 🚀 ENVIAMOS LAS TRES VARIABLES AL SERVIDOR
     $.post("calificaciones/cargar_estudiantes.php", {
         id_paralelo: id_paralelo,
         id_asignatura: idAsignatura,
-        id_tipo_asignatura: tipoAsignatura // Pasamos el parámetro al backend de la sábana
+        id_tipo_asignatura: tipoAsignatura 
     })
         .done(function (resultadoAlumnos) {
             Swal.close();
@@ -952,12 +890,9 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
                     .removeClass("text-danger fw-bold")
                     .html(tablaEnvoltorioConScroll);
 
-                // 🎯 SINCRONIZACIÓN DE INPUTS FÍSICOS:
-                // Asignamos las variables vigentes a los campos que acabamos de crear en el HTML
                 $("#id_paralelo_excel").val(id_paralelo);
                 $("#id_asignatura_excel").val(idAsignatura);
 
-                // Mostrar los botones de control arriba
                 $("#ver_reporte").show();
 
                 var permiteCopiarPegar = $("#in_copiar_y_pegar").val();
@@ -975,7 +910,6 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
                 }
             }
         })
-
         .fail(function (jqXHR) {
             Swal.close();
             console.error("Error al cargar estudiantes:", jqXHR.responseText);
@@ -987,55 +921,37 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error de conexión',
-                text: 'Hubo un problema al recuperar la nómina. Inténtelo de nuevo.'
+                text: 'Hubo un problemă al recuperar la nómina. Inténtelo de nuevo.'
             });
         });
 }
 
-/**
- * Mide con precisión decimal la primera columna de la sábana de notas (Nº / ID)
- * y desplaza milimétricamente la segunda columna (Nombres) eliminando la separación fantasma.
- */
 function ajustarColumnasSticky() {
-    // 1. Buscamos la primera celda del cuerpo generada para usarla de patrón métrico
     var primeraCelda = document.querySelector('#tabla-sabana-scroll table tbody tr td:nth-child(1)');
-
     if (!primeraCelda) return;
 
-    // 2. Extraemos el ancho decimal exacto calculado por el motor de renderizado del navegador
     var anchoReal = primeraCelda.getBoundingClientRect().width;
-
-    // 3. Seleccionamos todos los TH (las 3 filas de cabecera) y los TD de la segunda columna
     var elementosColumnaDos = document.querySelectorAll(
         '#tabla-sabana-scroll table thead tr th:nth-child(2), #tabla-sabana-scroll table tbody tr td:nth-child(2)'
     );
 
-    // 4. Inyectamos dinámicamente el valor en el atributo left
     elementosColumnaDos.forEach(function (celda) {
         celda.style.setProperty('left', anchoReal + 'px', 'important');
     });
 }
 
-// 🌐 RESILIENCIA AL REVENTADO VISUAL: Si el usuario cambia el tamaño o hace zoom, recalculamos las distancias
 window.addEventListener('resize', function () {
     ajustarColumnasSticky();
 });
 
-/**
- * Recolecta todas las calificaciones ingresadas o modificadas en la sábana 
- * y las envía en un solo bloque masivo (JSON) al servidor.
- */
 function guardarTabla() {
     var loteCalificaciones = [];
-
-    // 1. 🎯 BUSQUEDA FILTRADA: Apuntamos al nuevo contenedor con scroll y solo a las celdas editadas
     var $celdasModificadas = $("#tabla-sabana-scroll").find(".excel-cell.dirty-cell");
 
     $celdasModificadas.each(function () {
         var $input = $(this);
         var valorTexto = $input.val().trim();
 
-        // Si el docente borró la nota, mandamos cadena vacía para que el backend limpie la celda en BD
         if (valorTexto === "" || valorTexto === "-") {
             loteCalificaciones.push({
                 id_estudiante: $input.data("estudiante"),
@@ -1045,22 +961,21 @@ function guardarTabla() {
                 calificacion: ""
             });
         } else {
-            var notaNum = parseFloat(valorTexto);
+            var textoFiltrado = valorTexto.replace(/[^0-9.]/g, '');
+            var notaNum = parseFloat(textoFiltrado);
 
-            // Validar que esté dentro del rango legal escolar (0 a 10)
             if (!isNaN(notaNum) && notaNum >= 0 && notaNum <= 10) {
                 loteCalificaciones.push({
                     id_estudiante: $input.data("estudiante"),
                     id_rubrica: $input.data("rubrica"),
                     id_aporte: $input.data("aporte"),
                     id_periodo: $input.data("periodo"),
-                    calificacion: notaNum.toFixed(2) // 2 decimales estandarizados
+                    calificacion: notaNum.toFixed(2)
                 });
             }
         }
     });
 
-    // 🔒 CONTROL DE SEGURIDAD: Evitar peticiones inútiles al servidor si no hay cambios
     if (loteCalificaciones.length === 0) {
         Swal.fire({
             icon: 'info',
@@ -1072,7 +987,6 @@ function guardarTabla() {
         return;
     }
 
-    // 2. Pantalla de bloqueo SweetAlert2 mientras se procesan los queries SQL
     Swal.fire({
         title: 'Guardando calificaciones...',
         text: 'Almacenando notas de forma masiva en el sistema. Espere un momento.',
@@ -1086,7 +1000,6 @@ function guardarTabla() {
     var id_paralelo = $("#cboParalelos").val();
     var id_asignatura = $("#id_asignatura").val();
 
-    // 3. Envío del paquete optimizado mediante AJAX POST
     $.ajax({
         url: "calificaciones/guardar_notas_masivo.php",
         type: "POST",
@@ -1109,8 +1022,6 @@ function guardarTabla() {
                 });
 
                 $celdasModificadas.removeClass("dirty-cell");
-
-                // 🎯 Desactivamos la animación de pulso ya que los datos están a salvo
                 $("#save_all").removeClass("btn-save-pulse");
             } else {
                 Swal.fire({
@@ -1132,83 +1043,67 @@ function guardarTabla() {
     });
 }
 
-/**
- * 🚀 FUNCIÓN COMPACTA DE GUARDADO AUTOMÁTICO VÍA AJAX (AUTO-SAVE) - ADAPTADA
- * Envía la calificación (número o letra) de forma transparente al servidor.
- */
 function ejecutarGuardadoAjax($element, nota) {
-    // 🎯 CAPTURA ROBUSTA: Buscamos primero en .data() y si da undefined, buscamos en el atributo físico .attr()
-    var idEstudiante = $element.data('estudiante') || $element.attr('data-id-estudiante') || $element.data('id-estudiante');
-    var idRubrica = $element.data('rubrica') !== undefined ? $element.data('rubrica') : ($element.attr('data-rubrica') || 0);
-    var idAporte = $element.data('aporte') || $element.attr('data-id-aporte') || $element.data('id-aporte');
-    var idPeriodo = $element.data('periodo') || $element.attr('data-id-periodo') || $element.data('id-periodo');
+    var idEstudiante = parseInt($element.data('estudiante') || $element.attr('data-id-estudiante') || $element.data('id-id-estudiante'), 10) || 0;
+    var idRubrica = $element.data('rubrica') !== undefined ? parseInt($element.data('rubrica'), 10) : (parseInt($element.attr('data-rubrica'), 10) || 0);
+    var idAporte = parseInt($element.data('aporte') || $element.attr('data-id-aporte') || $element.data('id-id-aporte'), 10) || 0;
+    var idPeriodo = parseInt($element.data('periodo') || $element.attr('data-id-periodo') || $element.data('id-id-periodo'), 10) || 0;
 
-    // Detectar si el input actual es de comportamiento
     var tipoNota = $element.attr('data-tipo-input') === 'comportamiento' || $element.data('tipo-input') === 'comportamiento' ? 'comportamiento' : 'academica';
+    if (tipoNota === 'comportamiento') { idRubrica = 0; }
 
-    // 🎯 ADAPTACIÓN LÓGICA PARA EL ERROR DE VALIDACIÓN:
-    // Si es comportamiento, tu backend rechaza el "0" o el "undefined" en la rúbrica académica.
-    // Forzamos un valor por defecto o un comodín que tu PHP entienda para saltarse la validación de rúbrica.
-    if (tipoNota === 'comportamiento') {
-        idRubrica = 0; // O cambia este 0 por el string o ID que requiera tu backend para ignorar la rúbrica
+    var $contenedorScroll = $("#tabla-sabana-scroll");
+
+    if ($element.hasClass('moving-focus')) {
+        $element.css('border-bottom', '2px solid #f39c12');
+        $.ajax({
+            url: "calificaciones/guardar_nota_individual.php",
+            type: "POST",
+            dataType: "json",
+            data: { id_estudiante: idEstudiante, id_rubrica: idRubrica, id_aporte: idAporte, id_periodo: idPeriodo, id_asignatura: parseInt($("#id_asignatura").val(), 10) || 0, id_paralelo: $("#cboParalelos").val(), id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1", tipo_nota: tipoNota, calificacion: nota },
+            success: function (respuesta) {
+                if (respuesta && respuesta.status === "success") {
+                    $element.css('border-bottom', '2px solid #00a65a');
+                    setTimeout(function () { $element.css('border-bottom', 'none'); }, 1000);
+                } else {
+                    $element.css({ 'background-color': '#f2dede', 'border-bottom': '2px solid #dd4b39' });
+                }
+            },
+            error: function () {
+                $element.css({ 'background-color': '#f2dede', 'border-bottom': '2px solid #dd4b39' });
+            }
+        });
+        return;
     }
 
-    // 2. Feedback Visual: Mostramos que el sistema está procesando (Borde inferior amarillo)
+    var posicionScrollTop = $contenedorScroll.length ? $contenedorScroll.scrollTop() : 0;
+    var posicionScrollLeft = $contenedorScroll.length ? $contenedorScroll.scrollLeft() : 0;
+
     $element.css('border-bottom', '2px solid #f39c12');
 
-    // 3. Lanzar la petición asíncrona hacia el backend de producción
     $.ajax({
         url: "calificaciones/guardar_nota_individual.php",
         type: "POST",
         dataType: "json",
-        data: {
-            id_estudiante: idEstudiante,
-            id_rubrica: idRubrica,   // 👈 Ahora viaja corregido según el tipo de nota
-            id_aporte: idAporte,
-            id_periodo: idPeriodo,
-            id_asignatura: $("#id_asignatura").val(),
-            id_paralelo: $("#cboParalelos").val(),
-            id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1",
-            tipo_nota: tipoNota,
-            calificacion: nota
-        },
+        data: { id_estudiante: idEstudiante, id_rubrica: idRubrica, id_aporte: idAporte, id_periodo: idPeriodo, id_asignatura: parseInt($("#id_asignatura").val(), 10) || 0, id_paralelo: $("#cboParalelos").val(), id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1", tipo_nota: tipoNota, calificacion: nota },
         success: function (respuesta) {
-            console.log("Respuesta Servidor:", respuesta); // Para rastreo en tu consola
-
             if (respuesta && respuesta.status === "success") {
-                // Éxito: Borde verde rápido que desaparece tras un segundo para indicar éxito
                 $element.css('border-bottom', '2px solid #00a65a');
-                setTimeout(function () {
-                    $element.css('border-bottom', 'none');
-                }, 1000);
+                setTimeout(function () { $element.css('border-bottom', 'none'); }, 1000);
+
+                if ($contenedorScroll.length) {
+                    $contenedorScroll.scrollTop(posicionScrollTop);
+                    $contenedorScroll.scrollLeft(posicionScrollLeft);
+                }
             } else {
-                // Si el servidor reporta un error lógico de base de datos
-                $element.css({
-                    'background-color': '#f2dede',
-                    'border-bottom': '2px solid #dd4b39'
-                });
-                console.error("Error devuelto por el servidor:", respuesta.message);
+                $element.css({ 'background-color': '#f2dede', 'border-bottom': '2px solid #dd4b39' });
             }
         },
         error: function (jqXHR) {
-            $element.css({
-                'background-color': '#f2dede',
-                'border-bottom': '2px solid #dd4b39'
-            });
-            console.error("Error crítico de comunicación con el servidor:", jqXHR.responseText);
-
-            const Toast = Swal.mixin({
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true
-            });
-            Toast.fire({
-                icon: 'error',
-                title: 'Error de conexión: Calificación no guardada.'
-            });
+            $element.css({ 'background-color': '#f2dede', 'border-bottom': '2px solid #dd4b39' });
+            if ($contenedorScroll.length) { $contenedorScroll.scrollTop(posicionScrollTop); $contenedorScroll.scrollLeft(posicionScrollLeft); }
+            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, timerProgressBar: true });
+            Toast.fire({ icon: 'error', title: 'Error de conexión: Calificación no guardada.' });
         }
     });
 }
-

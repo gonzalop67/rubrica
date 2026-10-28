@@ -76,9 +76,9 @@ if ($id_tipo_asignatura === 1) {
     // 🔢 MOTOR CUANTITATIVO NUMÉRICO
     // CORRECCIÓN: Desenvolvemos el arreglo devuelto por el empaque de armarEstructuraCuantitativa
     $resultado_estructura = armarEstructuraCuantitativa($db, $id_periodo_lectivo, $id_paralelo, $id_asignatura);
-    
+
     $estructura = $resultado_estructura['periodos']; // El arreglo limpio con la bandera 'mostrar_promedio' por periodo
-    
+
     // Al pasarle $estructura a generarTablaCuantitativa, las cabeceras triples HTML seguirán renderizándose sin problemas,
     // y dentro de la función podrás usar la variable global para ocultar los Promedios Finales si no está todo cerrado.
     generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_notas, $id_periodo_lectivo, $id_paralelo, $id_asignatura);
@@ -105,12 +105,35 @@ function armarEstructuraCualitativa($db, $id_periodo_lectivo, $id_paralelo, $id_
         $res_aporte = $db->consulta($sql_aporte);
 
         while ($a = $db->fetch_object($res_aporte)) {
-            // Consultar la pívot de cierres amarrada al paralelo
-            $sql_cierre = "SELECT ap_estado FROM sw_aporte_paralelo_cierre WHERE id_aporte_evaluacion = {$a->id_aporte_evaluacion} AND id_paralelo = {$id_paralelo}";
+
+            // 🚀 OPTIMIZACIÓN: Traemos la fecha de cierre y el estado en una sola consulta
+            $sql_cierre = "SELECT ap_fecha_cierre, ap_estado FROM sw_aporte_paralelo_cierre WHERE id_aporte_evaluacion = {$a->id_aporte_evaluacion} AND id_paralelo = {$id_paralelo}";
             $res_cierre = $db->consulta($sql_cierre);
             $dat_cierre = $db->fetch_object($res_cierre);
+
+            // Valores por defecto si no existe el registro en la tabla pivot
+            $fecha_cierre_str = isset($dat_cierre) ? $dat_cierre->ap_fecha_cierre : null;
             $estado_final = isset($dat_cierre->ap_estado) ? $dat_cierre->ap_estado : 'A';
 
+            // 🕒 LÓGICA DE COMPARACIÓN DE FECHA
+            if ($fecha_cierre_str) {
+                $fecha_cierre = new DateTime($fecha_cierre_str);
+                $hoy = new DateTime(); // Fecha y hora actuales del servidor
+
+                // Si la fecha actual es mayor a la de cierre, cambiamos el estado a Cerrado ('C')
+                if ($hoy > $fecha_cierre && $estado_final === 'A') {
+                    $estado_final = 'C';
+
+                    // 📝 ACTUALIZACIÓN EN LA BASE DE DATOS
+                    $sql_update_cierre = "UPDATE sw_aporte_paralelo_cierre 
+                                             SET ap_estado = 'C' 
+                                           WHERE id_aporte_evaluacion = {$a->id_aporte_evaluacion} 
+                                             AND id_paralelo = {$id_paralelo}";
+                    $db->consulta($sql_update_cierre);
+                }
+            }
+
+            // El estado ya va recalculado por tiempo aquí 👇
             $aporte_item = ['id' => $a->id_aporte_evaluacion, 'nombre' => $a->ap_nombre, 'tipo' => $a->id_tipo_aporte, 'ponderacion' => (float)$a->ap_ponderacion, 'estado' => $estado_final, 'insumos' => []];
 
             $sql_rubrica = "SELECT id_rubrica_evaluacion, ru_nombre FROM sw_rubrica_evaluacion WHERE id_aporte_evaluacion = {$a->id_aporte_evaluacion} AND id_tipo_asignatura != 1";
@@ -534,6 +557,8 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                             $disabled       = $esta_cerrado ? 'disabled' : '';
                             $fondo          = $esta_cerrado ? 'background-color: #eeeeee; cursor: not-allowed;' : 'background: transparent;';
 
+                            $factor = ($a['ponderacion'] > 1) ? ($a['ponderacion'] / 100) : $a['ponderacion'];
+
                             // 🎯 Si encontramos TAN SOLO UN aporte abierto ('A'), apagamos las banderas de cierre
                             if (!$esta_cerrado) {
                                 $todos_los_aportes_cerrados = false;
@@ -560,7 +585,9 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                                 $input_color = ($nota_num !== "-" && (float)$nota_num < 7) ? 'color: #dd4b39; font-weight: bold;' : '';
 
                                 echo "<td style='padding: 0; vertical-align: middle; min-width: 65px; " . ($esta_cerrado ? "background-color: #eeeeee;" : "") . "'>";
-                                echo "<input type='text' class='excel-cell text-center' value='{$nota_num}' data-estudiante='{$id_est}' data-rubrica='{$id_rub}' data-aporte='{$a['id']}' data-periodo='{$p['id']}' maxlength='5' placeholder='-' {$disabled} style='width: 100%; height: 34px; border: none; padding: 5px; outline: none; {$fondo} {$input_color}'>";
+                                // echo "<input type='text' class='excel-cell text-center' value='{$nota_num}' data-estudiante='{$id_est}' data-rubrica='{$id_rub}' data-aporte='{$a['id']}' data-periodo='{$p['id']}' maxlength='5' placeholder='-' {$disabled} style='width: 100%; height: 34px; border: none; padding: 5px; outline: none; {$fondo} {$input_color}'>";
+                                // CON ESTA LÍNEA DEBES REEMPLAZARLA EN TU ARCHIVO PHP:
+                                echo "<input type='text' class='excel-cell text-center' value='{$nota_num}' data-estudiante='{$id_est}' data-rubrica='{$id_rub}' data-aporte='{$a['id']}' data-periodo='{$p['id']}' data-tipo-aporte='{$a['tipo']}' data-ponderacion='{$factor}' maxlength='5' placeholder='-' {$disabled} style='width: 100%; height: 34px; border: none; padding: 5px; outline: none; {$fondo} {$input_color}'>";
                                 echo "</td>";
                             endforeach;
 
@@ -607,7 +634,6 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
 
                             endif;
 
-                            $factor = ($a['ponderacion'] > 1) ? ($a['ponderacion'] / 100) : $a['ponderacion'];
                             $prom_ponderado_bim += ($prom_aporte * $factor);
                             $suma_pond_efectiva += $factor;
 
@@ -616,27 +642,37 @@ function generarTablaCuantitativa($db, $estructura, $res_estudiantes, $cache_not
                         // =========================================================================
                         // 🎯 CORRECCIÓN DEFINITIVA: Cambiamos 'truncarDosDecimales' por 'round'
                         // =========================================================================
-                        $prom_periodo = $suma_pond_efectiva > 0 ? round($prom_ponderado_bim / $suma_pond_efectiva, 2, PHP_ROUND_HALF_UP) : 0;
+                        // 🎯 FIX: Forzamos el divisor a 1.00 (Representa el 100% de la materia) 
+                        // Esto hace que si un alumno no tiene nota en un casillero, ese ponderado sume 0 al promedio total.
+                        $divisor_absoluto_periodo = 1.00;
+                        $prom_periodo = round($prom_ponderado_bim / $divisor_absoluto_periodo, 2, PHP_ROUND_HALF_UP);
 
-                        // 🎯 REGLA DE NEGOCIO SEGURO: Sincronizado con armarEstructuraCuantitativa
-                        if ($p['mostrar_promedio'] && $prom_periodo > 0) {
-                            $clase_per = ($prom_periodo < 7) ? 'color: #dd4b39; font-weight: bold; background-color: #f2dede;' : 'color: #3c763d; font-weight: bold; background-color: #dff0d8;';
-                            $texto_prom_periodo = number_format($prom_periodo, 2);
+                        // =========================================================================
+                        // 🎯 INTERACTIVO UNIFICADO: Una sola celda sin duplicados y con control dinámico para JS
+                        // =========================================================================
+                        // CORRECCIÓN CRÍTICA: Forzamos el cálculo real en frío saltándonos el bloqueo del sistema
+                        $prom_periodo_real = $suma_pond_efectiva > 0 ? round($prom_ponderado_bim / $suma_pond_efectiva, 2, PHP_ROUND_HALF_UP) : 0;
 
-                            // Sumamos al acumulado anual únicamente si el trimestre está clausurado colectivamente
+                        // Ahora usamos la variable corregida ($prom_periodo_real) para el texto y los colores
+                        $texto_prom_periodo = ($prom_periodo_real == 0) ? "-" : number_format($prom_periodo_real, 2);
+                        $clase_per = ($prom_periodo_real < 7 && $prom_periodo_real > 0)
+                            ? 'color: #dd4b39; font-weight: bold; background-color: #f2dede;'
+                            : (($prom_periodo_real >= 7) ? 'color: #3c763d; font-weight: bold; background-color: #dff0d8;' : 'background-color: #f5f5f5; color: #999;');
+
+                        // Forzamos data-ocultar-por-abierto='false' para que el motor de JS pueda escribir en ella en vivo
+                        echo "<td class='promedio-periodo-dinamico' 
+                                  data-estudiante='{$id_est}' 
+                                  data-periodo='{$p['id']}' 
+                                  data-ocultar-por-abierto='false' 
+                                  style='vertical-align: middle; font-weight: bold; pointer-events: none; user-select: none; cursor: default; {$clase_per}'>
+                                  <b>{$texto_prom_periodo}</b>
+                              </td>";
+
+                        // Acumulamos para el año lectivo de forma normal si hay una nota parcial válida
+                        if ($prom_periodo > 0) {
                             $suma_promedios_periodos += $prom_periodo;
                             $total_periodos_contados++;
-                        } else {
-                            // Formato gris oculto si hay algún parcial abierto o en edición activa
-                            $clase_per = 'background-color: #f5f5f5; color: #999;';
-                            $texto_prom_periodo = "-";
                         }
-
-                        // 2. 🎯 CELDA DEL PROMEDIO TRIMESTRAL
-                        echo "<td class='promedio-periodo-dinamico' data-estudiante='{$id_est}' data-periodo='{$p['id']}' 
-                                style='vertical-align: middle; font-weight: bold; pointer-events: none; user-select: none; cursor: default; {$clase_per}'>
-                                <b>{$texto_prom_periodo}</b>
-                            </td>";
 
                     endforeach; // Cierre de Periodos
 
