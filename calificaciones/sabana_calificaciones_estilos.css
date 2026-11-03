@@ -253,3 +253,59 @@
     70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
     100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
 }
+
+/* Contenedor Hermético para evitar desbordes si la tabla de notas es gigantesca */
+.table-responsive-sabana {
+    width: 100%;
+    margin-bottom: 15px;
+    overflow-x: auto; /* Permite scroll horizontal solo si las columnas superan la pantalla */
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #e3e3e3;
+    border-radius: 4px;
+}
+
+/* Botones de Asignatura en formato Horizontal */
+.materia-btn-item {
+    display: inline-block;
+    padding: 8px 16px;
+    background-color: #f4f4f4;
+    color: #444;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.materia-btn-item:hover {
+    background-color: #e8e8e8;
+    border-color: #bbb;
+    color: #000;
+}
+
+/* 1. Estilo base para el botón activo */
+.materia-btn-item.active {
+    background-color: #3c8dbc !important;
+    border-color: #357ca5 !important;
+    color: #ffffff !important; /* Blanco absoluto */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* 2. BLINDAJE: Fuerza a CUALQUIER elemento interno a volverse blanco cuando esté activo */
+.materia-btn-item.active * {
+    color: #ffffff !important;
+}
+
+/* 3. Opcional: Si tus botones cambian de color al pasar el mouse (hover), 
+   mantenlos azules y con el texto blanco para que no parpadeen */
+.materia-btn-item.active:hover,
+.materia-btn-item.active:focus {
+    background-color: #357ca5 !important;
+    color: #ffffff !important;
+}
+.materia-btn-item.active:hover * {
+    color: #ffffff !important;
+}

@@ -13,16 +13,17 @@ $(document).ready(function () {
 
         // 1. VALIDACIÓN PREVENTIVA: Si el valor es nulo, vacío o es el texto por defecto ("0"), frenar
         if (!valorSeleccionado || valorSeleccionado.trim() === "" || valorSeleccionado === "0") {
-            // Limpiar ambos paneles con mensajes coherentes
+            // Limpiar ambos paneles con mensajes coherentes orientados al flujo horizontal
             $("#contenedor_asignaturas_docente").html(
-                '<div class="text-muted text-center" style="padding: 40px 20px;">' +
-                '<i class="fa fa-arrow-up fa-2x" style="margin-bottom: 10px; color: #ccc;"></i>' +
-                '<p style="margin: 0;">Seleccione un paralelo arriba para cargar...</p>' +
+                '<div class="text-muted text-center" style="width: 100%; padding: 15px 0; color: #999; font-size: 13px;">' +
+                '<i class="fa fa-arrow-up" style="margin-right: 5px; color: #ccc;"></i>' +
+                'Seleccione un paralelo arriba para desplegar las materias...' +
                 '</div>'
             );
             $("#lista_estudiantes_paralelo").html(
-                '<div class="text-center p-4 text-muted" style="padding: 30px;">' +
-                '<i class="fa fa-hand-o-left fa-2x" style="margin-bottom: 10px; color: #ccc;"></i> <p style="margin: 0;">Seleccione una asignatura del panel izquierdo para cargar los alumnos...</p>' +
+                '<div class="text-muted text-center" style="padding: 60px 20px; color: #999;">' +
+                '<i class="fa fa-hand-o-up fa-2x" style="margin-bottom: 10px; color: #ccc;"></i>' +
+                '<p style="margin: 0; font-size: 13px;">Seleccione una asignatura del panel superior para cargar la nómina de alumnos...</p>' +
                 '</div>'
             );
             $("#num_asignaturas").html("Número de Asignaturas: 0");
@@ -30,13 +31,14 @@ $(document).ready(function () {
             return; // Detiene la ejecución aquí de forma segura
         }
 
-        // 2. Cargar las asignaturas asociadas en el panel derecho (Ya habiendo verificado el ID)
+        // 2. Cargar las asignaturas asociadas en el panel superior (Ya habiendo verificado el ID)
         cargarAsignaturasDocente();
 
-        // 3. Limpiar el panel izquierdo indicando que elija una materia para ver su sábana
+        // 3. Limpiar la sábana indicando que elija una materia de arriba para ver su sábana
         $("#lista_estudiantes_paralelo").html(
-            '<div class="text-center p-4 text-muted" style="padding: 30px;">' +
-            '<i class="fa fa-hand-o-left fa-2x" style="margin-bottom: 10px; color: #ccc;"></i> <p style="margin: 0;">Seleccione una asignatura del panel izquierdo para cargar los alumnos...</p>' +
+            '<div class="text-muted text-center" style="padding: 60px 20px; color: #999;">' +
+            '<i class="fa fa-hand-o-up fa-2x" style="margin-bottom: 10px; color: #ccc;"></i>' +
+            '<p style="margin: 0; font-size: 13px;">Seleccione una asignatura del panel superior para cargar la nómina de alumnos...</p>' +
             '</div>'
         );
 
@@ -153,7 +155,7 @@ $(document).ready(function () {
             var $contenedorScroll = $("#tabla-sabana-scroll");
             if ($contenedorScroll.length === 0) return;
 
-            // Extraemos los elementos nativos puros usando el índice de arreglo [0]
+            // Extraemos los elementos nativos puros usando el índice de arreglo
             var contenedorNativo = $contenedorScroll[0];
             var filaNativa = $proximoInput.closest('tr')[0];
             var celdaNativa = $proximoInput.closest('td')[0];
@@ -772,7 +774,7 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
     var $contenedor = $("#contenedor_asignaturas_docente");
 
     if (!Array.isArray(listaAsignaturasJSON) || listaAsignaturasJSON.length === 0) {
-        $contenedor.html('<div class="list-group-item text-center text-muted" style="padding: 15px;">No hay asignaturas disponibles</div>');
+        $contenedor.html('<div class="text-center text-muted" style="width: 100%; padding: 10px;">No hay asignaturas disponibles</div>');
         return;
     }
 
@@ -783,19 +785,21 @@ function listarAsignaturasDocente(listaAsignaturasJSON) {
         var nombre = item.nombre_asignatura || item.nombre || item.asignatura || "Sin nombre";
         var tipoAsignatura = item.tipo_asignatura || item.id_tipo_asignatura || "1";
 
+        // Renderizado adaptado en formato de tarjeta/botón horizontal alineado con tu CSS
         var htmlItem =
-            '<a href="#" class="list-group-item data-asignatura-btn" data-id="' + id + '" data-tipo="' + tipoAsignatura + '" style="padding: 12px 15px; border-left: 3px solid transparent; transition: all 0.2s; display: block; text-decoration: none;">' +
-            '<span class="label label-primary pull-right" style="font-size: 10px; padding: 3px 6px;">ID: ' + id + '</span>' +
-            '<h4 class="list-group-item-heading" style="font-size: 13px; margin-bottom: 0; font-weight: 600; color: #333;">' +
-            '<i class="fa fa-book text-muted" style="margin-right: 5px;"></i> ' + nombre +
-            '</h4>' +
-            '</a>';
+            '<div class="materia-btn-item" data-id="' + id + '" data-tipo="' + tipoAsignatura + '">' +
+            '<i class="fa fa-book text-muted" style="margin-right: 6px;"></i> ' + nombre +
+            ' <span class="badge" style="font-size: 9px; background-color: rgba(0,0,0,0.1); color: #666; margin-left: 5px;">ID: ' + id + '</span>' +
+            '</div>';
 
         $contenedor.append(htmlItem);
     });
 }
 
-$(document).on("click", ".data-asignatura-btn", function (e) {
+// =========================================================================
+// 🎯 INTERCEPTOR REFACTORIZADO PARA EL NUEVO ENTORNO DE BOTONES HORIZONTALES
+// =========================================================================
+$(document).on("click", ".materia-btn-item", function (e) {
     e.preventDefault();
 
     $("#ver_reporte").hide();
@@ -803,18 +807,22 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
 
     var $botonSeleccionado = $(this);
 
-    $(".data-asignatura-btn")
+    // Reiniciar los estados de todos los botones horizontales superiores
+    $(".materia-btn-item")
         .removeClass("active")
         .css({
-            "border-left-color": "transparent",
-            "background-color": "#fff"
+            "background-color": "#f4f4f4",
+            "color": "#444",
+            "border-color": "#ddd"
         });
 
+    // Destacar únicamente el botón seleccionado con el estilo primario de AdminLTE
     $botonSeleccionado
         .addClass("active")
         .css({
-            "border-left-color": "#3c8dbc",
-            "background-color": "#f4f4f4"
+            "background-color": "#3c8dbc",
+            "color": "#fff",
+            "border-color": "#357ca5"
         });
 
     var idAsignaturaSeleccionada = $botonSeleccionado.data("id");
@@ -823,6 +831,7 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
     $("#id_asignatura").val(idAsignaturaSeleccionada);
     $("#ver_reporte").hide();
 
+    // Mensaje de carga limpio adaptado a todo el ancho de la sábana extendida
     $("#lista_estudiantes_paralelo").html(
         '<div class="text-center text-muted" style="padding: 100px 20px;">' +
         '<i class="fa fa-refresh fa-spin fa-2x" style="color: #3c8dbc; margin-bottom: 10px;"></i>' +
@@ -835,8 +844,8 @@ $(document).on("click", ".data-asignatura-btn", function (e) {
 
 function limpiarPanelesPorError(mensaje) {
     $("#contenedor_asignaturas_docente").html(
-        '<div class="text-center text-muted" style="padding: 20px;">' +
-        '<p class="small">' + mensaje + '</p>' +
+        '<div class="text-center text-muted" style="width: 100%; padding: 15px 0;">' +
+        '<p class="small text-danger"><i class="fa fa-exclamation-triangle"></i> ' + mensaje + '</p>' +
         '</div>'
     );
     $("#lista_estudiantes_paralelo").html(
@@ -921,7 +930,7 @@ function obtenerNominaEstudiantes(idAsignatura, tipoAsignatura) {
             Swal.fire({
                 icon: 'error',
                 title: 'Error de conexión',
-                text: 'Hubo un problemă al recuperar la nómina. Inténtelo de nuevo.'
+                text: 'Hubo un problema al recuperar la nómina. Inténtelo de nuevo.'
             });
         });
 }
@@ -1060,7 +1069,7 @@ function ejecutarGuardadoAjax($element, nota) {
             url: "calificaciones/guardar_nota_individual.php",
             type: "POST",
             dataType: "json",
-            data: { id_estudiante: idEstudiante, id_rubrica: idRubrica, id_aporte: idAporte, id_periodo: idPeriodo, id_asignatura: parseInt($("#id_asignatura").val(), 10) || 0, id_paralelo: $("#cboParalelos").val(), id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1", tipo_nota: tipoNota, calificacion: nota },
+            data: { id_estudiante: idEstudiante, id_rubrica: idRubrica, id_aporte: idAporte, id_periodo: idPeriodo, id_asignatura: parseInt($("#id_asignatura").val(), 10) || 0, id_paralelo: $("#cboParalelos").val(), id_tipo_asignatura: $(".materia-btn-item.active").data("tipo") || "1", tipo_nota: tipoNota, calificacion: nota },
             success: function (respuesta) {
                 if (respuesta && respuesta.status === "success") {
                     $element.css('border-bottom', '2px solid #00a65a');
@@ -1085,7 +1094,7 @@ function ejecutarGuardadoAjax($element, nota) {
         url: "calificaciones/guardar_nota_individual.php",
         type: "POST",
         dataType: "json",
-        data: { id_estudiante: idEstudiante, id_rubrica: idRubrica, id_aporte: idAporte, id_periodo: idPeriodo, id_asignatura: parseInt($("#id_asignatura").val(), 10) || 0, id_paralelo: $("#cboParalelos").val(), id_tipo_asignatura: $(".data-asignatura-btn.active").data("tipo") || "1", tipo_nota: tipoNota, calificacion: nota },
+        data: { id_estudiante: idEstudiante, id_rubrica: idRubrica, id_aporte: idAporte, id_periodo: idPeriodo, id_asignatura: parseInt($("#id_asignatura").val(), 10) || 0, id_paralelo: $("#cboParalelos").val(), id_tipo_asignatura: $(".materia-btn-item.active").data("tipo") || "1", tipo_nota: tipoNota, calificacion: nota },
         success: function (respuesta) {
             if (respuesta && respuesta.status === "success") {
                 $element.css('border-bottom', '2px solid #00a65a');
