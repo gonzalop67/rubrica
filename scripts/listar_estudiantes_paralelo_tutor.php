@@ -6,13 +6,18 @@ $id_paralelo = $_POST["id_paralelo"];
 $id_asignatura = $_POST["id_asignatura"];
 $id_aporte_evaluacion = $_POST["id_aporte_evaluacion"];
 
+// Obtener el tipo de asignatura 1: Cuantitativa, 2: Cualitativa
+$sql = "SELECT * FROM sw_asignatura WHERE id_asignatura = $id_asignatura";
+$consulta = $db->consulta($sql);
+$id_tipo_asignatura = $db->fetch_object($consulta)->id_tipo_asignatura;
+
 $cadena = "";
 
-$consulta = $db->consulta("SELECT ru_nombre FROM sw_rubrica_evaluacion WHERE id_tipo_asignatura = 1 AND id_aporte_evaluacion = " . $id_aporte_evaluacion);
+$consulta = $db->consulta("SELECT ru_nombre FROM sw_rubrica_evaluacion WHERE id_tipo_asignatura = $id_tipo_asignatura AND id_aporte_evaluacion = " . $id_aporte_evaluacion);
 $num_total_registros = $db->num_rows($consulta);
 if ($num_total_registros > 0) {
 	//Cabecera de la tabla
-	$cadena .= "<table class=\"table table-striped table-hover fuente9\">\n";
+	$cadena = "<table class=\"table table-striped table-hover fuente9\">\n";
 	$cadena .= "<thead>\n";
 	$cadena .= "<tr>\n";
 	$cadena .= "<th>Nro.</th>\n";
@@ -21,7 +26,12 @@ if ($num_total_registros > 0) {
 	while ($titulo_rubrica = $db->fetch_assoc($consulta)) {
 		$cadena .= "<th>" . $titulo_rubrica["ru_nombre"] . "</th>\n";
 	}
-	$cadena .= "<th>PROMEDIO</th>\n";
+	if ($id_tipo_asignatura == 1) {
+		// Se trata de una asignatura cuantitativa
+		if ($num_total_registros > 1) {
+			$cadena .= "<th>PROMEDIO</th>\n";
+		}
+	}
 	$cadena .= "</tr>\n";
 	$cadena .= "</thead>\n";
 	//Cuerpo de la tabla
@@ -50,22 +60,36 @@ if ($num_total_registros > 0) {
 				while ($rubrica = $db->fetch_assoc($rubrica_evaluacion)) {
 					$contador_rubricas++;
 					$id_rubrica_evaluacion = $rubrica["id_rubrica_evaluacion"];
-					$qry = $db->consulta("SELECT re_calificacion FROM sw_rubrica_estudiante WHERE id_estudiante = $id_estudiante AND id_paralelo = $id_paralelo AND id_asignatura = $id_asignatura AND id_rubrica_personalizada = $id_rubrica_evaluacion");
-					$num_total_registros = $db->num_rows($qry);
-					if ($num_total_registros > 0) {
-						$rubrica_estudiante = $db->fetch_assoc($qry);
-						$calificacion = $rubrica_estudiante["re_calificacion"];
+					if ($id_tipo_asignatura == 1) {
+						$qry = $db->consulta("SELECT re_calificacion FROM sw_rubrica_estudiante WHERE id_estudiante = $id_estudiante AND id_paralelo = $id_paralelo AND id_asignatura = $id_asignatura AND id_rubrica_personalizada = $id_rubrica_evaluacion");
+						$num_total_registros = $db->num_rows($qry);
+						if ($num_total_registros > 0) {
+							$rubrica_estudiante = $db->fetch_assoc($qry);
+							$calificacion = $rubrica_estudiante["re_calificacion"];
+						} else {
+							$calificacion = 0;
+						}
+						$suma_rubricas += $calificacion;
+						$calificacion_insumo = $calificacion == 0 ? "" : substr($calificacion, 0, strpos($calificacion, '.') + 3);
+						$cadena .= "<td>" . $calificacion_insumo . "</td>\n";
 					} else {
-						$calificacion = 0;
+						$qry = $db->consulta("SELECT rc_calificacion FROM sw_rubrica_cualitativa WHERE id_estudiante = $id_estudiante AND id_paralelo = $id_paralelo AND id_asignatura = $id_asignatura AND id_rubrica_personalizada = $id_rubrica_evaluacion");
+						$num_total_registros = $db->num_rows($qry);
+						if ($num_total_registros > 0) {
+							$rubrica_estudiante = $db->fetch_assoc($qry);
+							$calificacion = $rubrica_estudiante["rc_calificacion"];
+						} else {
+							$calificacion = "";
+						}
+						$cadena .= "<td>" . $calificacion . "</td>\n";
 					}
-					$suma_rubricas += $calificacion;
-					$calificacion_insumo = $calificacion == 0 ? "" : substr($calificacion, 0, strpos($calificacion, '.') + 3);
-					$cadena .= "<td>" . $calificacion_insumo . "</td>\n";
 				}
 			}
-			$promedio = $suma_rubricas / $contador_rubricas;
-			$nota_promedio = $promedio == 0 ? "" : substr($promedio, 0, strpos($promedio, '.') + 3);
-			$cadena .= "<td>" . $nota_promedio . "</td>\n";
+			if ($id_tipo_asignatura == 1 && $contador_rubricas > 1) {
+				$promedio = $suma_rubricas / $contador_rubricas;
+				$nota_promedio = $promedio == 0 ? "" : substr($promedio, 0, strpos($promedio, '.') + 3);
+				$cadena .= "<td>" . $nota_promedio . "</td>\n";
+			}
 			$cadena .= "</tr>\n";
 		}
 	} else {
