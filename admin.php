@@ -8,7 +8,7 @@ require_once("scripts/clases/class.encrypter.php");
 // Requerimiento del archivo de constantes
 // require_once("App/config/config.php");
 
-function humanizarFecha($fecha)
+function humanizarFecha(string $fecha)
 {
   $fecha_dada = new DateTime($fecha);
   $ahora = new DateTime();
@@ -117,52 +117,53 @@ $nombreOfertaEducativa = $oferta_educativa->nombre;
 
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <title><?php echo $titulo ?></title>
-    <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
-    
-    <!-- 1. jQuery cargado al inicio de todo -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
-    
-    <!-- 2. Hojas de Estilo Base -->
-    <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="assets/template/jquery-ui/jquery-ui.css">
-    <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.min.css">
-    <link rel="stylesheet" href="bower_components/Ionicons/css/ionicons.min.css">
-    <link rel="stylesheet" href="dist/css/AdminLTE.min.css">
-    <link rel="stylesheet" href="dist/css/skins/skin-blue.min.css">
-    
-    <!-- 3. Componentes Adicionales (CSS) -->
-    <link rel="stylesheet" href="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.min.css">
-    <link rel="stylesheet" href="assets/template/select2/select2.min.css">
-    <link rel="stylesheet" href="assets/template/toastr/toastr.min.css">
-    <link rel="stylesheet" href="assets/datatables/datatables.css">
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title><?php echo $titulo ?></title>
+  <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
 
-    <!-- Estilos personalizados, deben de ir de último en los css -->
-    <link rel="stylesheet" href="estilos.css" type="text/css" />
+  <!-- 1. jQuery cargado al inicio de todo -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
 
-    <!-- 4. Plugins e Inicializadores Core (JS) -->
-    <script src="assets/template/jquery-ui/jquery-ui.js"></script>
-    <script src="assets/template/jquery-validation/jquery.validate.min.js"></script>
-    <script src="assets/template/jquery-validation/localization/messages_es.min.js"></script>
-    <script src="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.all.min.js"></script>
-    <script src="assets/template/select2/select2.min.js"></script>
-    <script src="assets/template/toastr/toastr.min.js"></script>
-    <script src="assets/datatables/datatables.js"></script>
-    <script src="js/chart.min.js"></script>
-    <script src="js/plotly-latest.min.js"></script>
-    <script src="js/keypress.js"></script>
-    
-    <!-- NOTA: Quitamos js/funciones.js de aquí para cargarlo abajo en el flujo correcto -->
+  <!-- 2. Hojas de Estilo Base -->
+  <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="assets/template/jquery-ui/jquery-ui.css">
+  <link rel="stylesheet" href="bower_components/font-awesome/css/font-awesome.min.css">
+  <link rel="stylesheet" href="bower_components/Ionicons/css/ionicons.min.css">
+  <link rel="stylesheet" href="dist/css/AdminLTE.min.css">
+  <link rel="stylesheet" href="dist/css/skins/skin-blue.min.css">
 
-    <!-- HTML5 Shim and Respond.js IE8 support -->
-    <!--[if lt IE 9]>
+  <!-- 3. Componentes Adicionales (CSS) -->
+  <link rel="stylesheet" href="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="assets/template/select2/select2.min.css">
+  <link rel="stylesheet" href="assets/template/toastr/toastr.min.css">
+  <link rel="stylesheet" href="assets/datatables/datatables.css">
+
+  <!-- Estilos personalizados, deben de ir de último en los css -->
+  <link rel="stylesheet" href="estilos.css" type="text/css" />
+
+  <!-- 4. Plugins e Inicializadores Core (JS) -->
+  <script src="assets/template/jquery-ui/jquery-ui.js"></script>
+  <script src="assets/template/jquery-validation/jquery.validate.min.js"></script>
+  <script src="assets/template/jquery-validation/localization/messages_es.min.js"></script>
+  <script src="assets/plugins/node_modules/sweetalert2/dist/sweetalert2.all.min.js"></script>
+  <script src="assets/template/select2/select2.min.js"></script>
+  <script src="assets/template/toastr/toastr.min.js"></script>
+  <script src="assets/datatables/datatables.js"></script>
+  <script src="js/chart.min.js"></script>
+  <script src="js/plotly-latest.min.js"></script>
+  <script src="js/keypress.js"></script>
+
+  <!-- NOTA: Quitamos js/funciones.js de aquí para cargarlo abajo en el flujo correcto -->
+
+  <!-- HTML5 Shim and Respond.js IE8 support -->
+  <!--[if lt IE 9]>
     <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
     <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
     <![endif]-->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans Pro:300,400,600,700,300italic,400italic,600italic">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans Pro:300,400,600,700,300italic,400italic,600italic">
 </head>
 
 <!--
@@ -313,6 +314,28 @@ desired effect
               <ul class="dropdown-menu">
                 <li><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=editar_perfil_usuario.php&nivel=0"><i class="fa fa-cogs" aria-hidden="true"></i> Editar Perfil de Usuario</a></li>
                 <li><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=comentarios.php&nivel=0"><i class="fa fa-comments-o" aria-hidden="true"></i> Comentarios</a></li>
+
+                <!-- ================================================================= -->
+                <!-- OPCIÓN COMPAÑERA: CAMBIAR DE PERFIL (Mismo estilo que el anterior)-->
+                <!-- ================================================================= -->
+                <?php
+                if (isset($_SESSION['perfiles_asociados']) && is_array($_SESSION['perfiles_asociados'])) {
+                  foreach ($_SESSION['perfiles_asociados'] as $perfil_asoc) {
+                    // Solo mostramos los perfiles que NO correspondan al perfil activo actual
+                    if ($perfil_asoc['id_perfil'] != $id_perfil) {
+                ?>
+                      <li>
+                        <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $perfil_asoc['id_perfil'] ?>&enlace=dashboard.php&nivel=0">
+                          <i class="fa fa-user-secret" aria-hidden="true"></i> Cambiar a <?php echo $perfil_asoc['nombre_perfil'] ?>
+                        </a>
+                      </li>
+                <?php
+                    }
+                  }
+                }
+                ?>
+                <!-- ================================================================= -->
+
                 <li>
                   <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=calificaciones/view_cambiar_periodo_lectivo.php&nivel=0"><i class="fa fa-calendar-check-o" aria-hidden="true"></i> Cambiar Periodo</a>
                 </li>
@@ -320,6 +343,7 @@ desired effect
                 <li><a href="logout.php" class="btn-logout"><i class="fa fa-sign-out" aria-hidden="true"></i> Salir</a></li>
               </ul>
             </li>
+
             <!-- Control Sidebar Toggle Button -->
             <!-- <li>
               <a href="#" data-toggle="control-sidebar"><i class="fa fa-gears"></i></a>
@@ -350,7 +374,7 @@ desired effect
 
         <!-- Sidebar Menu -->
         <ul class="sidebar-menu" data-widget="tree">
-          <li class="header" style="font-size: 1.2rem; text-align: center; color: white; padding-top: 4px"><?= $nombrePeriodoLectivo ?></li>
+          <li class="header" style="font-size: 1.2rem; text-align: center; color: white; padding-top: 4px"><?php echo $nombrePeriodoLectivo ?></li>
 
           <!-- Dashboard -->
           <?php $dashboard_active = !isset($_GET['id_menu']) ? 'active' : ''; ?>

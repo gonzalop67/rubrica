@@ -86,6 +86,30 @@ class usuarios extends MySQL
 		return parent::fetch_object($consulta);
 	}
 
+	function obtenerPerfilesPorUsuario($id_usuario)
+	{
+		// Hacemos un JOIN para traer el ID y el Nombre del perfil de una sola vez
+		$consulta = parent::consulta("SELECT up.id_perfil, p.pe_nombre 
+			FROM sw_usuario_perfil up
+			INNER JOIN sw_perfil p ON up.id_perfil = p.id_perfil
+			WHERE up.id_usuario = $id_usuario
+		");
+
+		$perfiles = array();
+
+		if ($consulta) {
+			// Usamos fetch_object o fetch_assoc según use tu sistema nativamente
+			while ($fila = parent::fetch_object($consulta)) {
+				$perfiles[] = array(
+					'id_perfil' => $fila->id_perfil,
+					'nombre_perfil' => $fila->pe_nombre
+				);
+			}
+		}
+
+		return $perfiles;
+	}
+
 	function obtenerUsuarios($valor)
 	{
 		$consulta = parent::consulta("SELECT id_usuario, CONCAT(us_apellidos,' ',us_nombres) AS nombre FROM sw_usuario WHERE us_nombres LIKE '%$valor%' OR us_apellidos LIKE '%$valor%'");

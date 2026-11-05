@@ -24,6 +24,10 @@
 		$_SESSION['id_usuario'] = $id_usuario;
 		$_SESSION['id_perfil'] = $id_perfil;
 		$_SESSION['cambio_paralelo'] = 0;
+
+		// GUARDAMOS LA LISTA COMPLETA EN LA SESIÓN
+		$_SESSION['perfiles_asociados'] = $usuarios->obtenerPerfilesPorUsuario($id_usuario);
+
 		//echo json_encode(array('id_usuario' => $id_usuario));
 		echo json_encode(array('id_usuario' => encrypter::encrypt($id_usuario)));
 	} else {
