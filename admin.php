@@ -43,7 +43,10 @@ else {
   $nombrePerfil = strtoupper($perfil["pe_nombre"]);
   $id_periodo_lectivo = $_SESSION["id_periodo_lectivo"];
 
-  // Si el perfil es TUTOR se obtiene el id_paralelo correspondiente
+  // Si el perfil es TUTOR se obtienen TODOS los paralelos correspondientes
+  $total_paralelos_tutor = 0;
+  $lista_paralelos_tutor = [];
+
   if ($nombrePerfil == "TUTOR") {
     $qryString = "SELECT p.id_paralelo, 
                          pa_nombre, 
@@ -55,11 +58,25 @@ else {
                      AND c.id_curso = p.id_curso
                      AND id_usuario = $id_usuario 
                      AND pt.id_periodo_lectivo = $id_periodo_lectivo";
-    // echo $qryString;
-    $consulta = $db->consulta($qryString);
-    $num_registros = $db->num_rows($consulta);
-    $paralelo_tutor = $db->fetch_object($consulta);
-    $id_paralelo_tutor = $paralelo_tutor->id_paralelo;
+
+    $consulta_paralelos = $db->consulta($qryString);
+    $total_paralelos_tutor = $db->num_rows($consulta_paralelos);
+
+    while ($paralelo = $db->fetch_assoc($consulta_paralelos)) {
+      $lista_paralelos_tutor[] = $paralelo;
+    }
+
+    // Mantenemos la compatibilidad: id_paralelo_tutor tendrá el valor del paralelo activo
+    // (Puedes guardar el paralelo activo en $_SESSION si deseas que persista al cambiarlo)
+    if (isset($_GET['cambiar_id_paralelo'])) {
+      $_SESSION['id_paralelo_activo'] = (int)$_GET['cambiar_id_paralelo'];
+    }
+
+    if (!isset($_SESSION['id_paralelo_activo']) && $total_paralelos_tutor > 0) {
+      $_SESSION['id_paralelo_activo'] = $lista_paralelos_tutor[0]['id_paralelo'];
+    }
+
+    $id_paralelo_tutor = $_SESSION['id_paralelo_activo'] ?? 0;
   }
 
   //Obtengo los nombres del usuario
@@ -314,6 +331,28 @@ desired effect
               <ul class="dropdown-menu">
                 <li><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=editar_perfil_usuario.php&nivel=0"><i class="fa fa-cogs" aria-hidden="true"></i> Editar Perfil de Usuario</a></li>
                 <li><a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=comentarios.php&nivel=0"><i class="fa fa-comments-o" aria-hidden="true"></i> Comentarios</a></li>
+
+                <!-- ================================================================= -->
+                <!-- OPCIÓN NUEVA: CAMBIAR DE PARALELO (SOLO PARA TUTORES CON > 1 PARALELO) -->
+                <!-- ================================================================= -->
+                <?php if ($nombrePerfil == "TUTOR" && $total_paralelos_tutor > 1) { ?>
+                  <li role="separator" class="divider"></li>
+                  <li class="dropdown-header" style="padding-left: 20px; font-weight: bold; color: #777;">
+                    <i class="fa fa-exchange" aria-hidden="true"></i> Cambiar de Paralelo
+                  </li>
+                  <?php foreach ($lista_paralelos_tutor as $par) {
+                    $es_activo = ($par['id_paralelo'] == $id_paralelo_tutor) ? 'style="font-weight: bold; color: #3c8dbc;"' : '';
+                    $icono_check = ($par['id_paralelo'] == $id_paralelo_tutor) ? '<i class="fa fa-check text-blue"></i> ' : '<i class="fa fa-circle-o text-gray"></i> ';
+                  ?>
+                    <li>
+                      <a href="admin.php?id_usuario=<?php echo encrypter::encrypt($id_usuario) ?>&id_perfil=<?php echo $id_perfil ?>&enlace=<?php echo $enlace; ?>&id_menu=<?php echo $_GET['id_menu'] ?? ''; ?>&nivel=<?php echo $_GET['nivel'] ?? '0'; ?>&cambiar_id_paralelo=<?php echo $par['id_paralelo']; ?>" <?php echo $es_activo; ?>>
+                        <?php echo $icono_check . $par['cu_shortname'] . " - " . $par['pa_nombre']; ?>
+                      </a>
+                    </li>
+                  <?php } ?>
+                  <li role="separator" class="divider"></li>
+                <?php } ?>
+                <!-- ================================================================= -->
 
                 <!-- ================================================================= -->
                 <!-- OPCIÓN COMPAÑERA: CAMBIAR DE PERFIL (Mismo estilo que el anterior)-->
